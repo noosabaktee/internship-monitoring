@@ -10,6 +10,29 @@
         ? route('achievements.update', $editingAchievement->intAchievement_ID)
         : route('achievements.store');
     $isMentor = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole === 'Mentor';
+    $achievementIcons = [
+        ['value' => 'fa-solid fa-trophy', 'label' => 'Trophy'],
+        ['value' => 'fa-solid fa-award', 'label' => 'Award'],
+        ['value' => 'fa-solid fa-medal', 'label' => 'Medal'],
+        ['value' => 'fa-solid fa-star', 'label' => 'Star'],
+        ['value' => 'fa-solid fa-crown', 'label' => 'Crown'],
+        ['value' => 'fa-solid fa-lightbulb', 'label' => 'Idea'],
+        ['value' => 'fa-solid fa-rocket', 'label' => 'Rocket'],
+        ['value' => 'fa-solid fa-fire', 'label' => 'Fire'],
+        ['value' => 'fa-solid fa-bolt', 'label' => 'Impact'],
+        ['value' => 'fa-solid fa-chart-line', 'label' => 'Growth'],
+        ['value' => 'fa-solid fa-arrow-trend-up', 'label' => 'Progress'],
+        ['value' => 'fa-solid fa-handshake', 'label' => 'Collaboration'],
+        ['value' => 'fa-solid fa-users', 'label' => 'Team'],
+        ['value' => 'fa-solid fa-user-graduate', 'label' => 'Learning'],
+        ['value' => 'fa-solid fa-book-open', 'label' => 'Sharing'],
+        ['value' => 'fa-solid fa-brain', 'label' => 'Skill'],
+        ['value' => 'fa-solid fa-gears', 'label' => 'Execution'],
+        ['value' => 'fa-solid fa-check-double', 'label' => 'Completed'],
+        ['value' => 'fa-solid fa-bullseye', 'label' => 'Target'],
+        ['value' => 'fa-solid fa-gem', 'label' => 'Excellence'],
+    ];
+    $selectedIcon = old('txtIcon', $editingAchievement->txtIcon ?? 'fa-solid fa-award');
 @endphp
 
 @section('content')
@@ -60,12 +83,20 @@
                     <input class="form-control" name="txtAchievementTitle" value="{{ old('txtAchievementTitle', $editingAchievement->txtAchievementTitle ?? '') }}" required>
                 </div>
                 <div class="form-group">
-                    <label>Icon FontAwesome</label>
-                    <input class="form-control" name="txtIcon" value="{{ old('txtIcon', $editingAchievement->txtIcon ?? 'fa-solid fa-award') }}">
-                </div>
-                <div class="form-group">
                     <label>Tanggal Award</label>
                     <input class="form-control" type="date" name="dtmAwarded" value="{{ old('dtmAwarded', isset($editingAchievement) && $editingAchievement->dtmAwarded ? $editingAchievement->dtmAwarded->format('Y-m-d') : now()->format('Y-m-d')) }}">
+                </div>
+                <div class="form-group full">
+                    <label>Icon Achievement</label>
+                    <div class="icon-choice-grid">
+                        @foreach ($achievementIcons as $icon)
+                            <label class="icon-choice {{ $selectedIcon === $icon['value'] ? 'selected' : '' }}" title="{{ $icon['label'] }}">
+                                <input type="radio" name="txtIcon" value="{{ $icon['value'] }}" @checked($selectedIcon === $icon['value'])>
+                                <i class="{{ $icon['value'] }}"></i>
+                                <span>{{ $icon['label'] }}</span>
+                            </label>
+                        @endforeach
+                    </div>
                 </div>
                 <div class="form-group full">
                     <label>Deskripsi</label>

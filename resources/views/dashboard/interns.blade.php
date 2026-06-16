@@ -40,10 +40,6 @@
                 @endisset
 
                 <div class="form-group">
-                    <label>No Intern</label>
-                    <input class="form-control" name="txtInternNo" value="{{ old('txtInternNo', $editingIntern->txtInternNo ?? '') }}" placeholder="Contoh: INT-001">
-                </div>
-                <div class="form-group">
                     <label>Status</label>
                     <select class="form-control" name="bitActive">
                         <option value="1" @selected((string) old('bitActive', (int) ($editingIntern->bitActive ?? true)) === '1')>Aktif</option>
@@ -69,10 +65,6 @@
                 <div class="form-group">
                     <label>Jurusan</label>
                     <input class="form-control" name="txtMajor" value="{{ old('txtMajor', $editingIntern->txtMajor ?? '') }}">
-                </div>
-                <div class="form-group full">
-                    <label>Bio</label>
-                    <textarea class="form-control" name="txtBio" rows="3">{{ old('txtBio', $editingIntern->txtBio ?? '') }}</textarea>
                 </div>
                 <div class="form-group full">
                     <button class="btn-save" type="submit">{{ isset($editingIntern) ? 'Simpan Perubahan' : 'Simpan Intern' }}</button>

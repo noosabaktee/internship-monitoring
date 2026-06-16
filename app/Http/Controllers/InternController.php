@@ -35,11 +35,9 @@ class InternController extends Controller
         $validated = $request->validate([
             'txtEmail' => ['required', 'email', 'max:255', Rule::unique('mUser', 'txtEmail')],
             'txtPassword' => ['nullable', 'string', 'min:6'],
-            'txtInternNo' => ['nullable', 'string', 'max:255'],
             'txtInternName' => ['required', 'string', 'max:255'],
             'txtUniversity' => ['nullable', 'string', 'max:255'],
             'txtMajor' => ['nullable', 'string', 'max:255'],
-            'txtBio' => ['nullable', 'string', 'max:255'],
             'bitActive' => ['nullable', 'boolean'],
         ]);
 
@@ -56,11 +54,10 @@ class InternController extends Controller
 
             MIntern::create([
                 'intUser_ID' => $user->intUser_ID,
-                'txtInternNo' => $validated['txtInternNo'] ?: 'INT-' . str_pad((string) $user->intUser_ID, 3, '0', STR_PAD_LEFT),
+                'txtInternNo' => 'INT-' . str_pad((string) $user->intUser_ID, 3, '0', STR_PAD_LEFT),
                 'txtInternName' => $validated['txtInternName'],
                 'txtUniversity' => $validated['txtUniversity'] ?? null,
                 'txtMajor' => $validated['txtMajor'] ?? null,
-                'txtBio' => $validated['txtBio'] ?? null,
                 'bitActive' => (bool) ($validated['bitActive'] ?? true),
                 'txtInsertedBy' => 'system',
                 'dtmInserted' => $now,
@@ -96,11 +93,9 @@ class InternController extends Controller
         $validated = $request->validate([
             'txtEmail' => ['required', 'email', 'max:255', Rule::unique('mUser', 'txtEmail')->ignore($internModel->intUser_ID, 'intUser_ID')],
             'txtPassword' => ['nullable', 'string', 'min:6'],
-            'txtInternNo' => ['nullable', 'string', 'max:255'],
             'txtInternName' => ['required', 'string', 'max:255'],
             'txtUniversity' => ['nullable', 'string', 'max:255'],
             'txtMajor' => ['nullable', 'string', 'max:255'],
-            'txtBio' => ['nullable', 'string', 'max:255'],
             'bitActive' => ['nullable', 'boolean'],
         ]);
 
@@ -120,11 +115,9 @@ class InternController extends Controller
 
             $internModel->user->update($userData);
             $internModel->update([
-                'txtInternNo' => $validated['txtInternNo'] ?: $internModel->txtInternNo,
                 'txtInternName' => $validated['txtInternName'],
                 'txtUniversity' => $validated['txtUniversity'] ?? null,
                 'txtMajor' => $validated['txtMajor'] ?? null,
-                'txtBio' => $validated['txtBio'] ?? null,
                 'bitActive' => (bool) ($validated['bitActive'] ?? false),
                 'txtUpdatedBy' => 'system',
                 'dtmUpdated' => $now,

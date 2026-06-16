@@ -400,6 +400,14 @@
         .score-row strong { color: var(--primary); text-align: right; }
         .edit-profile-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
         .edit-profile-grid .full { grid-column: 1 / -1; }
+        .icon-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+        .icon-choice { min-height: 74px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; color: #64748B; cursor: pointer; transition: 0.2s; }
+        .icon-choice:hover { border-color: var(--secondary); background: var(--primary-light); color: var(--primary); }
+        .icon-choice.selected { border-color: var(--primary); background: var(--primary-light); color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+        .icon-choice input { position: absolute; opacity: 0; pointer-events: none; }
+        .icon-choice i { font-size: 23px; line-height: 1; }
+        .icon-choice span { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-gray); }
+        .icon-choice.selected span, .icon-choice:hover span { color: var(--primary); }
 
         @media (max-width: 980px) {
             .profile-hero, .profile-section-grid { grid-template-columns: 1fr; }

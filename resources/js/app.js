@@ -202,6 +202,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    document.querySelectorAll('.icon-choice input[type="radio"]').forEach((input) => {
+        input.addEventListener('change', () => {
+            document.querySelectorAll(`.icon-choice input[name="${input.name}"]`).forEach((radio) => {
+                radio.closest('.icon-choice')?.classList.toggle('selected', radio.checked);
+            });
+        });
+    });
+
     const canvas = document.getElementById('lineChart');
     if (canvas && window.Chart) {
         const ctx = canvas.getContext('2d');
