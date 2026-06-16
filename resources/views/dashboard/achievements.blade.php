@@ -36,34 +36,34 @@
 @endphp
 
 @section('content')
-    <div class="page-crud-header">
+    <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h2>Achievements</h2>
             <p>Penghargaan dan milestone untuk intern.</p>
         </div>
         @if ($isMentor)
-            <a class="btn-add" href="{{ route('achievements.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Achievement</a>
+            <a class="btn btn-primary btn-add" href="{{ route('achievements.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Achievement</a>
         @endif
     </div>
 
     @if ($isFormOpen)
-        <section class="profile-card" style="margin-bottom: 20px;">
-            <div class="profile-card-header">
+        <section class="profile-card mb-4">
+            <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
                 <div class="profile-card-title">
                     <h2>{{ isset($editingAchievement) ? 'Edit Achievement' : 'Tambah Achievement' }}</h2>
                     <p>Data achievement disimpan di trAchievement dan terhubung ke intern.</p>
                 </div>
-                <a href="{{ route('achievements.index') }}" class="btn-outline"><i class="fa-solid fa-xmark"></i> Tutup</a>
+                <a href="{{ route('achievements.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Tutup</a>
             </div>
 
-            <form class="edit-profile-grid" action="{{ $formAction }}" method="POST">
+            <form class="row g-3" action="{{ $formAction }}" method="POST">
                 @csrf
                 @isset($editingAchievement)
                     @method('PUT')
                 @endisset
 
-                <div class="form-group">
-                    <label>Intern</label>
+                <div class="col-md-6">
+                    <label class="form-label">Intern</label>
                     <select class="form-control" name="intIntern_ID" required>
                         <option value="">Pilih intern</option>
                         @foreach ($interns as $intern)
@@ -71,23 +71,23 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Status</label>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
                     <select class="form-control" name="bitActive">
                         <option value="1" @selected((string) old('bitActive', (int) ($editingAchievement->bitActive ?? true)) === '1')>Aktif</option>
                         <option value="0" @selected((string) old('bitActive', (int) ($editingAchievement->bitActive ?? true)) === '0')>Nonaktif</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Judul</label>
+                <div class="col-md-9">
+                    <label class="form-label">Judul</label>
                     <input class="form-control" name="txtAchievementTitle" value="{{ old('txtAchievementTitle', $editingAchievement->txtAchievementTitle ?? '') }}" required>
                 </div>
-                <div class="form-group">
-                    <label>Tanggal Award</label>
+                <div class="col-md-3">
+                    <label class="form-label">Tanggal Award</label>
                     <input class="form-control" type="date" name="dtmAwarded" value="{{ old('dtmAwarded', isset($editingAchievement) && $editingAchievement->dtmAwarded ? $editingAchievement->dtmAwarded->format('Y-m-d') : now()->format('Y-m-d')) }}">
                 </div>
-                <div class="form-group full">
-                    <label>Icon Achievement</label>
+                <div class="col-12">
+                    <label class="form-label">Icon Achievement</label>
                     <div class="icon-choice-grid">
                         @foreach ($achievementIcons as $icon)
                             <label class="icon-choice {{ $selectedIcon === $icon['value'] ? 'selected' : '' }}" title="{{ $icon['label'] }}">
@@ -98,12 +98,12 @@
                         @endforeach
                     </div>
                 </div>
-                <div class="form-group full">
-                    <label>Deskripsi</label>
+                <div class="col-12">
+                    <label class="form-label">Deskripsi</label>
                     <textarea class="form-control" name="txtDescription" rows="3">{{ old('txtDescription', $editingAchievement->txtDescription ?? '') }}</textarea>
                 </div>
-                <div class="form-group full">
-                    <button class="btn-save" type="submit">{{ isset($editingAchievement) ? 'Simpan Perubahan' : 'Simpan Achievement' }}</button>
+                <div class="col-12">
+                    <button class="btn btn-primary btn-save" type="submit">{{ isset($editingAchievement) ? 'Simpan Perubahan' : 'Simpan Achievement' }}</button>
                 </div>
             </form>
         </section>

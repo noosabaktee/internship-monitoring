@@ -13,61 +13,61 @@
 @endphp
 
 @section('content')
-    <div class="page-crud-header">
+    <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h2>Data Mentors</h2>
             <p>Kelola data mentor berdasarkan departemen dan status pendampingan.</p>
         </div>
         @if ($isMentorUser)
-            <a class="btn-add" href="{{ route('mentors.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Mentor</a>
+            <a class="btn btn-primary btn-add" href="{{ route('mentors.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Mentor</a>
         @endif
     </div>
 
     @if ($isFormOpen)
-        <section class="profile-card" style="margin-bottom: 20px;">
-            <div class="profile-card-header">
+        <section class="profile-card mb-4">
+            <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
                 <div class="profile-card-title">
                     <h2>{{ isset($editingMentor) ? 'Edit Mentor' : 'Tambah Mentor Baru' }}</h2>
                     <p>Email dan password disimpan di mUser, profil mentor disimpan di mMentor.</p>
                 </div>
-                <a href="{{ route('mentors.index') }}" class="btn-outline"><i class="fa-solid fa-xmark"></i> Tutup</a>
+                <a href="{{ route('mentors.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Tutup</a>
             </div>
 
-            <form class="edit-profile-grid" action="{{ $formAction }}" method="POST">
+            <form class="row g-3" action="{{ $formAction }}" method="POST">
                 @csrf
                 @isset($editingMentor)
                     @method('PUT')
                 @endisset
 
-                <div class="form-group">
-                    <label>Status</label>
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
                     <select class="form-control" name="bitActive">
                         <option value="1" @selected((string) old('bitActive', (int) ($editingMentor->bitActive ?? true)) === '1')>Aktif</option>
                         <option value="0" @selected((string) old('bitActive', (int) ($editingMentor->bitActive ?? true)) === '0')>Nonaktif</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Nama Lengkap</label>
+                <div class="col-md-8">
+                    <label class="form-label">Nama Lengkap</label>
                     <input class="form-control" name="txtMentorName" value="{{ old('txtMentorName', $editingMentor->txtMentorName ?? '') }}" required>
                 </div>
-                <div class="form-group">
-                    <label>Email</label>
+                <div class="col-md-6">
+                    <label class="form-label">Email</label>
                     <input class="form-control" type="email" name="txtEmail" value="{{ old('txtEmail', $editingMentor->user->txtEmail ?? '') }}" required>
                 </div>
-                <div class="form-group">
-                    <label>Password {{ isset($editingMentor) ? '(kosongkan jika tidak diganti)' : '' }}</label>
+                <div class="col-md-6">
+                    <label class="form-label">Password {{ isset($editingMentor) ? '(kosongkan jika tidak diganti)' : '' }}</label>
                     <input class="form-control" type="password" name="txtPassword" placeholder="{{ isset($editingMentor) ? 'Password baru' : 'Default: password' }}">
                 </div>
-                <div class="form-group">
-                    <label>Department</label>
+                <div class="col-md-6">
+                    <label class="form-label">Department</label>
                     <input class="form-control" name="txtDepartment" value="{{ old('txtDepartment', $editingMentor->txtDepartment ?? '') }}">
                 </div>
-                <div class="form-group">
-                    <label>Role / Jabatan</label>
+                <div class="col-md-6">
+                    <label class="form-label">Role / Jabatan</label>
                     <input class="form-control" name="txtRole" value="{{ old('txtRole', $editingMentor->txtRole ?? 'Mentor') }}">
                 </div>
-                <div class="form-group full">
-                    <button class="btn-save" type="submit">{{ isset($editingMentor) ? 'Simpan Perubahan' : 'Simpan Mentor' }}</button>
+                <div class="col-12">
+                    <button class="btn btn-primary btn-save" type="submit">{{ isset($editingMentor) ? 'Simpan Perubahan' : 'Simpan Mentor' }}</button>
                 </div>
             </form>
         </section>
@@ -75,7 +75,7 @@
 
     <div class="card">
         <div class="table-responsive">
-            <table class="data-table">
+            <table class="table data-table align-middle mb-0">
                 <thead>
                     <tr><th>ID</th><th>Nama Lengkap</th><th>Email</th><th>Department</th><th>Role</th><th>Status</th><th>Aksi</th></tr>
                 </thead>

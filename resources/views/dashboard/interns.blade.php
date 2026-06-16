@@ -13,61 +13,61 @@
 @endphp
 
 @section('content')
-    <div class="page-crud-header">
+    <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h2>Data Interns</h2>
             <p>Kelola data profil, universitas, dan status peserta magang.</p>
         </div>
         @if ($isMentor)
-            <a class="btn-add" href="{{ route('interns.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Data</a>
+            <a class="btn btn-primary btn-add" href="{{ route('interns.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Data</a>
         @endif
     </div>
 
     @if ($isFormOpen)
-        <section class="profile-card" style="margin-bottom: 20px;">
-            <div class="profile-card-header">
+        <section class="profile-card mb-4">
+            <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
                 <div class="profile-card-title">
                     <h2>{{ isset($editingIntern) ? 'Edit Intern' : 'Tambah Intern Baru' }}</h2>
                     <p>Email dan password disimpan di mUser, profil intern disimpan di mIntern.</p>
                 </div>
-                <a href="{{ route('interns.index') }}" class="btn-outline"><i class="fa-solid fa-xmark"></i> Tutup</a>
+                <a href="{{ route('interns.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Tutup</a>
             </div>
 
-            <form class="edit-profile-grid" action="{{ $formAction }}" method="POST">
+            <form class="row g-3" action="{{ $formAction }}" method="POST">
                 @csrf
                 @isset($editingIntern)
                     @method('PUT')
                 @endisset
 
-                <div class="form-group">
-                    <label>Status</label>
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
                     <select class="form-control" name="bitActive">
                         <option value="1" @selected((string) old('bitActive', (int) ($editingIntern->bitActive ?? true)) === '1')>Aktif</option>
                         <option value="0" @selected((string) old('bitActive', (int) ($editingIntern->bitActive ?? true)) === '0')>Nonaktif</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Nama Lengkap</label>
+                <div class="col-md-8">
+                    <label class="form-label">Nama Lengkap</label>
                     <input class="form-control" name="txtInternName" value="{{ old('txtInternName', $editingIntern->txtInternName ?? '') }}" required>
                 </div>
-                <div class="form-group">
-                    <label>Email</label>
+                <div class="col-md-6">
+                    <label class="form-label">Email</label>
                     <input class="form-control" type="email" name="txtEmail" value="{{ old('txtEmail', $editingIntern->user->txtEmail ?? '') }}" required>
                 </div>
-                <div class="form-group">
-                    <label>Password {{ isset($editingIntern) ? '(kosongkan jika tidak diganti)' : '' }}</label>
+                <div class="col-md-6">
+                    <label class="form-label">Password {{ isset($editingIntern) ? '(kosongkan jika tidak diganti)' : '' }}</label>
                     <input class="form-control" type="password" name="txtPassword" placeholder="{{ isset($editingIntern) ? 'Password baru' : 'Default: password' }}">
                 </div>
-                <div class="form-group">
-                    <label>Universitas</label>
+                <div class="col-md-6">
+                    <label class="form-label">Universitas</label>
                     <input class="form-control" name="txtUniversity" value="{{ old('txtUniversity', $editingIntern->txtUniversity ?? '') }}">
                 </div>
-                <div class="form-group">
-                    <label>Jurusan</label>
+                <div class="col-md-6">
+                    <label class="form-label">Jurusan</label>
                     <input class="form-control" name="txtMajor" value="{{ old('txtMajor', $editingIntern->txtMajor ?? '') }}">
                 </div>
-                <div class="form-group full">
-                    <button class="btn-save" type="submit">{{ isset($editingIntern) ? 'Simpan Perubahan' : 'Simpan Intern' }}</button>
+                <div class="col-12">
+                    <button class="btn btn-primary btn-save" type="submit">{{ isset($editingIntern) ? 'Simpan Perubahan' : 'Simpan Intern' }}</button>
                 </div>
             </form>
         </section>
@@ -75,7 +75,7 @@
 
     <div class="card">
         <div class="table-responsive">
-            <table class="data-table">
+            <table class="table data-table align-middle mb-0">
                 <thead>
                     <tr><th>ID</th><th>Nama Lengkap</th><th>Email</th><th>Universitas</th><th>Jurusan</th><th>Status</th><th>Aksi</th></tr>
                 </thead>

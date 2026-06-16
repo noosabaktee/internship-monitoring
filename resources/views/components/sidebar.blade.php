@@ -22,7 +22,7 @@
     <ul class="nav-menu">
         @foreach ($navItems as $item)
             <li class="nav-item {{ request()->routeIs($item['active'] ?? $item['route']) ? 'active' : '' }}">
-                <a class="nav-link" href="{{ route($item['route']) }}">
+                <a class="nav-link d-flex align-items-center" href="{{ route($item['route']) }}">
                     <i class="{{ $item['icon'] }}"></i>
                     <span class="nav-text">{{ $item['label'] }}</span>
                 </a>

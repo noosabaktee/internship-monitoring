@@ -5,7 +5,7 @@
 ])
 
 @section('content')
-    <div class="page-crud-header">
+    <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h2>Leaderboard</h2>
             <p>Peringkat kontribusi dan performa keseluruhan intern.</p>

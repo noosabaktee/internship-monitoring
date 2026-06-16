@@ -15,13 +15,13 @@
 @endphp
 
 @section('content')
-    <div class="page-crud-header">
+    <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h2>Profile Intern</h2>
             <p>Ringkasan data, performa, project, mentor, dan achievement.</p>
         </div>
         @if ($intern)
-            <a href="{{ route('profile.edit') }}" class="btn-add" style="text-decoration:none;"><i class="fa-solid fa-pen"></i> Edit Data</a>
+            <a href="{{ route('profile.edit') }}" class="btn btn-primary btn-add" style="text-decoration:none;"><i class="fa-solid fa-pen"></i> Edit Data</a>
         @endif
     </div>
 

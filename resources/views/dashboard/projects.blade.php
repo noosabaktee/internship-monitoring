@@ -13,55 +13,55 @@
 @endphp
 
 @section('content')
-    <div class="page-crud-header">
+    <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h2>Data Projects</h2>
             <p>Pantau status dan PIC untuk Collaboration, Main, Satellite, dan Sharing.</p>
         </div>
-        <a class="btn-add" href="{{ route('projects.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Project</a>
+        <a class="btn btn-primary btn-add" href="{{ route('projects.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Project</a>
     </div>
 
     @if ($isFormOpen)
-        <section class="profile-card" style="margin-bottom: 20px;">
-            <div class="profile-card-header">
+        <section class="profile-card mb-4">
+            <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
                 <div class="profile-card-title">
                     <h2>{{ isset($editingProject) ? 'Edit Project' : 'Tambah Project Baru' }}</h2>
                     <p>Master project disimpan di mProject. Assignment intern, mentor, dan progress disimpan di trInternProject.</p>
                 </div>
-                <a href="{{ route('projects.index') }}" class="btn-outline"><i class="fa-solid fa-xmark"></i> Tutup</a>
+                <a href="{{ route('projects.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Tutup</a>
             </div>
 
-            <form class="edit-profile-grid" action="{{ $formAction }}" method="POST">
+            <form class="row g-3" action="{{ $formAction }}" method="POST">
                 @csrf
                 @isset($editingProject)
                     @method('PUT')
                 @endisset
 
-                <div class="form-group">
-                    <label>Nama Project</label>
+                <div class="col-md-6">
+                    <label class="form-label">Nama Project</label>
                     <input class="form-control" name="txtProjectName" value="{{ old('txtProjectName', $editingProject->txtProjectName ?? '') }}" required>
                 </div>
-                <div class="form-group">
-                    <label>Tipe</label>
+                <div class="col-md-3">
+                    <label class="form-label">Tipe</label>
                     <select class="form-control" name="txtProjectType" required>
                         @foreach (['Main', 'Satellite', 'Collaboration', 'Sharing'] as $type)
                             <option value="{{ $type }}" @selected(old('txtProjectType', $editingProject->txtProjectType ?? '') === $type)>{{ $type }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Status Project</label>
+                <div class="col-md-3">
+                    <label class="form-label">Status Project</label>
                     <select class="form-control" name="bitActive">
                         <option value="1" @selected((string) old('bitActive', (int) ($editingProject->bitActive ?? true)) === '1')>Aktif</option>
                         <option value="0" @selected((string) old('bitActive', (int) ($editingProject->bitActive ?? true)) === '0')>Nonaktif</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Status Assignment</label>
+                <div class="col-md-4">
+                    <label class="form-label">Status Assignment</label>
                     <input class="form-control" name="txtStatus" value="{{ old('txtStatus', $assignment->txtStatus ?? 'On Track') }}">
                 </div>
-                <div class="form-group">
-                    <label>Intern</label>
+                <div class="col-md-4">
+                    <label class="form-label">Intern</label>
                     <select class="form-control" name="intIntern_ID">
                         <option value="">Belum ditentukan</option>
                         @foreach ($interns as $intern)
@@ -69,8 +69,8 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Mentor</label>
+                <div class="col-md-4">
+                    <label class="form-label">Mentor</label>
                     <select class="form-control" name="intMentor_ID">
                         <option value="">Belum ditentukan</option>
                         @foreach ($mentors as $mentor)
@@ -78,16 +78,16 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Progress (%)</label>
+                <div class="col-md-4">
+                    <label class="form-label">Progress (%)</label>
                     <input class="form-control" type="number" min="0" max="100" name="floatProgress" value="{{ old('floatProgress', $assignment->floatProgress ?? 0) }}">
                 </div>
-                <div class="form-group full">
-                    <label>Deskripsi</label>
+                <div class="col-12">
+                    <label class="form-label">Deskripsi</label>
                     <textarea class="form-control" name="txtDescription" rows="3">{{ old('txtDescription', $editingProject->txtDescription ?? '') }}</textarea>
                 </div>
-                <div class="form-group full">
-                    <button class="btn-save" type="submit">{{ isset($editingProject) ? 'Simpan Perubahan' : 'Simpan Project' }}</button>
+                <div class="col-12">
+                    <button class="btn btn-primary btn-save" type="submit">{{ isset($editingProject) ? 'Simpan Perubahan' : 'Simpan Project' }}</button>
                 </div>
             </form>
         </section>
@@ -95,7 +95,7 @@
 
     <div class="card">
         <div class="table-responsive">
-            <table class="data-table">
+            <table class="table data-table align-middle mb-0">
                 <thead>
                     <tr><th>Nama Project</th><th>Tipe</th><th>Intern</th><th>PIC / Mentor</th><th>Progress</th><th>Status</th><th>Aksi</th></tr>
                 </thead>

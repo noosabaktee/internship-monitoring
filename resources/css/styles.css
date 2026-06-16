@@ -207,6 +207,17 @@
         .status-active { background: var(--primary-light); color: var(--primary); }
         .status-inactive { background: var(--danger-light); color: var(--danger); }
 
+        /* Bootstrap theme overrides */
+        .btn-primary { --bs-btn-bg: var(--primary); --bs-btn-border-color: var(--primary); --bs-btn-hover-bg: var(--primary-hover); --bs-btn-hover-border-color: var(--primary-hover); --bs-btn-active-bg: var(--primary-hover); --bs-btn-active-border-color: var(--primary-hover); --bs-btn-disabled-bg: var(--primary); --bs-btn-disabled-border-color: var(--primary); }
+        .btn-outline-primary { --bs-btn-color: var(--primary); --bs-btn-border-color: var(--border); --bs-btn-hover-bg: var(--primary-light); --bs-btn-hover-border-color: var(--secondary); --bs-btn-hover-color: var(--primary); --bs-btn-active-bg: var(--primary); --bs-btn-active-border-color: var(--primary); }
+        .btn-light { --bs-btn-bg: var(--white); --bs-btn-border-color: var(--border); --bs-btn-color: var(--text-gray); --bs-btn-hover-bg: var(--primary-light); --bs-btn-hover-border-color: var(--secondary); --bs-btn-hover-color: var(--primary); }
+        .form-label { font-size: 13px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px; }
+        .table { --bs-table-color: var(--text-dark); --bs-table-bg: transparent; --bs-table-hover-bg: var(--primary-light); margin-bottom: 0; }
+        .alert { border-radius: 8px; font-size: 13px; font-weight: 600; }
+        .alert p { margin-bottom: 0; }
+        .alert-success { color: var(--primary); background: var(--primary-light); border-color: var(--border); }
+        .alert-danger { color: var(--danger); background: var(--danger-light); border-color: var(--danger-border); }
+
         /* --- MODAL (POPUP) --- */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 2000; opacity: 0; transition: opacity 0.3s ease; padding: 15px; box-sizing: border-box; }
         .modal-overlay.active { display: flex; opacity: 1; }

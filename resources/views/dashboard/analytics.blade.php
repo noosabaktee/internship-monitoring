@@ -13,13 +13,13 @@
 @endphp
 
 @section('content')
-    <div class="page-crud-header">
+    <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h2>Analytics</h2>
             <p>Statistik, evaluasi, dan laporan performa mendalam.</p>
         </div>
         @if ($isMentor)
-            <a class="btn-add" href="{{ route('analytics.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Evaluasi</a>
+            <a class="btn btn-primary btn-add" href="{{ route('analytics.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Evaluasi</a>
         @endif
     </div>
 
@@ -30,23 +30,23 @@
     </div>
 
     @if ($isFormOpen)
-        <section class="profile-card" style="margin-bottom: 20px;">
-            <div class="profile-card-header">
+        <section class="profile-card mb-4">
+            <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
                 <div class="profile-card-title">
                     <h2>{{ isset($editingEvaluation) ? 'Edit Evaluasi' : 'Tambah Evaluasi' }}</h2>
                     <p>Exposure score dihitung otomatis dari rata-rata empat skor evaluasi.</p>
                 </div>
-                <a href="{{ route('analytics.index') }}" class="btn-outline"><i class="fa-solid fa-xmark"></i> Tutup</a>
+                <a href="{{ route('analytics.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Tutup</a>
             </div>
 
-            <form class="edit-profile-grid" action="{{ $formAction }}" method="POST">
+            <form class="row g-3" action="{{ $formAction }}" method="POST">
                 @csrf
                 @isset($editingEvaluation)
                     @method('PUT')
                 @endisset
 
-                <div class="form-group">
-                    <label>Intern</label>
+                <div class="col-md-6">
+                    <label class="form-label">Intern</label>
                     <select class="form-control" name="intIntern_ID" required>
                         <option value="">Pilih intern</option>
                         @foreach ($interns as $intern)
@@ -54,12 +54,12 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="form-group"><label>Periode</label><input class="form-control" type="month" name="dtmPeriod" value="{{ old('dtmPeriod', isset($editingEvaluation) && $editingEvaluation->dtmPeriod ? $editingEvaluation->dtmPeriod->format('Y-m') : now()->format('Y-m')) }}" required></div>
-                <div class="form-group"><label>Hard Skill</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatHardSkill" value="{{ old('floatHardSkill', $editingEvaluation->floatHardSkill ?? 0) }}" required></div>
-                <div class="form-group"><label>Collaboration</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatCollaboration" value="{{ old('floatCollaboration', $editingEvaluation->floatCollaboration ?? 0) }}" required></div>
-                <div class="form-group"><label>Ownership</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatOwnership" value="{{ old('floatOwnership', $editingEvaluation->floatOwnership ?? 0) }}" required></div>
-                <div class="form-group"><label>Sharing</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatSharing" value="{{ old('floatSharing', $editingEvaluation->floatSharing ?? 0) }}" required></div>
-                <div class="form-group full"><button class="btn-save" type="submit">{{ isset($editingEvaluation) ? 'Simpan Perubahan' : 'Simpan Evaluasi' }}</button></div>
+                <div class="col-md-6"><label class="form-label">Periode</label><input class="form-control" type="month" name="dtmPeriod" value="{{ old('dtmPeriod', isset($editingEvaluation) && $editingEvaluation->dtmPeriod ? $editingEvaluation->dtmPeriod->format('Y-m') : now()->format('Y-m')) }}" required></div>
+                <div class="col-md-3"><label class="form-label">Hard Skill</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatHardSkill" value="{{ old('floatHardSkill', $editingEvaluation->floatHardSkill ?? 0) }}" required></div>
+                <div class="col-md-3"><label class="form-label">Collaboration</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatCollaboration" value="{{ old('floatCollaboration', $editingEvaluation->floatCollaboration ?? 0) }}" required></div>
+                <div class="col-md-3"><label class="form-label">Ownership</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatOwnership" value="{{ old('floatOwnership', $editingEvaluation->floatOwnership ?? 0) }}" required></div>
+                <div class="col-md-3"><label class="form-label">Sharing</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatSharing" value="{{ old('floatSharing', $editingEvaluation->floatSharing ?? 0) }}" required></div>
+                <div class="col-12"><button class="btn btn-primary btn-save" type="submit">{{ isset($editingEvaluation) ? 'Simpan Perubahan' : 'Simpan Evaluasi' }}</button></div>
             </form>
         </section>
     @endif
@@ -73,7 +73,7 @@
 
     <div class="card">
         <div class="table-responsive">
-            <table class="data-table">
+            <table class="table data-table align-middle mb-0">
                 <thead>
                     <tr><th>Intern</th><th>Periode</th><th>Hard</th><th>Collab</th><th>Ownership</th><th>Sharing</th><th>Exposure</th><th>Aksi</th></tr>
                 </thead>

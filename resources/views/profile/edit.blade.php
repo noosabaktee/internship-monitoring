@@ -6,7 +6,7 @@
 ])
 
 @section('content')
-    <div class="page-crud-header">
+    <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h2>Edit Data Profile</h2>
             <p>Perbarui informasi utama untuk akun yang sedang login.</p>
@@ -34,33 +34,33 @@
                 </div>
 
                 @if ($intern)
-                    <div class="edit-profile-grid">
-                        <div class="form-group"><label>ID</label><input class="form-control" name="txtInternNo" value="{{ old('txtInternNo', $intern->txtInternNo) }}"></div>
-                        <div class="form-group"><label>Status</label><select class="form-control" name="bitActive"><option value="1" @selected(old('bitActive', (int) $intern->bitActive) == 1)>Aktif</option><option value="0" @selected(old('bitActive', (int) $intern->bitActive) == 0)>Nonaktif</option></select></div>
-                        <div class="form-group"><label>Nama Lengkap</label><input class="form-control" name="txtInternName" value="{{ old('txtInternName', $intern->txtInternName) }}" required></div>
-                        <div class="form-group"><label>Email</label><input class="form-control" type="email" name="txtEmail" value="{{ old('txtEmail', $intern->user->txtEmail ?? '') }}" required></div>
-                        <div class="form-group"><label>Password Baru</label><input class="form-control" type="password" name="txtPassword" placeholder="Kosongkan jika tidak diganti"></div>
-                        <div class="form-group"><label>Universitas</label><input class="form-control" name="txtUniversity" value="{{ old('txtUniversity', $intern->txtUniversity) }}"></div>
-                        <div class="form-group"><label>Jurusan</label><input class="form-control" name="txtMajor" value="{{ old('txtMajor', $intern->txtMajor) }}"></div>
-                        <div class="form-group full"><label>Bio Singkat</label><textarea class="form-control" name="txtBio" rows="4">{{ old('txtBio', $intern->txtBio) }}</textarea></div>
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label">ID</label><input class="form-control" name="txtInternNo" value="{{ old('txtInternNo', $intern->txtInternNo) }}"></div>
+                        <div class="col-md-6"><label class="form-label">Status</label><select class="form-control" name="bitActive"><option value="1" @selected(old('bitActive', (int) $intern->bitActive) == 1)>Aktif</option><option value="0" @selected(old('bitActive', (int) $intern->bitActive) == 0)>Nonaktif</option></select></div>
+                        <div class="col-md-6"><label class="form-label">Nama Lengkap</label><input class="form-control" name="txtInternName" value="{{ old('txtInternName', $intern->txtInternName) }}" required></div>
+                        <div class="col-md-6"><label class="form-label">Email</label><input class="form-control" type="email" name="txtEmail" value="{{ old('txtEmail', $intern->user->txtEmail ?? '') }}" required></div>
+                        <div class="col-md-6"><label class="form-label">Password Baru</label><input class="form-control" type="password" name="txtPassword" placeholder="Kosongkan jika tidak diganti"></div>
+                        <div class="col-md-6"><label class="form-label">Universitas</label><input class="form-control" name="txtUniversity" value="{{ old('txtUniversity', $intern->txtUniversity) }}"></div>
+                        <div class="col-md-6"><label class="form-label">Jurusan</label><input class="form-control" name="txtMajor" value="{{ old('txtMajor', $intern->txtMajor) }}"></div>
+                        <div class="col-12"><label class="form-label">Bio Singkat</label><textarea class="form-control" name="txtBio" rows="4">{{ old('txtBio', $intern->txtBio) }}</textarea></div>
                     </div>
                 @endif
 
                 @if ($mentor)
-                    <div class="edit-profile-grid">
-                        <div class="form-group"><label>Status</label><select class="form-control" name="bitActive"><option value="1" @selected(old('bitActive', (int) $mentor->bitActive) == 1)>Aktif</option><option value="0" @selected(old('bitActive', (int) $mentor->bitActive) == 0)>Nonaktif</option></select></div>
-                        <div class="form-group"><label>Nama Lengkap</label><input class="form-control" name="txtMentorName" value="{{ old('txtMentorName', $mentor->txtMentorName) }}" required></div>
-                        <div class="form-group"><label>Email</label><input class="form-control" type="email" name="txtEmail" value="{{ old('txtEmail', $mentor->user->txtEmail ?? '') }}" required></div>
-                        <div class="form-group"><label>Password Baru</label><input class="form-control" type="password" name="txtPassword" placeholder="Kosongkan jika tidak diganti"></div>
-                        <div class="form-group"><label>Department</label><input class="form-control" name="txtDepartment" value="{{ old('txtDepartment', $mentor->txtDepartment) }}"></div>
-                        <div class="form-group"><label>Role / Jabatan</label><input class="form-control" name="txtRole" value="{{ old('txtRole', $mentor->txtRole) }}"></div>
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label">Status</label><select class="form-control" name="bitActive"><option value="1" @selected(old('bitActive', (int) $mentor->bitActive) == 1)>Aktif</option><option value="0" @selected(old('bitActive', (int) $mentor->bitActive) == 0)>Nonaktif</option></select></div>
+                        <div class="col-md-8"><label class="form-label">Nama Lengkap</label><input class="form-control" name="txtMentorName" value="{{ old('txtMentorName', $mentor->txtMentorName) }}" required></div>
+                        <div class="col-md-6"><label class="form-label">Email</label><input class="form-control" type="email" name="txtEmail" value="{{ old('txtEmail', $mentor->user->txtEmail ?? '') }}" required></div>
+                        <div class="col-md-6"><label class="form-label">Password Baru</label><input class="form-control" type="password" name="txtPassword" placeholder="Kosongkan jika tidak diganti"></div>
+                        <div class="col-md-6"><label class="form-label">Department</label><input class="form-control" name="txtDepartment" value="{{ old('txtDepartment', $mentor->txtDepartment) }}"></div>
+                        <div class="col-md-6"><label class="form-label">Role / Jabatan</label><input class="form-control" name="txtRole" value="{{ old('txtRole', $mentor->txtRole) }}"></div>
                     </div>
                 @endif
             </section>
 
-            <div class="modal-footer" style="margin-top: 20px; border: 1px solid var(--border); border-radius: var(--radius);">
-                <a href="{{ route('profile.show') }}" class="btn-cancel" style="text-decoration:none;">Batal</a>
-                <button type="submit" class="btn-save">Simpan Perubahan</button>
+            <div class="modal-footer mt-4" style="border: 1px solid var(--border); border-radius: var(--radius);">
+                <a href="{{ route('profile.show') }}" class="btn btn-light btn-cancel" style="text-decoration:none;">Batal</a>
+                <button type="submit" class="btn btn-primary btn-save">Simpan Perubahan</button>
             </div>
         </form>
     @endif

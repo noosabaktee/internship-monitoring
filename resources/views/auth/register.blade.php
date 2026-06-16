@@ -28,7 +28,7 @@
                 </div>
 
                 @if ($errors->any())
-                    <div class="alert-box" style="margin-bottom: 18px;">
+                    <div class="alert alert-danger d-flex gap-2 mb-3">
                         <i class="fa-solid fa-circle-exclamation"></i>
                         <div>
                             @foreach ($errors->all() as $error)
@@ -40,16 +40,16 @@
 
                 <form class="auth-form" action="{{ route('register.store') }}" method="POST">
                     @csrf
-                    <div class="form-group">
-                        <label>Nama Lengkap</label>
+                    <div class="mb-3">
+                        <label class="form-label">Nama Lengkap</label>
                         <div class="auth-input-wrap">
                             <i class="fa-regular fa-user"></i>
                             <input type="text" name="name" class="form-control" value="{{ old('name') }}" placeholder="Masukkan nama lengkap" required>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Role</label>
+                    <div class="mb-3">
+                        <label class="form-label">Role</label>
                         <div class="auth-input-wrap">
                             <i class="fa-solid fa-user-tag"></i>
                             <select name="txtRole" class="form-control" required>
@@ -60,31 +60,31 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Email</label>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
                         <div class="auth-input-wrap">
                             <i class="fa-regular fa-envelope"></i>
                             <input type="email" name="txtEmail" class="form-control" value="{{ old('txtEmail') }}" placeholder="nama@kalbe.co.id" required>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Password</label>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
                         <div class="auth-input-wrap">
                             <i class="fa-solid fa-lock"></i>
                             <input type="password" name="txtPassword" class="form-control" placeholder="Buat password" required>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Confirm Password</label>
+                    <div class="mb-3">
+                        <label class="form-label">Confirm Password</label>
                         <div class="auth-input-wrap">
                             <i class="fa-solid fa-shield-halved"></i>
                             <input type="password" name="txtPassword_confirmation" class="form-control" placeholder="Ulangi password" required>
                         </div>
                     </div>
 
-                    <button type="submit" class="auth-submit">
+                    <button type="submit" class="btn btn-primary auth-submit">
                         Register
                         <i class="fa-solid fa-user-plus"></i>
                     </button>

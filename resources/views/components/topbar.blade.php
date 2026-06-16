@@ -6,8 +6,8 @@
     $displayRole = $authUser?->txtRole ?? 'HR Development';
 @endphp
 
-<header class="topbar">
-    <div class="header-left">
+<header class="topbar d-flex align-items-center justify-content-between">
+    <div class="header-left d-flex align-items-center gap-3">
         <i class="fa-solid fa-bars menu-toggle" onclick="toggleSidebar()"></i>
         <div class="page-title" id="dynamic-title">
             <h1>{{ $pageTitle }}</h1>
@@ -15,22 +15,22 @@
         </div>
     </div>
 
-    <div class="header-right">
-        <div class="date-picker" onclick="openDatePicker()">
+    <div class="header-right d-flex align-items-center gap-3">
+        <div class="date-picker d-flex align-items-center gap-2" onclick="openDatePicker()">
             <i class="fa-regular fa-calendar"></i>
             <input type="month" id="topbarDate" aria-label="Pilih bulan">
         </div>
-        <button class="btn-export"><i class="fa-solid fa-download"></i> Export</button>
+        <button class="btn btn-primary btn-sm btn-export"><i class="fa-solid fa-download"></i> Export</button>
         <div class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Light/Dark Mode">
             <i class="fa-solid fa-moon"></i>
         </div>
-        <div class="user-profile">
+        <div class="user-profile d-flex align-items-center gap-2">
             <i class="fa-regular fa-bell" style="font-size: 20px; color: var(--text-gray); margin-right: 5px; cursor: pointer;"></i>
             <button class="profile-trigger" id="profileTrigger" type="button" aria-haspopup="true" aria-expanded="false">
                 <img src="https://ui-avatars.com/api/?name={{ urlencode($displayName) }}&background=8CC63F&color=fff" alt="{{ $displayName }}">
                 <div class="user-info">
-                    <div class="name">{{ $displayName }}</div>
-                    <div class="role">{{ $displayRole }}</div>
+                        <div class="name fw-semibold">{{ $displayName }}</div>
+                        <div class="role small">{{ $displayRole }}</div>
                 </div>
                 <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: var(--text-gray);"></i>
             </button>

@@ -28,7 +28,7 @@
                 </div>
 
                 @if ($errors->any())
-                    <div class="alert-box" style="margin-bottom: 18px;">
+                    <div class="alert alert-danger d-flex gap-2 mb-3">
                         <i class="fa-solid fa-circle-exclamation"></i>
                         <div>
                             @foreach ($errors->all() as $error)
@@ -40,28 +40,28 @@
 
                 <form class="auth-form" action="{{ route('login.authenticate') }}" method="POST">
                     @csrf
-                    <div class="form-group">
-                        <label>Email</label>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
                         <div class="auth-input-wrap">
                             <i class="fa-regular fa-envelope"></i>
                             <input type="email" name="txtEmail" class="form-control" value="{{ old('txtEmail') }}" placeholder="nama@kalbe.co.id" required>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Password</label>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
                         <div class="auth-input-wrap">
                             <i class="fa-solid fa-lock"></i>
                             <input type="password" name="txtPassword" class="form-control" placeholder="Masukkan password" required>
                         </div>
                     </div>
 
-                    <div class="auth-options">
+                    <div class="auth-options d-flex align-items-center justify-content-between gap-3">
                         <label><input type="checkbox"> Ingat saya</label>
                         <a href="#" class="auth-link">Lupa password?</a>
                     </div>
 
-                    <button type="submit" class="auth-submit">
+                    <button type="submit" class="btn btn-primary auth-submit">
                         Login
                         <i class="fa-solid fa-arrow-right"></i>
                     </button>
