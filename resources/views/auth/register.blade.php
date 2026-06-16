@@ -27,12 +27,24 @@
                     <p>Isi data akun baru untuk mulai menggunakan dashboard internship Kalbe.</p>
                 </div>
 
-                <form class="auth-form" action="{{ route('login') }}">
+                @if ($errors->any())
+                    <div class="alert-box" style="margin-bottom: 18px;">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <div>
+                            @foreach ($errors->all() as $error)
+                                <p>{{ $error }}</p>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                <form class="auth-form" action="{{ route('register.store') }}" method="POST">
+                    @csrf
                     <div class="form-group">
                         <label>Nama Lengkap</label>
                         <div class="auth-input-wrap">
                             <i class="fa-regular fa-user"></i>
-                            <input type="text" class="form-control" placeholder="Masukkan nama lengkap" required>
+                            <input type="text" name="name" class="form-control" value="{{ old('name') }}" placeholder="Masukkan nama lengkap" required>
                         </div>
                     </div>
 
@@ -40,10 +52,10 @@
                         <label>Role</label>
                         <div class="auth-input-wrap">
                             <i class="fa-solid fa-user-tag"></i>
-                            <select class="form-control" required>
+                            <select name="txtRole" class="form-control" required>
                                 <option value="">Pilih role</option>
-                                <option value="Intern">Intern</option>
-                                <option value="Mentor">Mentor</option>
+                                <option value="Intern" @selected(old('txtRole') === 'Intern')>Intern</option>
+                                <option value="Mentor" @selected(old('txtRole') === 'Mentor')>Mentor</option>
                             </select>
                         </div>
                     </div>
@@ -52,7 +64,7 @@
                         <label>Email</label>
                         <div class="auth-input-wrap">
                             <i class="fa-regular fa-envelope"></i>
-                            <input type="email" class="form-control" placeholder="nama@kalbe.co.id" required>
+                            <input type="email" name="txtEmail" class="form-control" value="{{ old('txtEmail') }}" placeholder="nama@kalbe.co.id" required>
                         </div>
                     </div>
 
@@ -60,7 +72,7 @@
                         <label>Password</label>
                         <div class="auth-input-wrap">
                             <i class="fa-solid fa-lock"></i>
-                            <input type="password" class="form-control" placeholder="Buat password" required>
+                            <input type="password" name="txtPassword" class="form-control" placeholder="Buat password" required>
                         </div>
                     </div>
 
@@ -68,7 +80,7 @@
                         <label>Confirm Password</label>
                         <div class="auth-input-wrap">
                             <i class="fa-solid fa-shield-halved"></i>
-                            <input type="password" class="form-control" placeholder="Ulangi password" required>
+                            <input type="password" name="txtPassword_confirmation" class="form-control" placeholder="Ulangi password" required>
                         </div>
                     </div>
 

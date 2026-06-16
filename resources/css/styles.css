@@ -101,6 +101,7 @@
         .profile-dropdown { position: absolute; right: 0; top: calc(100% + 12px); width: 170px; background: var(--white); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 8px; display: none; z-index: 300; }
         .profile-dropdown.active { display: block; animation: fadeIn 0.2s ease; }
         .profile-dropdown button { width: 100%; border: none; background: transparent; color: var(--text-dark); display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; text-align: left; }
+        .profile-dropdown form { margin: 0; }
         .profile-dropdown button:hover { background: var(--primary-light); color: var(--primary); }
         .profile-dropdown .logout { color: var(--danger); }
         .profile-dropdown .logout:hover { background: var(--danger-light); color: var(--danger); }
@@ -199,6 +200,7 @@
 
         .action-btns { display: flex; gap: 8px; justify-content: center; }
         .btn-icon { width: 30px; height: 30px; border-radius: 6px; border: none; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #fff; }
+        a.btn-icon { text-decoration: none; }
         .btn-edit { background-color: var(--warning); }
         .btn-delete { background-color: var(--danger); }
         .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }

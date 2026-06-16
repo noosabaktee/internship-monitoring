@@ -11,7 +11,7 @@
                 <div class="kpi-icon"><i class="fa-solid fa-users"></i></div>
                 <div class="kpi-data">
                     <h4>Total Interns</h4>
-                    <h2>10</h2>
+                    <h2>{{ $totalInterns }}</h2>
                     <p>Active interns</p>
                 </div>
             </div>
@@ -19,7 +19,7 @@
                 <div class="kpi-icon"><i class="fa-solid fa-star"></i></div>
                 <div class="kpi-data">
                     <h4>Average Score</h4>
-                    <h2>80.7 <span>/100</span></h2>
+                    <h2>{{ $averageScore }} <span>/100</span></h2>
                     <p><span class="trend-up"><i class="fa-solid fa-arrow-up"></i> 8.5%</span> vs last month</p>
                 </div>
             </div>
@@ -27,7 +27,7 @@
                 <div class="kpi-icon"><i class="fa-solid fa-people-arrows"></i></div>
                 <div class="kpi-data">
                     <h4>Collaboration</h4>
-                    <h2>6</h2>
+                    <h2>{{ $collaborationCount }}</h2>
                     <p>Active projects</p>
                 </div>
             </div>
@@ -35,7 +35,7 @@
                 <div class="kpi-icon"><i class="fa-solid fa-book-open"></i></div>
                 <div class="kpi-data">
                     <h4>Sharing Activities</h4>
-                    <h2>4</h2>
+                    <h2>{{ $sharingCount }}</h2>
                     <p>Knowledge shared</p>
                 </div>
             </div>
@@ -51,19 +51,19 @@
                     <ul class="exposure-list">
                         <li>
                             <div class="level score-a"><div class="dot" style="background:var(--primary)"></div> A (High)</div>
-                            <div class="interns">Chris, Humaira, Rama</div>
+                            <div class="interns">{{ $latestEvaluations->where('floatExposureScore', '>=', 85)->pluck('intern.txtInternName')->filter()->join(', ') ?: '-' }}</div>
                         </li>
                         <li>
                             <div class="level score-b"><div class="dot" style="background:var(--secondary)"></div> B (Medium)</div>
-                            <div class="interns">Khansa, Husain</div>
+                            <div class="interns">{{ $latestEvaluations->whereBetween('floatExposureScore', [70, 84.99])->pluck('intern.txtInternName')->filter()->join(', ') ?: '-' }}</div>
                         </li>
                         <li>
                             <div class="level score-c"><div class="dot" style="background:var(--warning)"></div> C (Low)</div>
-                            <div class="interns">Lisna, Frendy</div>
+                            <div class="interns">{{ $latestEvaluations->whereBetween('floatExposureScore', [50, 69.99])->pluck('intern.txtInternName')->filter()->join(', ') ?: '-' }}</div>
                         </li>
                         <li>
                             <div class="level score-d"><div class="dot" style="background:#EA580C"></div> D (Very Low)</div>
-                            <div class="interns">Delia</div>
+                            <div class="interns">{{ $latestEvaluations->where('floatExposureScore', '<', 50)->pluck('intern.txtInternName')->filter()->join(', ') ?: '-' }}</div>
                         </li>
                     </ul>
                 </div>
@@ -78,27 +78,18 @@
                 <div class="card" style="border: none; box-shadow: none; padding: 0; background: transparent; margin-bottom: 0;">
                     <div class="card-title" style="font-size: 13px; margin-bottom: 5px;">TOP PERFORMERS</div>
                     <div class="podium-section">
-                        <div class="podium p-2">
-                            <div class="badge">2</div>
-                            <img src="https://ui-avatars.com/api/?name=Humaira&background=random" alt="Humaira">
-                            <h5>Humaira Z.</h5>
-                            <div class="stars">★★★★★</div>
-                            <div class="score">92</div>
-                        </div>
-                        <div class="podium p-1">
-                            <div class="badge">1</div>
-                            <img src="https://ui-avatars.com/api/?name=Christopher&background=random" alt="Chris">
-                            <h5>Chris R. W.</h5>
-                            <div class="stars">★★★★★</div>
-                            <div class="score">95</div>
-                        </div>
-                        <div class="podium p-3">
-                            <div class="badge">3</div>
-                            <img src="https://ui-avatars.com/api/?name=Rama&background=random" alt="Rama">
-                            <h5>Rama N. B.</h5>
-                            <div class="stars">★★★★★</div>
-                            <div class="score">88</div>
-                        </div>
+                        @forelse ($topPerformers as $index => $evaluation)
+                            @php($rank = $index + 1)
+                            <div class="podium p-{{ $rank }}">
+                                <div class="badge">{{ $rank }}</div>
+                                <img src="https://ui-avatars.com/api/?name={{ urlencode($evaluation->intern->txtInternName ?? 'Intern') }}&background=random" alt="{{ $evaluation->intern->txtInternName ?? 'Intern' }}">
+                                <h5>{{ $evaluation->intern->txtInternName ?? '-' }}</h5>
+                                <div class="stars">★★★★★</div>
+                                <div class="score">{{ number_format((float) $evaluation->floatExposureScore, 0) }}</div>
+                            </div>
+                        @empty
+                            <div class="card" style="box-shadow:none; margin-bottom:0;">Belum ada evaluasi.</div>
+                        @endforelse
                     </div>
                 </div>
             </div>
@@ -114,19 +105,21 @@
                             <thead>
                                 <tr>
                                     <th>PROJECT / AREA</th>
-                                    <th class="center">Chris</th>
-                                    <th class="center">Humaira</th>
-                                    <th class="center">Rama</th>
-                                    <th class="center">Khansa</th>
-                                    <th class="center">Husain</th>
+                                    @foreach ($interns->take(5) as $intern)
+                                        <th class="center">{{ \Illuminate\Support\Str::limit($intern->txtInternName, 8, '') }}</th>
+                                    @endforeach
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td>Collaboration</td><td class="center score-a">12</td><td class="center score-b">8</td><td class="center score-c">3</td><td class="center">-</td><td class="center">-</td></tr>
-                                <tr><td>Main Project</td><td class="center score-a">15</td><td class="center score-b">10</td><td class="center score-a">11</td><td class="center score-c">4</td><td class="center">-</td></tr>
-                                <tr><td>Satellite Project</td><td class="center">-</td><td class="center score-b">6</td><td class="center score-b">5</td><td class="center score-c">2</td><td class="center score-d">1</td></tr>
-                                <tr><td>Sharing / Learning</td><td class="center score-a">14</td><td class="center score-b">7</td><td class="center score-b">9</td><td class="center score-b">5</td><td class="center score-c">2</td></tr>
-                                <tr><td>Security Awareness</td><td class="center">-</td><td class="center score-b">6</td><td class="center score-c">4</td><td class="center score-c">3</td><td class="center score-d">1</td></tr>
+                                @foreach (['Collaboration', 'Main', 'Satellite', 'Sharing'] as $type)
+                                    <tr>
+                                        <td>{{ $type }}</td>
+                                        @foreach ($interns->take(5) as $intern)
+                                            @php($qty = $assignments->filter(fn ($assignment) => $assignment->intIntern_ID === $intern->intIntern_ID && $assignment->project?->txtProjectType === $type)->count())
+                                            <td class="center {{ $qty > 10 ? 'score-a' : ($qty >= 5 ? 'score-b' : ($qty >= 2 ? 'score-c' : ($qty === 1 ? 'score-d' : ''))) }}">{{ $qty ?: '-' }}</td>
+                                        @endforeach
+                                    </tr>
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
@@ -146,9 +139,17 @@
                                 <tr><th>RANK</th><th>INTERN</th><th>MAIN PROJECT</th><th>SCORE</th><th>TREND</th></tr>
                             </thead>
                             <tbody>
-                                <tr><td><span class="card-num" style="background:transparent;border:1px solid var(--border);border-radius:50%;width:20px;height:20px;color:var(--text-dark);">1</span></td><td>Chris Rey W.</td><td>CFD</td><td class="score-a">95</td><td class="score-a"><i class="fa-solid fa-arrow-up"></i></td></tr>
-                                <tr><td><span class="card-num" style="background:transparent;border:1px solid var(--border);border-radius:50%;width:20px;height:20px;color:var(--text-dark);">2</span></td><td>Humaira Zeanova</td><td>Spray Dryer</td><td class="score-a">92</td><td class="score-a"><i class="fa-solid fa-arrow-up"></i></td></tr>
-                                <tr><td><span class="card-num" style="background:transparent;border:1px solid var(--border);border-radius:50%;width:20px;height:20px;color:var(--text-dark);">3</span></td><td>Rama Nusa B.</td><td>Digital Twin</td><td class="score-a">88</td><td class="score-a"><i class="fa-solid fa-arrow-up"></i></td></tr>
+                                @forelse ($topPerformers as $index => $evaluation)
+                                    <tr>
+                                        <td><span class="card-num" style="background:transparent;border:1px solid var(--border);border-radius:50%;width:20px;height:20px;color:var(--text-dark);">{{ $index + 1 }}</span></td>
+                                        <td>{{ $evaluation->intern->txtInternName ?? '-' }}</td>
+                                        <td>{{ $evaluation->intern?->projects?->first()?->project?->txtProjectName ?? '-' }}</td>
+                                        <td class="score-a">{{ number_format((float) $evaluation->floatExposureScore, 0) }}</td>
+                                        <td class="score-a"><i class="fa-solid fa-arrow-up"></i></td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5">Belum ada data leaderboard.</td></tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>

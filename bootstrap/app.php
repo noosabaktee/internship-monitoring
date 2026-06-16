@@ -12,7 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'kmi.auth' => \App\Http\Middleware\KmiAuthenticate::class,
+            'kmi.guest' => \App\Http\Middleware\KmiGuest::class,
+            'kmi.mentor' => \App\Http\Middleware\KmiMentorOnly::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

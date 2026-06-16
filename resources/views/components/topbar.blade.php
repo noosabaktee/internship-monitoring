@@ -1,3 +1,11 @@
+@php
+    $authUser = \App\Models\MUser::with(['intern', 'mentor'])->find(session('auth_user_id'));
+    $displayName = $authUser?->intern?->txtInternName
+        ?? $authUser?->mentor?->txtMentorName
+        ?? 'Admin';
+    $displayRole = $authUser?->txtRole ?? 'HR Development';
+@endphp
+
 <header class="topbar">
     <div class="header-left">
         <i class="fa-solid fa-bars menu-toggle" onclick="toggleSidebar()"></i>
@@ -19,16 +27,19 @@
         <div class="user-profile">
             <i class="fa-regular fa-bell" style="font-size: 20px; color: var(--text-gray); margin-right: 5px; cursor: pointer;"></i>
             <button class="profile-trigger" id="profileTrigger" type="button" aria-haspopup="true" aria-expanded="false">
-                <img src="https://ui-avatars.com/api/?name=Admin+Kalbe&background=8CC63F&color=fff" alt="Admin">
+                <img src="https://ui-avatars.com/api/?name={{ urlencode($displayName) }}&background=8CC63F&color=fff" alt="{{ $displayName }}">
                 <div class="user-info">
-                    <div class="name">Admin</div>
-                    <div class="role">HR Development</div>
+                    <div class="name">{{ $displayName }}</div>
+                    <div class="role">{{ $displayRole }}</div>
                 </div>
                 <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: var(--text-gray);"></i>
             </button>
             <div class="profile-dropdown" id="profileDropdown">
                 <button type="button" onclick="window.location.href='{{ route('profile.show') }}'"><i class="fa-regular fa-user"></i> Profile</button>
-                <button type="button" class="logout" onclick="window.location.href='{{ route('login') }}'"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button>
+                <form action="{{ route('logout') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="logout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button>
+                </form>
             </div>
         </div>
     </div>

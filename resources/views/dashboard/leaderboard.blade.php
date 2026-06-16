@@ -16,14 +16,21 @@
         <div class="table-responsive">
             <table class="data-table">
                 <thead>
-                    <tr><th>Rank</th><th>Intern</th><th>Main Project</th><th>Score</th><th>Trend</th></tr>
+                    <tr><th>Rank</th><th>Intern</th><th>Main Project</th><th>Score</th><th>Period</th><th>Trend</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>1</td><td>Christopher Rey W.</td><td>CFD Optimization</td><td class="score-a">95</td><td class="score-a"><i class="fa-solid fa-arrow-up"></i></td></tr>
-                    <tr><td>2</td><td>Humaira Zeanova</td><td>Spray Dryer</td><td class="score-a">92</td><td class="score-a"><i class="fa-solid fa-arrow-up"></i></td></tr>
-                    <tr><td>3</td><td>Rama Nusa B.</td><td>Digital Twin</td><td class="score-a">88</td><td class="score-a"><i class="fa-solid fa-arrow-up"></i></td></tr>
-                    <tr><td>4</td><td>Khansa Aulia</td><td>Line Balancing</td><td class="score-b">78</td><td class="score-b"><i class="fa-solid fa-minus"></i></td></tr>
-                    <tr><td>5</td><td>Husain Farhan</td><td>QA Sampling</td><td class="score-b">74</td><td class="score-a"><i class="fa-solid fa-arrow-up"></i></td></tr>
+                    @forelse ($leaderboard as $index => $evaluation)
+                        <tr>
+                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $evaluation->intern->txtInternName ?? '-' }}</td>
+                            <td>{{ $evaluation->intern?->projects?->first()?->project?->txtProjectName ?? '-' }}</td>
+                            <td class="{{ $evaluation->floatExposureScore >= 85 ? 'score-a' : ($evaluation->floatExposureScore >= 70 ? 'score-b' : 'score-c') }}">{{ number_format((float) $evaluation->floatExposureScore, 1) }}</td>
+                            <td>{{ $evaluation->dtmPeriod?->format('M Y') ?? '-' }}</td>
+                            <td class="score-a"><i class="fa-solid fa-arrow-up"></i></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6" class="center">Belum ada data evaluasi untuk leaderboard.</td></tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>

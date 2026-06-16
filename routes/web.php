@@ -13,21 +13,50 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
+Route::pattern('achievement', '[0-9]+');
+Route::pattern('analytic', '[0-9]+');
+Route::pattern('intern', '[0-9]+');
+Route::pattern('leaderboard', '[0-9]+');
+Route::pattern('mentor', '[0-9]+');
+Route::pattern('project', '[0-9]+');
+Route::pattern('report', '[0-9]+');
+Route::pattern('setting', '[0-9]+');
 
-Route::resource('leaderboard', LeaderboardController::class);
-Route::resource('interns', InternController::class);
-Route::resource('projects', ProjectController::class);
-Route::resource('mentors', MentorController::class);
-Route::resource('analytics', AnalyticsController::class);
-Route::resource('achievements', AchievementController::class);
-Route::resource('reports', ReportController::class);
-Route::resource('settings', SettingController::class);
+Route::middleware('kmi.guest')->group(function () {
+    Route::get('/login', [AuthPageController::class, 'login'])->name('login');
+    Route::post('/login', [AuthPageController::class, 'authenticate'])->name('login.authenticate');
+    Route::get('/register', [AuthPageController::class, 'register'])->name('register');
+    Route::post('/register', [AuthPageController::class, 'store'])->name('register.store');
+});
 
-Route::get('/login', [AuthPageController::class, 'login'])->name('login');
-Route::get('/register', [AuthPageController::class, 'register'])->name('register');
+Route::middleware('kmi.auth')->group(function () {
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
+    Route::post('/logout', [AuthPageController::class, 'logout'])->name('logout');
 
-Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
-Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
-Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
-Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::resource('projects', ProjectController::class);
+
+    Route::resource('leaderboard', LeaderboardController::class)->only(['index', 'show']);
+    Route::resource('interns', InternController::class)->only(['index', 'show']);
+    Route::resource('mentors', MentorController::class)->only(['index', 'show']);
+    Route::resource('analytics', AnalyticsController::class)->only(['index', 'show']);
+    Route::resource('achievements', AchievementController::class)->only(['index', 'show']);
+    Route::resource('reports', ReportController::class)->only(['index', 'show']);
+    Route::resource('settings', SettingController::class)->only(['index', 'show']);
+
+    Route::middleware('kmi.mentor')->group(function () {
+        Route::resource('leaderboard', LeaderboardController::class)->except(['index', 'show']);
+        Route::resource('interns', InternController::class)->except(['index', 'show']);
+        Route::resource('mentors', MentorController::class)->except(['index', 'show']);
+        Route::resource('analytics', AnalyticsController::class)->except(['index', 'show']);
+        Route::resource('achievements', AchievementController::class)->except(['index', 'show']);
+        Route::resource('reports', ReportController::class)->except(['index', 'show']);
+        Route::resource('settings', SettingController::class)->except(['index', 'show']);
+    });
+
+    Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/profile/intern/{intern}', [ProfileController::class, 'showIntern'])->name('profile.intern.show');
+    Route::get('/profile/mentor/{mentor}', [ProfileController::class, 'showMentor'])->name('profile.mentor.show');
+});

@@ -4,24 +4,109 @@
     'pageSubtitle' => 'Manajemen data Analytics Kalbe.',
 ])
 
+@php
+    $isFormOpen = in_array($mode ?? null, ['create', 'edit'], true);
+    $formAction = isset($editingEvaluation)
+        ? route('analytics.update', $editingEvaluation->intEvaluation_ID)
+        : route('analytics.store');
+    $isMentor = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole === 'Mentor';
+@endphp
+
 @section('content')
     <div class="page-crud-header">
         <div>
             <h2>Analytics</h2>
-            <p>Statistik dan laporan performa mendalam.</p>
+            <p>Statistik, evaluasi, dan laporan performa mendalam.</p>
         </div>
+        @if ($isMentor)
+            <a class="btn-add" href="{{ route('analytics.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Evaluasi</a>
+        @endif
     </div>
 
     <div class="kpi-row">
-        <div class="kpi-card"><div class="kpi-icon"><i class="fa-solid fa-chart-line"></i></div><div class="kpi-data"><h4>Exposure Growth</h4><h2>+8.5%</h2><p>vs last month</p></div></div>
-        <div class="kpi-card"><div class="kpi-icon"><i class="fa-solid fa-people-arrows"></i></div><div class="kpi-data"><h4>Collaboration Avg</h4><h2>84</h2><p>Program score</p></div></div>
-        <div class="kpi-card"><div class="kpi-icon"><i class="fa-solid fa-book-open"></i></div><div class="kpi-data"><h4>Sharing Avg</h4><h2>79</h2><p>Knowledge activity</p></div></div>
+        <div class="kpi-card"><div class="kpi-icon"><i class="fa-solid fa-chart-line"></i></div><div class="kpi-data"><h4>Average Exposure</h4><h2>{{ $averageExposure }}</h2><p>{{ $activeInterns }} active interns</p></div></div>
+        <div class="kpi-card"><div class="kpi-icon"><i class="fa-solid fa-people-arrows"></i></div><div class="kpi-data"><h4>Collaboration Avg</h4><h2>{{ $averageCollaboration }}</h2><p>{{ $activeAssignments }} active assignments</p></div></div>
+        <div class="kpi-card"><div class="kpi-icon"><i class="fa-solid fa-book-open"></i></div><div class="kpi-data"><h4>Sharing Avg</h4><h2>{{ $averageSharing }}</h2><p>Knowledge activity</p></div></div>
     </div>
 
-    <div class="card">
+    @if ($isFormOpen)
+        <section class="profile-card" style="margin-bottom: 20px;">
+            <div class="profile-card-header">
+                <div class="profile-card-title">
+                    <h2>{{ isset($editingEvaluation) ? 'Edit Evaluasi' : 'Tambah Evaluasi' }}</h2>
+                    <p>Exposure score dihitung otomatis dari rata-rata empat skor evaluasi.</p>
+                </div>
+                <a href="{{ route('analytics.index') }}" class="btn-outline"><i class="fa-solid fa-xmark"></i> Tutup</a>
+            </div>
+
+            <form class="edit-profile-grid" action="{{ $formAction }}" method="POST">
+                @csrf
+                @isset($editingEvaluation)
+                    @method('PUT')
+                @endisset
+
+                <div class="form-group">
+                    <label>Intern</label>
+                    <select class="form-control" name="intIntern_ID" required>
+                        <option value="">Pilih intern</option>
+                        @foreach ($interns as $intern)
+                            <option value="{{ $intern->intIntern_ID }}" @selected((string) old('intIntern_ID', $editingEvaluation->intIntern_ID ?? '') === (string) $intern->intIntern_ID)>{{ $intern->txtInternName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group"><label>Periode</label><input class="form-control" type="month" name="dtmPeriod" value="{{ old('dtmPeriod', isset($editingEvaluation) && $editingEvaluation->dtmPeriod ? $editingEvaluation->dtmPeriod->format('Y-m') : now()->format('Y-m')) }}" required></div>
+                <div class="form-group"><label>Hard Skill</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatHardSkill" value="{{ old('floatHardSkill', $editingEvaluation->floatHardSkill ?? 0) }}" required></div>
+                <div class="form-group"><label>Collaboration</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatCollaboration" value="{{ old('floatCollaboration', $editingEvaluation->floatCollaboration ?? 0) }}" required></div>
+                <div class="form-group"><label>Ownership</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatOwnership" value="{{ old('floatOwnership', $editingEvaluation->floatOwnership ?? 0) }}" required></div>
+                <div class="form-group"><label>Sharing</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatSharing" value="{{ old('floatSharing', $editingEvaluation->floatSharing ?? 0) }}" required></div>
+                <div class="form-group full"><button class="btn-save" type="submit">{{ isset($editingEvaluation) ? 'Simpan Perubahan' : 'Simpan Evaluasi' }}</button></div>
+            </form>
+        </section>
+    @endif
+
+    <div class="card" style="margin-bottom: 20px;">
         <div class="card-title" style="margin-bottom: 10px;">EXPOSURE PROGRESSION</div>
         <div style="height: 260px; position: relative; width: 100%;">
             <canvas id="lineChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr><th>Intern</th><th>Periode</th><th>Hard</th><th>Collab</th><th>Ownership</th><th>Sharing</th><th>Exposure</th><th>Aksi</th></tr>
+                </thead>
+                <tbody>
+                    @forelse ($evaluations->sortByDesc('dtmPeriod') as $evaluation)
+                        <tr>
+                            <td>{{ $evaluation->intern->txtInternName ?? '-' }}</td>
+                            <td>{{ $evaluation->dtmPeriod?->format('M Y') ?? '-' }}</td>
+                            <td>{{ number_format((float) $evaluation->floatHardSkill, 1) }}</td>
+                            <td>{{ number_format((float) $evaluation->floatCollaboration, 1) }}</td>
+                            <td>{{ number_format((float) $evaluation->floatOwnership, 1) }}</td>
+                            <td>{{ number_format((float) $evaluation->floatSharing, 1) }}</td>
+                            <td class="score-a">{{ number_format((float) $evaluation->floatExposureScore, 1) }}</td>
+                            <td>
+                                @if ($isMentor)
+                                    <div class="action-btns">
+                                        <a class="btn-icon btn-edit" href="{{ route('analytics.edit', $evaluation->intEvaluation_ID) }}"><i class="fa-solid fa-pen"></i></a>
+                                        <form action="{{ route('analytics.destroy', $evaluation->intEvaluation_ID) }}" method="POST" onsubmit="return confirm('Nonaktifkan evaluasi ini?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="btn-icon btn-delete" type="submit"><i class="fa-solid fa-trash"></i></button>
+                                        </form>
+                                    </div>
+                                @else
+                                    -
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="8" class="center">Belum ada data evaluasi.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 @endsection

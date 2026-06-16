@@ -4,13 +4,79 @@
     'pageSubtitle' => 'Manajemen data Achievements Kalbe.',
 ])
 
+@php
+    $isFormOpen = in_array($mode ?? null, ['create', 'edit'], true);
+    $formAction = isset($editingAchievement)
+        ? route('achievements.update', $editingAchievement->intAchievement_ID)
+        : route('achievements.store');
+    $isMentor = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole === 'Mentor';
+@endphp
+
 @section('content')
     <div class="page-crud-header">
         <div>
             <h2>Achievements</h2>
             <p>Penghargaan dan milestone untuk intern.</p>
         </div>
+        @if ($isMentor)
+            <a class="btn-add" href="{{ route('achievements.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Achievement</a>
+        @endif
     </div>
+
+    @if ($isFormOpen)
+        <section class="profile-card" style="margin-bottom: 20px;">
+            <div class="profile-card-header">
+                <div class="profile-card-title">
+                    <h2>{{ isset($editingAchievement) ? 'Edit Achievement' : 'Tambah Achievement' }}</h2>
+                    <p>Data achievement disimpan di trAchievement dan terhubung ke intern.</p>
+                </div>
+                <a href="{{ route('achievements.index') }}" class="btn-outline"><i class="fa-solid fa-xmark"></i> Tutup</a>
+            </div>
+
+            <form class="edit-profile-grid" action="{{ $formAction }}" method="POST">
+                @csrf
+                @isset($editingAchievement)
+                    @method('PUT')
+                @endisset
+
+                <div class="form-group">
+                    <label>Intern</label>
+                    <select class="form-control" name="intIntern_ID" required>
+                        <option value="">Pilih intern</option>
+                        @foreach ($interns as $intern)
+                            <option value="{{ $intern->intIntern_ID }}" @selected((string) old('intIntern_ID', $editingAchievement->intIntern_ID ?? '') === (string) $intern->intIntern_ID)>{{ $intern->txtInternName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select class="form-control" name="bitActive">
+                        <option value="1" @selected((string) old('bitActive', (int) ($editingAchievement->bitActive ?? true)) === '1')>Aktif</option>
+                        <option value="0" @selected((string) old('bitActive', (int) ($editingAchievement->bitActive ?? true)) === '0')>Nonaktif</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Judul</label>
+                    <input class="form-control" name="txtAchievementTitle" value="{{ old('txtAchievementTitle', $editingAchievement->txtAchievementTitle ?? '') }}" required>
+                </div>
+                <div class="form-group">
+                    <label>Icon FontAwesome</label>
+                    <input class="form-control" name="txtIcon" value="{{ old('txtIcon', $editingAchievement->txtIcon ?? 'fa-solid fa-award') }}">
+                </div>
+                <div class="form-group">
+                    <label>Tanggal Award</label>
+                    <input class="form-control" type="date" name="dtmAwarded" value="{{ old('dtmAwarded', isset($editingAchievement) && $editingAchievement->dtmAwarded ? $editingAchievement->dtmAwarded->format('Y-m-d') : now()->format('Y-m-d')) }}">
+                </div>
+                <div class="form-group full">
+                    <label>Deskripsi</label>
+                    <textarea class="form-control" name="txtDescription" rows="3">{{ old('txtDescription', $editingAchievement->txtDescription ?? '') }}</textarea>
+                </div>
+                <div class="form-group full">
+                    <button class="btn-save" type="submit">{{ isset($editingAchievement) ? 'Simpan Perubahan' : 'Simpan Achievement' }}</button>
+                </div>
+            </form>
+        </section>
+    @endif
 
     <div class="profile-section-grid">
         <section class="profile-card">
@@ -21,9 +87,28 @@
                 </div>
             </div>
             <ul class="achievement-list">
-                <li><div class="achievement-icon"><i class="fa-solid fa-award"></i></div><div><h4>Top Performer</h4><p>Christopher Rey W. menempati peringkat 1 leaderboard exposure.</p></div></li>
-                <li><div class="achievement-icon"><i class="fa-solid fa-lightbulb"></i></div><div><h4>Best Improvement Idea</h4><p>Ide optimasi CFD masuk review implementasi.</p></div></li>
-                <li><div class="achievement-icon"><i class="fa-solid fa-users"></i></div><div><h4>Collaboration Champion</h4><p>Aktif membantu sync antar intern dan mentor.</p></div></li>
+                @forelse ($achievements as $achievement)
+                    <li>
+                        <div class="achievement-icon"><i class="{{ $achievement->txtIcon ?: 'fa-solid fa-award' }}"></i></div>
+                        <div style="flex:1;">
+                            <h4>{{ $achievement->txtAchievementTitle }}</h4>
+                            <p>{{ $achievement->intern->txtInternName ?? '-' }} &bull; {{ $achievement->dtmAwarded?->format('d M Y') ?? '-' }}</p>
+                            <p>{{ $achievement->txtDescription }}</p>
+                        </div>
+                        @if ($isMentor)
+                            <div class="action-btns">
+                                <a class="btn-icon btn-edit" href="{{ route('achievements.edit', $achievement->intAchievement_ID) }}"><i class="fa-solid fa-pen"></i></a>
+                                <form action="{{ route('achievements.destroy', $achievement->intAchievement_ID) }}" method="POST" onsubmit="return confirm('Nonaktifkan achievement ini?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="btn-icon btn-delete" type="submit"><i class="fa-solid fa-trash"></i></button>
+                                </form>
+                            </div>
+                        @endif
+                    </li>
+                @empty
+                    <li><div class="achievement-icon"><i class="fa-solid fa-award"></i></div><div><h4>Belum ada data</h4><p>Tambahkan achievement pertama untuk intern.</p></div></li>
+                @endforelse
             </ul>
         </section>
         <aside class="profile-card">
@@ -33,7 +118,7 @@
             </div>
             <div class="kpi-card" style="margin-top: 18px;">
                 <div class="kpi-icon"><i class="fa-solid fa-trophy"></i></div>
-                <div class="kpi-data"><h4>Total Awards</h4><h2>12</h2><p>Across all interns</p></div>
+                <div class="kpi-data"><h4>Total Awards</h4><h2>{{ $achievements->where('bitActive', true)->count() }}</h2><p>Across all interns</p></div>
             </div>
         </aside>
     </div>

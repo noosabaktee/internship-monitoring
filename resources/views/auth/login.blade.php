@@ -27,12 +27,24 @@
                     <p>Login menggunakan akun yang terdaftar untuk membuka dashboard internship.</p>
                 </div>
 
-                <form class="auth-form" action="{{ route('dashboard.index') }}">
+                @if ($errors->any())
+                    <div class="alert-box" style="margin-bottom: 18px;">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <div>
+                            @foreach ($errors->all() as $error)
+                                <p>{{ $error }}</p>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                <form class="auth-form" action="{{ route('login.authenticate') }}" method="POST">
+                    @csrf
                     <div class="form-group">
                         <label>Email</label>
                         <div class="auth-input-wrap">
                             <i class="fa-regular fa-envelope"></i>
-                            <input type="email" class="form-control" placeholder="nama@kalbe.co.id" required>
+                            <input type="email" name="txtEmail" class="form-control" value="{{ old('txtEmail') }}" placeholder="nama@kalbe.co.id" required>
                         </div>
                     </div>
 
@@ -40,7 +52,7 @@
                         <label>Password</label>
                         <div class="auth-input-wrap">
                             <i class="fa-solid fa-lock"></i>
-                            <input type="password" class="form-control" placeholder="Masukkan password" required>
+                            <input type="password" name="txtPassword" class="form-control" placeholder="Masukkan password" required>
                         </div>
                     </div>
 

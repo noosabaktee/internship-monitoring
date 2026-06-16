@@ -19,6 +19,24 @@
         ])
 
         <div class="content-area">
+            @if (session('success'))
+                <div class="alert-box" style="margin-bottom: 18px;">
+                    <i class="fa-solid fa-circle-check" style="color: var(--success);"></i>
+                    <div><p>{{ session('success') }}</p></div>
+                </div>
+            @endif
+
+            @if ($errors->any())
+                <div class="alert-box" style="margin-bottom: 18px;">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <div>
+                        @foreach ($errors->all() as $error)
+                            <p>{{ $error }}</p>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             @yield('content')
         </div>
     </main>

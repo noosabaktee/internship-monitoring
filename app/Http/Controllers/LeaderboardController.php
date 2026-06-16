@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\TrEvaluation;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -10,7 +11,15 @@ class LeaderboardController extends Controller
 {
     public function index(): View
     {
-        return view('dashboard.leaderboard');
+        $leaderboard = TrEvaluation::with(['intern.projects.project'])
+            ->where('bitActive', true)
+            ->orderByDesc('floatExposureScore')
+            ->orderByDesc('dtmPeriod')
+            ->get()
+            ->unique('intIntern_ID')
+            ->values();
+
+        return view('dashboard.leaderboard', compact('leaderboard'));
     }
 
     public function create(): View
