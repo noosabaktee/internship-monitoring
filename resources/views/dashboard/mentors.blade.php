@@ -1,7 +1,7 @@
 @extends('layouts.app', [
     'title' => 'Mentors - Kalbe Internship Dashboard',
     'pageTitle' => 'MENTORS',
-    'pageSubtitle' => 'Manajemen data Mentors Kalbe.',
+    'pageSubtitle' => 'Manage Kalbe mentor data.',
 ])
 
 @php
@@ -15,11 +15,11 @@
 @section('content')
     <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
-            <h2>Data Mentors</h2>
-            <p>Kelola data mentor berdasarkan departemen dan status pendampingan.</p>
+            <h2>Mentor Data</h2>
+            <p>Manage mentors by department and mentoring status.</p>
         </div>
         @if ($isMentorUser)
-            <a class="btn btn-primary btn-add" href="{{ route('mentors.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Mentor</a>
+            <a class="btn btn-primary btn-add" href="{{ route('mentors.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Mentor</a>
         @endif
     </div>
 
@@ -27,10 +27,10 @@
         <section class="profile-card mb-4">
             <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
                 <div class="profile-card-title">
-                    <h2>{{ isset($editingMentor) ? 'Edit Mentor' : 'Tambah Mentor Baru' }}</h2>
-                    <p>Email dan password disimpan di mUser, profil mentor disimpan di mMentor.</p>
+                    <h2>{{ isset($editingMentor) ? 'Edit Mentor' : 'Add New Mentor' }}</h2>
+                    <p>Email and password are stored in mUser. Mentor profiles are stored in mMentor.</p>
                 </div>
-                <a href="{{ route('mentors.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Tutup</a>
+                <a href="{{ route('mentors.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Close</a>
             </div>
 
             <form class="row g-3" action="{{ $formAction }}" method="POST">
@@ -42,32 +42,41 @@
                 <div class="col-md-4">
                     <label class="form-label">Status</label>
                     <select class="form-control" name="bitActive">
-                        <option value="1" @selected((string) old('bitActive', (int) ($editingMentor->bitActive ?? true)) === '1')>Aktif</option>
-                        <option value="0" @selected((string) old('bitActive', (int) ($editingMentor->bitActive ?? true)) === '0')>Nonaktif</option>
+                        <option value="1" @selected((string) old('bitActive', (int) ($editingMentor->bitActive ?? true)) === '1')>Active</option>
+                        <option value="0" @selected((string) old('bitActive', (int) ($editingMentor->bitActive ?? true)) === '0')>Inactive</option>
                     </select>
                 </div>
                 <div class="col-md-8">
-                    <label class="form-label">Nama Lengkap</label>
+                    <label class="form-label">Full Name</label>
                     <input class="form-control" name="txtMentorName" value="{{ old('txtMentorName', $editingMentor->txtMentorName ?? '') }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Gender</label>
+                    <select class="form-control" name="txtMentorGender">
+                        <option value="">Select gender</option>
+                        @foreach (['Laki-laki' => 'Male', 'Perempuan' => 'Female'] as $genderValue => $genderLabel)
+                            <option value="{{ $genderValue }}" @selected(old('txtMentorGender', $editingMentor->txtMentorGender ?? '') === $genderValue)>{{ $genderLabel }}</option>
+                        @endforeach
+                    </select>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Email</label>
                     <input class="form-control" type="email" name="txtEmail" value="{{ old('txtEmail', $editingMentor->user->txtEmail ?? '') }}" required>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Password {{ isset($editingMentor) ? '(kosongkan jika tidak diganti)' : '' }}</label>
-                    <input class="form-control" type="password" name="txtPassword" placeholder="{{ isset($editingMentor) ? 'Password baru' : 'Default: password' }}">
+                    <label class="form-label">Password {{ isset($editingMentor) ? '(leave blank to keep current)' : '' }}</label>
+                    <input class="form-control" type="password" name="txtPassword" placeholder="{{ isset($editingMentor) ? 'New password' : 'Default: password' }}">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Department</label>
                     <input class="form-control" name="txtDepartment" value="{{ old('txtDepartment', $editingMentor->txtDepartment ?? '') }}">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Role / Jabatan</label>
+                    <label class="form-label">Role / Position</label>
                     <input class="form-control" name="txtRole" value="{{ old('txtRole', $editingMentor->txtRole ?? 'Mentor') }}">
                 </div>
                 <div class="col-12">
-                    <button class="btn btn-primary btn-save" type="submit">{{ isset($editingMentor) ? 'Simpan Perubahan' : 'Simpan Mentor' }}</button>
+                    <button class="btn btn-primary btn-save" type="submit">{{ isset($editingMentor) ? 'Save Changes' : 'Save Mentor' }}</button>
                 </div>
             </form>
         </section>
@@ -77,34 +86,35 @@
         <div class="table-responsive">
             <table class="table data-table align-middle mb-0">
                 <thead>
-                    <tr><th>ID</th><th>Nama Lengkap</th><th>Email</th><th>Department</th><th>Role</th><th>Status</th><th>Aksi</th></tr>
+                    <tr><th>ID</th><th>Full Name</th><th>Gender</th><th>Email</th><th>Department</th><th>Role</th><th>Status</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($mentors as $mentor)
                         <tr>
                             <td>MTR-{{ str_pad((string) $mentor->intMentor_ID, 3, '0', STR_PAD_LEFT) }}</td>
                             <td><a class="auth-link" href="{{ route('profile.mentor.show', $mentor->intMentor_ID) }}">{{ $mentor->txtMentorName }}</a></td>
+                            <td>{{ $mentor->txtMentorGender ?: '-' }}</td>
                             <td>{{ $mentor->user->txtEmail ?? '-' }}</td>
                             <td>{{ $mentor->txtDepartment ?: '-' }}</td>
                             <td>{{ $mentor->txtRole ?: '-' }}</td>
-                            <td><span class="status-badge {{ $mentor->bitActive ? 'status-active' : 'status-inactive' }}">{{ $mentor->bitActive ? 'Aktif' : 'Nonaktif' }}</span></td>
+                            <td><span class="status-badge {{ $mentor->bitActive ? 'status-active' : 'status-inactive' }}">{{ $mentor->bitActive ? 'Active' : 'Inactive' }}</span></td>
                             <td>
                                 @if ($isMentorUser)
                                     <div class="action-btns">
                                         <a class="btn-icon btn-edit" href="{{ route('mentors.edit', $mentor->intMentor_ID) }}"><i class="fa-solid fa-pen"></i></a>
-                                        <form action="{{ route('mentors.destroy', $mentor->intMentor_ID) }}" method="POST" onsubmit="return confirm('Nonaktifkan mentor ini?')">
+                                        <form action="{{ route('mentors.destroy', $mentor->intMentor_ID) }}" method="POST" onsubmit="return confirm('Deactivate this mentor?')">
                                             @csrf
                                             @method('DELETE')
                                             <button class="btn-icon btn-delete" type="submit"><i class="fa-solid fa-trash"></i></button>
                                         </form>
                                     </div>
                                 @else
-                                    <a class="auth-link" href="{{ route('profile.mentor.show', $mentor->intMentor_ID) }}">Lihat</a>
+                                    <a class="auth-link" href="{{ route('profile.mentor.show', $mentor->intMentor_ID) }}">View</a>
                                 @endif
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="center">Belum ada data mentor.</td></tr>
+                        <tr><td colspan="8" class="center">No mentor data yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>

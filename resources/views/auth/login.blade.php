@@ -9,8 +9,8 @@
             </div>
 
             <div class="auth-hero">
-                <h1>Kelola internship dengan ritme yang lebih rapi.</h1>
-                <p>Masuk untuk memantau interns, project, mentor, exposure score, dan laporan perkembangan program dalam satu dashboard.</p>
+                <h1>Manage internships with a cleaner rhythm.</h1>
+                <p>Sign in to monitor interns, projects, mentors, exposure scores, and program progress reports in one dashboard.</p>
             </div>
 
             <div class="auth-stats">
@@ -24,7 +24,7 @@
             <div class="auth-card">
                 <div class="auth-card-header">
                     <h2>Welcome Back</h2>
-                    <p>Login menggunakan akun yang terdaftar untuk membuka dashboard internship.</p>
+                    <p>Log in with your registered account to open the internship dashboard.</p>
                 </div>
 
                 @if ($errors->any())
@@ -52,13 +52,13 @@
                         <label class="form-label">Password</label>
                         <div class="auth-input-wrap">
                             <i class="fa-solid fa-lock"></i>
-                            <input type="password" name="txtPassword" class="form-control" placeholder="Masukkan password" required>
+                            <input type="password" name="txtPassword" class="form-control" placeholder="Enter password" required>
                         </div>
                     </div>
 
                     <div class="auth-options d-flex align-items-center justify-content-between gap-3">
-                        <label><input type="checkbox"> Ingat saya</label>
-                        <a href="#" class="auth-link">Lupa password?</a>
+                        <label><input type="checkbox"> Remember me</label>
+                        <a href="#" class="auth-link">Forgot password?</a>
                     </div>
 
                     <button type="submit" class="btn btn-primary auth-submit">
@@ -68,7 +68,7 @@
                 </form>
 
                 <div class="auth-switch">
-                    Belum punya akun? <a href="{{ route('register') }}" class="auth-link">Daftar sekarang</a>
+                    Do not have an account? <a href="{{ route('register') }}" class="auth-link">Register now</a>
                 </div>
             </div>
         </section>

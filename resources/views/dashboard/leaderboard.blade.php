@@ -1,14 +1,14 @@
 @extends('layouts.app', [
     'title' => 'Leaderboard - Kalbe Internship Dashboard',
     'pageTitle' => 'LEADERBOARD',
-    'pageSubtitle' => 'Manajemen data Leaderboard Kalbe.',
+    'pageSubtitle' => 'Manage Kalbe leaderboard data.',
 ])
 
 @section('content')
     <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h2>Leaderboard</h2>
-            <p>Peringkat kontribusi dan performa keseluruhan intern.</p>
+            <p>Overall intern contribution and performance ranking.</p>
         </div>
     </div>
 
@@ -29,7 +29,7 @@
                             <td class="score-a"><i class="fa-solid fa-arrow-up"></i></td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="center">Belum ada data evaluasi untuk leaderboard.</td></tr>
+                        <tr><td colspan="6" class="center">No evaluation data for the leaderboard yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>

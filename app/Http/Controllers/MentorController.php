@@ -36,6 +36,7 @@ class MentorController extends Controller
             'txtEmail' => ['required', 'email', 'max:255', Rule::unique('mUser', 'txtEmail')],
             'txtPassword' => ['nullable', 'string', 'min:6'],
             'txtMentorName' => ['required', 'string', 'max:255'],
+            'txtMentorGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtDepartment' => ['nullable', 'string', 'max:255'],
             'txtRole' => ['nullable', 'string', 'max:255'],
             'bitActive' => ['nullable', 'boolean'],
@@ -55,6 +56,7 @@ class MentorController extends Controller
             MMentor::create([
                 'intUser_ID' => $user->intUser_ID,
                 'txtMentorName' => $validated['txtMentorName'],
+                'txtMentorGender' => $validated['txtMentorGender'] ?? null,
                 'txtDepartment' => $validated['txtDepartment'] ?? null,
                 'txtRole' => $validated['txtRole'] ?? 'Mentor',
                 'bitActive' => (bool) ($validated['bitActive'] ?? true),
@@ -63,7 +65,7 @@ class MentorController extends Controller
             ]);
         });
 
-        return redirect()->route('mentors.index')->with('success', 'Data mentor berhasil ditambahkan.');
+        return redirect()->route('mentors.index')->with('success', 'Mentor data has been added.');
     }
 
     public function show(string $mentor): View
@@ -92,6 +94,7 @@ class MentorController extends Controller
             'txtEmail' => ['required', 'email', 'max:255', Rule::unique('mUser', 'txtEmail')->ignore($mentorModel->intUser_ID, 'intUser_ID')],
             'txtPassword' => ['nullable', 'string', 'min:6'],
             'txtMentorName' => ['required', 'string', 'max:255'],
+            'txtMentorGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtDepartment' => ['nullable', 'string', 'max:255'],
             'txtRole' => ['nullable', 'string', 'max:255'],
             'bitActive' => ['nullable', 'boolean'],
@@ -114,6 +117,7 @@ class MentorController extends Controller
             $mentorModel->user->update($userData);
             $mentorModel->update([
                 'txtMentorName' => $validated['txtMentorName'],
+                'txtMentorGender' => $validated['txtMentorGender'] ?? null,
                 'txtDepartment' => $validated['txtDepartment'] ?? null,
                 'txtRole' => $validated['txtRole'] ?? 'Mentor',
                 'bitActive' => (bool) ($validated['bitActive'] ?? false),
@@ -122,7 +126,7 @@ class MentorController extends Controller
             ]);
         });
 
-        return redirect()->route('mentors.index')->with('success', 'Data mentor berhasil diperbarui.');
+        return redirect()->route('mentors.index')->with('success', 'Mentor data has been updated.');
     }
 
     public function destroy(string $mentor): RedirectResponse
@@ -141,6 +145,6 @@ class MentorController extends Controller
             'dtmUpdated' => $now,
         ]);
 
-        return redirect()->route('mentors.index')->with('success', 'Data mentor berhasil dinonaktifkan.');
+        return redirect()->route('mentors.index')->with('success', 'Mentor data has been deactivated.');
     }
 }

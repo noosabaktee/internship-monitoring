@@ -38,35 +38,42 @@ const modalTemplates = {
     intern: `
         <div class="form-group">
             <label>ID</label>
-            <input type="text" class="form-control" placeholder="Contoh: INT-002">
+            <input type="text" class="form-control" placeholder="Example: INT-002">
         </div>
         <div class="form-group">
-            <label>Nama Lengkap</label>
-            <input type="text" class="form-control" placeholder="Masukkan nama lengkap">
+            <label>Full Name</label>
+            <input type="text" class="form-control" placeholder="Enter full name">
         </div>
         <div class="form-group">
-            <label>Universitas</label>
-            <input type="text" class="form-control" placeholder="Masukkan nama universitas">
+            <label>Gender</label>
+            <select class="form-control">
+                <option>Male</option>
+                <option>Female</option>
+            </select>
         </div>
         <div class="form-group">
-            <label>Jurusan</label>
-            <input type="text" class="form-control" placeholder="Masukkan jurusan">
+            <label>University</label>
+            <input type="text" class="form-control" placeholder="Enter university name">
+        </div>
+        <div class="form-group">
+            <label>Major</label>
+            <input type="text" class="form-control" placeholder="Enter major">
         </div>
         <div class="form-group">
             <label>Status</label>
             <select class="form-control">
-                <option>Aktif</option>
-                <option>Nonaktif</option>
+                <option>Active</option>
+                <option>Inactive</option>
             </select>
         </div>
     `,
     project: `
         <div class="form-group">
-            <label>Nama Project</label>
-            <input type="text" class="form-control" placeholder="Masukkan nama project">
+            <label>Project Name</label>
+            <input type="text" class="form-control" placeholder="Enter project name">
         </div>
         <div class="form-group">
-            <label>Tipe</label>
+            <label>Type</label>
             <select class="form-control">
                 <option>Collaboration</option>
                 <option>Main</option>
@@ -76,31 +83,44 @@ const modalTemplates = {
         </div>
         <div class="form-group">
             <label>PIC / Mentor</label>
-            <input type="text" class="form-control" placeholder="Masukkan nama PIC atau mentor">
+            <input type="text" class="form-control" placeholder="Enter PIC or mentor name">
         </div>
         <div class="form-group">
             <label>Progress (%)</label>
-            <input type="number" class="form-control" min="0" max="100" placeholder="Contoh: 80">
+            <select class="form-control">
+                <option>Open - 0%</option>
+                <option>Inprogress - 25%</option>
+                <option>Project Review - 50%</option>
+                <option>Trial/testing - 75%</option>
+                <option>Completed - 100%</option>
+            </select>
         </div>
     `,
     mentor: `
         <div class="form-group">
             <label>ID</label>
-            <input type="text" class="form-control" placeholder="Contoh: MTR-003">
+            <input type="text" class="form-control" placeholder="Example: MTR-003">
         </div>
         <div class="form-group">
-            <label>Nama Lengkap</label>
-            <input type="text" class="form-control" placeholder="Masukkan nama lengkap mentor">
+            <label>Full Name</label>
+            <input type="text" class="form-control" placeholder="Enter mentor full name">
+        </div>
+        <div class="form-group">
+            <label>Gender</label>
+            <select class="form-control">
+                <option>Male</option>
+                <option>Female</option>
+            </select>
         </div>
         <div class="form-group">
             <label>Department</label>
-            <input type="text" class="form-control" placeholder="Masukkan department">
+            <input type="text" class="form-control" placeholder="Enter department">
         </div>
         <div class="form-group">
             <label>Status</label>
             <select class="form-control">
-                <option>Aktif</option>
-                <option>Nonaktif</option>
+                <option>Active</option>
+                <option>Inactive</option>
             </select>
         </div>
     `,
@@ -145,7 +165,7 @@ window.closeModal = function (modalId) {
 };
 
 window.saveData = function () {
-    alert('Data berhasil disimpan!');
+    alert('Data has been saved!');
     window.closeModal('crudModal');
 };
 

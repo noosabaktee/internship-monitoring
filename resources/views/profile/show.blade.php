@@ -1,7 +1,7 @@
 @extends('layouts.app', [
     'title' => 'Profile - Kalbe Internship Dashboard',
     'pageTitle' => 'PROFILE',
-    'pageSubtitle' => 'Detail intern, project, mentor, dan pencapaian.',
+    'pageSubtitle' => 'Intern, project, mentor, and achievement details.',
     'bodyClass' => 'profile-page',
 ])
 
@@ -17,8 +17,8 @@
 @section('content')
     <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
-            <h2>Profile Intern</h2>
-            <p>Ringkasan data, performa, project, mentor, dan achievement.</p>
+            <h2>Intern Profile</h2>
+            <p>Summary of data, performance, projects, mentors, and achievements.</p>
         </div>
         @if ($intern)
             <a href="{{ route('profile.edit') }}" class="btn btn-primary btn-add" style="text-decoration:none;"><i class="fa-solid fa-pen"></i> Edit Data</a>
@@ -28,8 +28,8 @@
     @if (! $intern)
         <div class="card" style="text-align:center; padding: 40px;">
             <i class="fa-regular fa-user" style="font-size: 40px; color: var(--text-gray);"></i>
-            <h3 style="margin: 15px 0;">Belum ada profile intern</h3>
-            <a href="{{ route('interns.create') }}" class="btn-add" style="margin: 0 auto; text-decoration:none;">Tambah Intern</a>
+            <h3 style="margin: 15px 0;">No intern profile yet</h3>
+            <a href="{{ route('interns.create') }}" class="btn-add" style="margin: 0 auto; text-decoration:none;">Add Intern</a>
         </div>
     @else
         <div class="profile-page-wrap">
@@ -38,11 +38,14 @@
                     <img class="profile-avatar" src="https://ui-avatars.com/api/?name={{ urlencode($intern->txtInternName) }}&background=8CC63F&color=fff&size=160" alt="{{ $intern->txtInternName }}">
                     <div class="profile-name">
                         <h1>{{ $intern->txtInternName }}</h1>
-                        <p>{{ $intern->txtBio ?: 'Profil intern belum memiliki bio. Tambahkan ringkasan fokus project dan perkembangan program melalui halaman edit profile.' }}</p>
+                        <p>{{ $intern->txtBio ?: 'This intern profile does not have a bio yet. Add a short summary of project focus and program progress from the edit profile page.' }}</p>
                         <div class="profile-meta">
                             <span class="profile-pill"><i class="fa-solid fa-id-card"></i> {{ $intern->txtInternNo ?: 'INT-' . str_pad((string) $intern->intIntern_ID, 3, '0', STR_PAD_LEFT) }}</span>
+                            <span class="profile-pill"><i class="fa-solid fa-venus-mars"></i> {{ $intern->txtInternGender ?: '-' }}</span>
                             <span class="profile-pill"><i class="fa-solid fa-graduation-cap"></i> {{ $intern->txtUniversity ?: '-' }}</span>
-                            <span class="profile-pill"><i class="fa-solid fa-circle-check"></i> {{ $intern->bitActive ? 'Aktif' : 'Nonaktif' }}</span>
+                            <span class="profile-pill"><i class="fa-regular fa-calendar"></i> {{ $intern->dtmInserted?->format('d M Y') ?? '-' }}</span>
+                            <span class="profile-pill"><i class="fa-solid fa-calendar-check"></i> {{ $intern->dtmEndDate?->format('d M Y') ?? '-' }}</span>
+                            <span class="profile-pill"><i class="fa-solid fa-circle-check"></i> {{ $intern->bitActive ? 'Active' : 'Inactive' }}</span>
                         </div>
                     </div>
                 </div>
@@ -51,7 +54,7 @@
                     <div class="profile-score-ring"><span>{{ $score }}</span></div>
                     <div class="profile-score-copy">
                         <h3>Exposure Score</h3>
-                        <p>Nilai exposure terakhir dihitung dari data evaluasi intern. Isi evaluasi akan membuat ringkasan ini lebih akurat.</p>
+                        <p>The latest exposure score is calculated from intern evaluation data. Completing evaluations makes this summary more accurate.</p>
                     </div>
                 </div>
             </section>
@@ -68,7 +71,7 @@
                     <div class="profile-card-header">
                         <div class="profile-card-title">
                             <h2>Projects</h2>
-                            <p>Daftar project yang dikerjakan, dipisahkan berdasarkan tipe.</p>
+                            <p>Projects currently handled, grouped by type.</p>
                         </div>
                         <span class="status-badge {{ $activeProjects->count() ? 'status-active' : 'status-inactive' }}">{{ $activeProjects->count() ? 'On Track' : 'No Project' }}</span>
                     </div>
@@ -95,7 +98,7 @@
                             </ul>
                         </div>
                     @empty
-                        <div class="card" style="box-shadow:none; margin-bottom:0;">Belum ada project assignment untuk intern ini.</div>
+                        <div class="card" style="box-shadow:none; margin-bottom:0;">No project assignment for this intern yet.</div>
                     @endforelse
                 </section>
 
@@ -104,7 +107,7 @@
                         <div class="profile-card-header">
                             <div class="profile-card-title">
                                 <h2>Mentors</h2>
-                                <p>Pendamping utama selama program.</p>
+                                <p>Main mentors during the program.</p>
                             </div>
                         </div>
                         <div class="mentor-list">
@@ -114,7 +117,7 @@
                                     <div><h4>{{ $mentor->txtMentorName }}</h4><p>{{ $mentor->txtDepartment ?: '-' }} - {{ $mentor->txtRole ?: 'Mentor' }}</p></div>
                                 </div>
                             @empty
-                                <div class="mentor-item"><div><h4>Belum ada mentor</h4><p>Tambahkan assignment project untuk menghubungkan mentor.</p></div></div>
+                                <div class="mentor-item"><div><h4>No mentor yet</h4><p>Add a project assignment to connect a mentor.</p></div></div>
                             @endforelse
                         </div>
                     </section>
@@ -123,7 +126,7 @@
                         <div class="profile-card-header">
                             <div class="profile-card-title">
                                 <h2>Score</h2>
-                                <p>Breakdown evaluasi terakhir.</p>
+                                <p>Latest evaluation breakdown.</p>
                             </div>
                         </div>
                         <div class="score-breakdown">
@@ -142,14 +145,14 @@
                         <div class="profile-card-header">
                             <div class="profile-card-title">
                                 <h2>Achievements</h2>
-                                <p>Milestone dan pengakuan program.</p>
+                                <p>Program milestones and recognition.</p>
                             </div>
                         </div>
                         <ul class="achievement-list">
                             @forelse ($achievements as $achievement)
                                 <li><div class="achievement-icon"><i class="{{ $achievement->txtIcon ?: 'fa-solid fa-award' }}"></i></div><div><h4>{{ $achievement->txtAchievementTitle }}</h4><p>{{ $achievement->txtDescription }}</p></div></li>
                             @empty
-                                <li><div class="achievement-icon"><i class="fa-solid fa-award"></i></div><div><h4>Belum ada achievement</h4><p>Achievement akan tampil di sini setelah ditambahkan.</p></div></li>
+                                <li><div class="achievement-icon"><i class="fa-solid fa-award"></i></div><div><h4>No achievement yet</h4><p>Achievements will appear here after they are added.</p></div></li>
                             @endforelse
                         </ul>
                     </section>

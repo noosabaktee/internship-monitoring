@@ -18,7 +18,7 @@
     <div class="header-right d-flex align-items-center gap-3">
         <div class="date-picker d-flex align-items-center gap-2" onclick="openDatePicker()">
             <i class="fa-regular fa-calendar"></i>
-            <input type="month" id="topbarDate" aria-label="Pilih bulan">
+            <input type="month" id="topbarDate" aria-label="Select month">
         </div>
         <button class="btn btn-primary btn-sm btn-export"><i class="fa-solid fa-download"></i> Export</button>
         <div class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Light/Dark Mode">

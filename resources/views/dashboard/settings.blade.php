@@ -1,7 +1,7 @@
 @extends('layouts.app', [
     'title' => 'Settings - Kalbe Internship Dashboard',
     'pageTitle' => 'SETTINGS',
-    'pageSubtitle' => 'Manajemen data Settings Kalbe.',
+    'pageSubtitle' => 'Manage Kalbe settings data.',
 ])
 
 @section('content')
@@ -10,8 +10,8 @@
     </div>
 
     <div class="card">
-        <div class="mb-3"><label class="form-label">Nama Administrator</label><input type="text" class="form-control" value="Admin HR Development"></div>
+        <div class="mb-3"><label class="form-label">Administrator Name</label><input type="text" class="form-control" value="Admin HR Development"></div>
         <div class="mb-3"><label class="form-label">Email</label><input type="email" class="form-control" value="admin@kalbe.co.id"></div>
-        <button class="btn btn-primary btn-add mt-2 w-100">Simpan Perubahan</button>
+        <button class="btn btn-primary btn-add mt-2 w-100">Save Changes</button>
     </div>
 @endsection

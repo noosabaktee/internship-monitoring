@@ -1,7 +1,7 @@
 @extends('layouts.app', [
     'title' => 'Reports - Kalbe Internship Dashboard',
     'pageTitle' => 'REPORTS',
-    'pageSubtitle' => 'Manajemen data Reports Kalbe.',
+    'pageSubtitle' => 'Manage Kalbe report data.',
 ])
 
 @section('content')
@@ -11,7 +11,7 @@
 
     <div class="card" style="text-align: center; padding: 40px;">
         <i class="fa-solid fa-file-pdf" style="font-size: 40px; color: var(--text-gray);"></i>
-        <h3 style="margin: 15px 0;">Generate Laporan PDF/Excel</h3>
-        <button class="btn btn-primary btn-add mx-auto" onclick="alert('Fungsi download berjalan...')"><i class="fa-solid fa-download"></i> Download File</button>
+        <h3 style="margin: 15px 0;">Generate PDF/Excel Reports</h3>
+        <button class="btn btn-primary btn-add mx-auto" onclick="alert('Download is running...')"><i class="fa-solid fa-download"></i> Download File</button>
     </div>
 @endsection

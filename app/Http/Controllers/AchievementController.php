@@ -51,7 +51,7 @@ class AchievementController extends Controller
             'dtmInserted' => now(),
         ]);
 
-        return redirect()->route('achievements.index')->with('success', 'Achievement berhasil ditambahkan.');
+        return redirect()->route('achievements.index')->with('success', 'Achievement has been added.');
     }
 
     public function show(string $achievement): View
@@ -95,7 +95,7 @@ class AchievementController extends Controller
             'dtmUpdated' => now(),
         ]);
 
-        return redirect()->route('achievements.index')->with('success', 'Achievement berhasil diperbarui.');
+        return redirect()->route('achievements.index')->with('success', 'Achievement has been updated.');
     }
 
     public function destroy(string $achievement): RedirectResponse
@@ -106,6 +106,6 @@ class AchievementController extends Controller
             'dtmUpdated' => now(),
         ]);
 
-        return redirect()->route('achievements.index')->with('success', 'Achievement berhasil dinonaktifkan.');
+        return redirect()->route('achievements.index')->with('success', 'Achievement has been deactivated.');
     }
 }

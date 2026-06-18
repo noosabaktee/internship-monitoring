@@ -9,8 +9,8 @@
             </div>
 
             <div class="auth-hero">
-                <h1>Bangun akses untuk kolaborasi internship.</h1>
-                <p>Daftarkan akun sebagai intern atau mentor agar data program, project, dan evaluasi bisa dikelola dengan lebih mudah.</p>
+                <h1>Create access for internship collaboration.</h1>
+                <p>Register as an intern or mentor so program, project, and evaluation data can be managed more easily.</p>
             </div>
 
             <div class="auth-stats">
@@ -24,7 +24,7 @@
             <div class="auth-card">
                 <div class="auth-card-header">
                     <h2>Create Account</h2>
-                    <p>Isi data akun baru untuk mulai menggunakan dashboard internship Kalbe.</p>
+                    <p>Enter your account details to start using the Kalbe internship dashboard.</p>
                 </div>
 
                 @if ($errors->any())
@@ -41,10 +41,10 @@
                 <form class="auth-form" action="{{ route('register.store') }}" method="POST">
                     @csrf
                     <div class="mb-3">
-                        <label class="form-label">Nama Lengkap</label>
+                        <label class="form-label">Full Name</label>
                         <div class="auth-input-wrap">
                             <i class="fa-regular fa-user"></i>
-                            <input type="text" name="name" class="form-control" value="{{ old('name') }}" placeholder="Masukkan nama lengkap" required>
+                            <input type="text" name="name" class="form-control" value="{{ old('name') }}" placeholder="Enter full name" required>
                         </div>
                     </div>
 
@@ -53,9 +53,22 @@
                         <div class="auth-input-wrap">
                             <i class="fa-solid fa-user-tag"></i>
                             <select name="txtRole" class="form-control" required>
-                                <option value="">Pilih role</option>
+                                <option value="">Select role</option>
                                 <option value="Intern" @selected(old('txtRole') === 'Intern')>Intern</option>
                                 <option value="Mentor" @selected(old('txtRole') === 'Mentor')>Mentor</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Gender</label>
+                        <div class="auth-input-wrap">
+                            <i class="fa-solid fa-venus-mars"></i>
+                            <select name="txtGender" class="form-control">
+                                <option value="">Select gender</option>
+                                @foreach (['Laki-laki' => 'Male', 'Perempuan' => 'Female'] as $genderValue => $genderLabel)
+                                    <option value="{{ $genderValue }}" @selected(old('txtGender') === $genderValue)>{{ $genderLabel }}</option>
+                                @endforeach
                             </select>
                         </div>
                     </div>
@@ -72,7 +85,7 @@
                         <label class="form-label">Password</label>
                         <div class="auth-input-wrap">
                             <i class="fa-solid fa-lock"></i>
-                            <input type="password" name="txtPassword" class="form-control" placeholder="Buat password" required>
+                            <input type="password" name="txtPassword" class="form-control" placeholder="Create password" required>
                         </div>
                     </div>
 
@@ -80,7 +93,7 @@
                         <label class="form-label">Confirm Password</label>
                         <div class="auth-input-wrap">
                             <i class="fa-solid fa-shield-halved"></i>
-                            <input type="password" name="txtPassword_confirmation" class="form-control" placeholder="Ulangi password" required>
+                            <input type="password" name="txtPassword_confirmation" class="form-control" placeholder="Repeat password" required>
                         </div>
                     </div>
 
@@ -92,11 +105,11 @@
 
                 <div class="auth-mini-note">
                     <i class="fa-solid fa-circle-info"></i>
-                    <span>Role menentukan akses awal akun pada dashboard internship.</span>
+                    <span>Your role determines your initial dashboard access.</span>
                 </div>
 
                 <div class="auth-switch">
-                    Sudah punya akun? <a href="{{ route('login') }}" class="auth-link">Login</a>
+                    Already have an account? <a href="{{ route('login') }}" class="auth-link">Login</a>
                 </div>
             </div>
         </section>

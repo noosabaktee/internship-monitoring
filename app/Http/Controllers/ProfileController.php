@@ -70,7 +70,7 @@ class ProfileController extends Controller
         $intern = $user->intern;
 
         if (! $intern) {
-            return redirect()->route('profile.show')->withErrors(['profile' => 'Belum ada profile untuk diedit.']);
+            return redirect()->route('profile.show')->withErrors(['profile' => 'No profile is available to edit.']);
         }
 
         return $this->updateInternProfile($request, $intern);
@@ -102,9 +102,12 @@ class ProfileController extends Controller
             'txtInternName' => ['required', 'string', 'max:255'],
             'txtEmail' => ['required', 'email', 'max:255'],
             'txtPassword' => ['nullable', 'string', 'min:6'],
+            'txtInternGender' => ['nullable', 'in:Male,Female,Laki-laki,Perempuan'],
             'txtUniversity' => ['nullable', 'string', 'max:255'],
             'txtMajor' => ['nullable', 'string', 'max:255'],
             'txtBio' => ['nullable', 'string', 'max:255'],
+            'dtmInserted' => ['nullable', 'date'],
+            'dtmEndDate' => ['nullable', 'date', 'after_or_equal:dtmInserted'],
             'bitActive' => ['nullable', 'boolean'],
         ]);
 
@@ -123,15 +126,18 @@ class ProfileController extends Controller
         $intern->update([
             'txtInternNo' => $validated['txtInternNo'] ?: $intern->txtInternNo,
             'txtInternName' => $validated['txtInternName'],
+            'txtInternGender' => $validated['txtInternGender'] ?? null,
             'txtUniversity' => $validated['txtUniversity'] ?? null,
             'txtMajor' => $validated['txtMajor'] ?? null,
             'txtBio' => $validated['txtBio'] ?? null,
+            'dtmInserted' => $validated['dtmInserted'] ?? $intern->dtmInserted,
+            'dtmEndDate' => $validated['dtmEndDate'] ?? null,
             'bitActive' => (bool) ($validated['bitActive'] ?? false),
             'txtUpdatedBy' => 'profile',
             'dtmUpdated' => $now,
         ]);
 
-        return redirect()->route('profile.show')->with('success', 'Profile berhasil diperbarui.');
+        return redirect()->route('profile.show')->with('success', 'Profile has been updated.');
     }
 
     private function updateMentorProfile(Request $request, MMentor $mentor): RedirectResponse
@@ -140,6 +146,7 @@ class ProfileController extends Controller
             'txtMentorName' => ['required', 'string', 'max:255'],
             'txtEmail' => ['required', 'email', 'max:255'],
             'txtPassword' => ['nullable', 'string', 'min:6'],
+            'txtMentorGender' => ['nullable', 'in:Male,Female,Laki-laki,Perempuan'],
             'txtDepartment' => ['nullable', 'string', 'max:255'],
             'txtRole' => ['nullable', 'string', 'max:255'],
             'bitActive' => ['nullable', 'boolean'],
@@ -159,6 +166,7 @@ class ProfileController extends Controller
         $mentor->user?->update($userData);
         $mentor->update([
             'txtMentorName' => $validated['txtMentorName'],
+            'txtMentorGender' => $validated['txtMentorGender'] ?? null,
             'txtDepartment' => $validated['txtDepartment'] ?? null,
             'txtRole' => $validated['txtRole'] ?? 'Mentor',
             'bitActive' => (bool) ($validated['bitActive'] ?? false),
@@ -166,7 +174,7 @@ class ProfileController extends Controller
             'dtmUpdated' => $now,
         ]);
 
-        return redirect()->route('profile.show')->with('success', 'Profile berhasil diperbarui.');
+        return redirect()->route('profile.show')->with('success', 'Profile has been updated.');
     }
 
     private function currentIntern(): ?MIntern

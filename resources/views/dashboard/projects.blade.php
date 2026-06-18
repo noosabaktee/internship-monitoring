@@ -1,7 +1,7 @@
 @extends('layouts.app', [
     'title' => 'Projects - Kalbe Internship Dashboard',
     'pageTitle' => 'PROJECTS',
-    'pageSubtitle' => 'Manajemen data Projects Kalbe.',
+    'pageSubtitle' => 'Manage Kalbe project data.',
 ])
 
 @php
@@ -10,25 +10,32 @@
         ? route('projects.update', $editingProject->intProject_ID)
         : route('projects.store');
     $assignment = isset($editingProject) ? $editingProject->assignments->first() : null;
+    $progressOptions = [
+        0 => 'Open',
+        25 => 'Inprogress',
+        50 => 'Project Review',
+        75 => 'Trial/testing',
+        100 => 'Completed',
+    ];
 @endphp
 
 @section('content')
     <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
-            <h2>Data Projects</h2>
-            <p>Pantau status dan PIC untuk Collaboration, Main, Satellite, dan Sharing.</p>
+            <h2>Project Data</h2>
+            <p>Track status and PIC for Collaboration, Main, Satellite, and Sharing projects.</p>
         </div>
-        <a class="btn btn-primary btn-add" href="{{ route('projects.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Project</a>
+        <a class="btn btn-primary btn-add" href="{{ route('projects.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Project</a>
     </div>
 
     @if ($isFormOpen)
         <section class="profile-card mb-4">
             <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
                 <div class="profile-card-title">
-                    <h2>{{ isset($editingProject) ? 'Edit Project' : 'Tambah Project Baru' }}</h2>
-                    <p>Master project disimpan di mProject. Assignment intern, mentor, dan progress disimpan di trInternProject.</p>
+                    <h2>{{ isset($editingProject) ? 'Edit Project' : 'Add New Project' }}</h2>
+                    <p>Project master data is stored in mProject. Intern, mentor, and progress assignments are stored in trInternProject.</p>
                 </div>
-                <a href="{{ route('projects.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Tutup</a>
+                <a href="{{ route('projects.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Close</a>
             </div>
 
             <form class="row g-3" action="{{ $formAction }}" method="POST">
@@ -38,11 +45,11 @@
                 @endisset
 
                 <div class="col-md-6">
-                    <label class="form-label">Nama Project</label>
+                    <label class="form-label">Project Name</label>
                     <input class="form-control" name="txtProjectName" value="{{ old('txtProjectName', $editingProject->txtProjectName ?? '') }}" required>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Tipe</label>
+                    <label class="form-label">Type</label>
                     <select class="form-control" name="txtProjectType" required>
                         @foreach (['Main', 'Satellite', 'Collaboration', 'Sharing'] as $type)
                             <option value="{{ $type }}" @selected(old('txtProjectType', $editingProject->txtProjectType ?? '') === $type)>{{ $type }}</option>
@@ -50,20 +57,16 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Status Project</label>
+                    <label class="form-label">Project Status</label>
                     <select class="form-control" name="bitActive">
-                        <option value="1" @selected((string) old('bitActive', (int) ($editingProject->bitActive ?? true)) === '1')>Aktif</option>
-                        <option value="0" @selected((string) old('bitActive', (int) ($editingProject->bitActive ?? true)) === '0')>Nonaktif</option>
+                        <option value="1" @selected((string) old('bitActive', (int) ($editingProject->bitActive ?? true)) === '1')>Active</option>
+                        <option value="0" @selected((string) old('bitActive', (int) ($editingProject->bitActive ?? true)) === '0')>Inactive</option>
                     </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Status Assignment</label>
-                    <input class="form-control" name="txtStatus" value="{{ old('txtStatus', $assignment->txtStatus ?? 'On Track') }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Intern</label>
                     <select class="form-control" name="intIntern_ID">
-                        <option value="">Belum ditentukan</option>
+                        <option value="">Not assigned yet</option>
                         @foreach ($interns as $intern)
                             <option value="{{ $intern->intIntern_ID }}" @selected((string) old('intIntern_ID', $assignment->intIntern_ID ?? '') === (string) $intern->intIntern_ID)>{{ $intern->txtInternName }}</option>
                         @endforeach
@@ -72,7 +75,7 @@
                 <div class="col-md-4">
                     <label class="form-label">Mentor</label>
                     <select class="form-control" name="intMentor_ID">
-                        <option value="">Belum ditentukan</option>
+                        <option value="">Not assigned yet</option>
                         @foreach ($mentors as $mentor)
                             <option value="{{ $mentor->intMentor_ID }}" @selected((string) old('intMentor_ID', $assignment->intMentor_ID ?? '') === (string) $mentor->intMentor_ID)>{{ $mentor->txtMentorName }}</option>
                         @endforeach
@@ -80,14 +83,18 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Progress (%)</label>
-                    <input class="form-control" type="number" min="0" max="100" name="floatProgress" value="{{ old('floatProgress', $assignment->floatProgress ?? 0) }}">
+                    <select class="form-control" name="floatProgress">
+                        @foreach ($progressOptions as $progressValue => $progressLabel)
+                            <option value="{{ $progressValue }}" @selected((string) old('floatProgress', (int) ($assignment->floatProgress ?? 0)) === (string) $progressValue)>{{ $progressLabel }} - {{ $progressValue }}%</option>
+                        @endforeach
+                    </select>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">Deskripsi</label>
+                    <label class="form-label">Description</label>
                     <textarea class="form-control" name="txtDescription" rows="3">{{ old('txtDescription', $editingProject->txtDescription ?? '') }}</textarea>
                 </div>
                 <div class="col-12">
-                    <button class="btn btn-primary btn-save" type="submit">{{ isset($editingProject) ? 'Simpan Perubahan' : 'Simpan Project' }}</button>
+                    <button class="btn btn-primary btn-save" type="submit">{{ isset($editingProject) ? 'Save Changes' : 'Save Project' }}</button>
                 </div>
             </form>
         </section>
@@ -97,7 +104,7 @@
         <div class="table-responsive">
             <table class="table data-table align-middle mb-0">
                 <thead>
-                    <tr><th>Nama Project</th><th>Tipe</th><th>Intern</th><th>PIC / Mentor</th><th>Progress</th><th>Status</th><th>Aksi</th></tr>
+                    <tr><th>Project Name</th><th>Type</th><th>Intern</th><th>PIC / Mentor</th><th>Progress</th><th>Status</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($projects as $project)
@@ -114,11 +121,11 @@
                                     <strong>{{ number_format($progress, 0) }}%</strong>
                                 </div>
                             </td>
-                            <td><span class="status-badge {{ $project->bitActive ? 'status-active' : 'status-inactive' }}">{{ $project->bitActive ? ($rowAssignment?->txtStatus ?? 'Aktif') : 'Nonaktif' }}</span></td>
+                            <td><span class="status-badge {{ $project->bitActive ? 'status-active' : 'status-inactive' }}">{{ $project->bitActive ? ($rowAssignment?->txtStatus ?? 'Active') : 'Inactive' }}</span></td>
                             <td>
                                 <div class="action-btns">
                                     <a class="btn-icon btn-edit" href="{{ route('projects.edit', $project->intProject_ID) }}"><i class="fa-solid fa-pen"></i></a>
-                                    <form action="{{ route('projects.destroy', $project->intProject_ID) }}" method="POST" onsubmit="return confirm('Nonaktifkan project ini?')">
+                                    <form action="{{ route('projects.destroy', $project->intProject_ID) }}" method="POST" onsubmit="return confirm('Deactivate this project?')">
                                         @csrf
                                         @method('DELETE')
                                         <button class="btn-icon btn-delete" type="submit"><i class="fa-solid fa-trash"></i></button>
@@ -127,7 +134,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="center">Belum ada data project.</td></tr>
+                        <tr><td colspan="7" class="center">No project data yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>

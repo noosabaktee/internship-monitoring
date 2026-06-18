@@ -19,9 +19,11 @@ class MIntern extends Model
         'intUser_ID',
         'txtInternNo',
         'txtInternName',
+        'txtInternGender',
         'txtUniversity',
         'txtMajor',
         'txtBio',
+        'dtmEndDate',
         'bitActive',
         'txtInsertedBy',
         'dtmInserted',
@@ -31,6 +33,7 @@ class MIntern extends Model
 
     protected $casts = [
         'bitActive' => 'boolean',
+        'dtmEndDate' => 'datetime',
         'dtmInserted' => 'datetime',
         'dtmUpdated' => 'datetime',
     ];

@@ -15,6 +15,7 @@ return new class extends Migration
             $table->integer('intMentor_ID')->primary();
             $table->integer('intUser_ID')->unique();
             $table->string('txtMentorName')->nullable();
+            $table->string('txtMentorGender')->nullable()->comment('Male or Female');
             $table->string('txtDepartment')->nullable();
             $table->string('txtRole')->nullable();
             $table->boolean('bitActive')->nullable();

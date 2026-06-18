@@ -1,7 +1,7 @@
 @extends('layouts.app', [
     'title' => 'Mentor Profile - Kalbe Internship Dashboard',
     'pageTitle' => 'MENTOR PROFILE',
-    'pageSubtitle' => 'Detail mentor, department, dan project assignment.',
+    'pageSubtitle' => 'Mentor, department, and project assignment details.',
     'bodyClass' => 'profile-page',
 ])
 
@@ -13,8 +13,8 @@
 @section('content')
     <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
-            <h2>Profile Mentor</h2>
-            <p>Ringkasan data mentor dan project assignment.</p>
+            <h2>Mentor Profile</h2>
+            <p>Summary of mentor data and project assignments.</p>
         </div>
         @if (session('auth_user_id') === $mentor->intUser_ID)
             <a href="{{ route('profile.edit') }}" class="btn btn-primary btn-add" style="text-decoration:none;"><i class="fa-solid fa-pen"></i> Edit Data</a>
@@ -27,11 +27,12 @@
                 <img class="profile-avatar" src="https://ui-avatars.com/api/?name={{ urlencode($mentor->txtMentorName) }}&background=006838&color=fff&size=160" alt="{{ $mentor->txtMentorName }}">
                 <div class="profile-name">
                     <h1>{{ $mentor->txtMentorName }}</h1>
-                    <p>{{ $mentor->txtDepartment ?: 'Department mentor belum diisi.' }}</p>
+                    <p>{{ $mentor->txtDepartment ?: 'Mentor department has not been filled in.' }}</p>
                     <div class="profile-meta">
                         <span class="profile-pill"><i class="fa-solid fa-id-card"></i> MTR-{{ str_pad((string) $mentor->intMentor_ID, 3, '0', STR_PAD_LEFT) }}</span>
+                        <span class="profile-pill"><i class="fa-solid fa-venus-mars"></i> {{ $mentor->txtMentorGender ?: '-' }}</span>
                         <span class="profile-pill"><i class="fa-solid fa-user-tie"></i> {{ $mentor->txtRole ?: 'Mentor' }}</span>
-                        <span class="profile-pill"><i class="fa-solid fa-circle-check"></i> {{ $mentor->bitActive ? 'Aktif' : 'Nonaktif' }}</span>
+                        <span class="profile-pill"><i class="fa-solid fa-circle-check"></i> {{ $mentor->bitActive ? 'Active' : 'Inactive' }}</span>
                     </div>
                 </div>
             </div>
@@ -40,7 +41,7 @@
                 <div class="profile-score-ring"><span>{{ $assignments->count() }}</span></div>
                 <div class="profile-score-copy">
                     <h3>Active Assignments</h3>
-                    <p>Total project assignment aktif yang sedang didampingi mentor ini.</p>
+                    <p>Total active project assignments currently guided by this mentor.</p>
                 </div>
             </div>
         </section>
@@ -56,7 +57,7 @@
             <div class="profile-card-header">
                 <div class="profile-card-title">
                     <h2>Project Assignments</h2>
-                    <p>Project dan intern yang sedang didampingi.</p>
+                    <p>Projects and interns currently being guided.</p>
                 </div>
             </div>
             <div class="table-responsive">
@@ -71,10 +72,10 @@
                                 <td>{{ $assignment->project->txtProjectType ?? '-' }}</td>
                                 <td>{{ $assignment->intern->txtInternName ?? '-' }}</td>
                                 <td>{{ number_format((float) $assignment->floatProgress, 0) }}%</td>
-                                <td><span class="status-badge status-active">{{ $assignment->txtStatus ?: 'Aktif' }}</span></td>
+                                <td><span class="status-badge status-active">{{ $assignment->txtStatus ?: 'Active' }}</span></td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="center">Belum ada assignment.</td></tr>
+                            <tr><td colspan="5" class="center">No assignments yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

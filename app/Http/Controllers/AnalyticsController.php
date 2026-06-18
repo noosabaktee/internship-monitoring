@@ -57,7 +57,7 @@ class AnalyticsController extends Controller
             'dtmInserted' => now(),
         ]);
 
-        return redirect()->route('analytics.index')->with('success', 'Evaluasi berhasil ditambahkan.');
+        return redirect()->route('analytics.index')->with('success', 'Evaluation has been added.');
     }
 
     public function show(string $analytic): View
@@ -97,7 +97,7 @@ class AnalyticsController extends Controller
             'dtmUpdated' => now(),
         ]);
 
-        return redirect()->route('analytics.index')->with('success', 'Evaluasi berhasil diperbarui.');
+        return redirect()->route('analytics.index')->with('success', 'Evaluation has been updated.');
     }
 
     public function destroy(string $analytic): RedirectResponse
@@ -108,7 +108,7 @@ class AnalyticsController extends Controller
             'dtmUpdated' => now(),
         ]);
 
-        return redirect()->route('analytics.index')->with('success', 'Evaluasi berhasil dinonaktifkan.');
+        return redirect()->route('analytics.index')->with('success', 'Evaluation has been deactivated.');
     }
 
     private function validateEvaluation(Request $request): array

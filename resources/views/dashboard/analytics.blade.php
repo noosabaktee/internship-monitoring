@@ -1,7 +1,7 @@
 @extends('layouts.app', [
     'title' => 'Analytics - Kalbe Internship Dashboard',
     'pageTitle' => 'ANALYTICS',
-    'pageSubtitle' => 'Manajemen data Analytics Kalbe.',
+    'pageSubtitle' => 'Manage Kalbe analytics data.',
 ])
 
 @php
@@ -16,10 +16,10 @@
     <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h2>Analytics</h2>
-            <p>Statistik, evaluasi, dan laporan performa mendalam.</p>
+            <p>Statistics, evaluations, and detailed performance reports.</p>
         </div>
         @if ($isMentor)
-            <a class="btn btn-primary btn-add" href="{{ route('analytics.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Tambah Evaluasi</a>
+            <a class="btn btn-primary btn-add" href="{{ route('analytics.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Evaluation</a>
         @endif
     </div>
 
@@ -33,10 +33,10 @@
         <section class="profile-card mb-4">
             <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
                 <div class="profile-card-title">
-                    <h2>{{ isset($editingEvaluation) ? 'Edit Evaluasi' : 'Tambah Evaluasi' }}</h2>
-                    <p>Exposure score dihitung otomatis dari rata-rata empat skor evaluasi.</p>
+                    <h2>{{ isset($editingEvaluation) ? 'Edit Evaluation' : 'Add Evaluation' }}</h2>
+                    <p>Exposure score is calculated automatically from the average of four evaluation scores.</p>
                 </div>
-                <a href="{{ route('analytics.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Tutup</a>
+                <a href="{{ route('analytics.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Close</a>
             </div>
 
             <form class="row g-3" action="{{ $formAction }}" method="POST">
@@ -48,18 +48,18 @@
                 <div class="col-md-6">
                     <label class="form-label">Intern</label>
                     <select class="form-control" name="intIntern_ID" required>
-                        <option value="">Pilih intern</option>
+                        <option value="">Select intern</option>
                         @foreach ($interns as $intern)
                             <option value="{{ $intern->intIntern_ID }}" @selected((string) old('intIntern_ID', $editingEvaluation->intIntern_ID ?? '') === (string) $intern->intIntern_ID)>{{ $intern->txtInternName }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-6"><label class="form-label">Periode</label><input class="form-control" type="month" name="dtmPeriod" value="{{ old('dtmPeriod', isset($editingEvaluation) && $editingEvaluation->dtmPeriod ? $editingEvaluation->dtmPeriod->format('Y-m') : now()->format('Y-m')) }}" required></div>
+                <div class="col-md-6"><label class="form-label">Period</label><input class="form-control" type="month" name="dtmPeriod" value="{{ old('dtmPeriod', isset($editingEvaluation) && $editingEvaluation->dtmPeriod ? $editingEvaluation->dtmPeriod->format('Y-m') : now()->format('Y-m')) }}" required></div>
                 <div class="col-md-3"><label class="form-label">Hard Skill</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatHardSkill" value="{{ old('floatHardSkill', $editingEvaluation->floatHardSkill ?? 0) }}" required></div>
                 <div class="col-md-3"><label class="form-label">Collaboration</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatCollaboration" value="{{ old('floatCollaboration', $editingEvaluation->floatCollaboration ?? 0) }}" required></div>
                 <div class="col-md-3"><label class="form-label">Ownership</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatOwnership" value="{{ old('floatOwnership', $editingEvaluation->floatOwnership ?? 0) }}" required></div>
                 <div class="col-md-3"><label class="form-label">Sharing</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatSharing" value="{{ old('floatSharing', $editingEvaluation->floatSharing ?? 0) }}" required></div>
-                <div class="col-12"><button class="btn btn-primary btn-save" type="submit">{{ isset($editingEvaluation) ? 'Simpan Perubahan' : 'Simpan Evaluasi' }}</button></div>
+                <div class="col-12"><button class="btn btn-primary btn-save" type="submit">{{ isset($editingEvaluation) ? 'Save Changes' : 'Save Evaluation' }}</button></div>
             </form>
         </section>
     @endif
@@ -75,7 +75,7 @@
         <div class="table-responsive">
             <table class="table data-table align-middle mb-0">
                 <thead>
-                    <tr><th>Intern</th><th>Periode</th><th>Hard</th><th>Collab</th><th>Ownership</th><th>Sharing</th><th>Exposure</th><th>Aksi</th></tr>
+                    <tr><th>Intern</th><th>Period</th><th>Hard</th><th>Collab</th><th>Ownership</th><th>Sharing</th><th>Exposure</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($evaluations->sortByDesc('dtmPeriod') as $evaluation)
@@ -91,7 +91,7 @@
                                 @if ($isMentor)
                                     <div class="action-btns">
                                         <a class="btn-icon btn-edit" href="{{ route('analytics.edit', $evaluation->intEvaluation_ID) }}"><i class="fa-solid fa-pen"></i></a>
-                                        <form action="{{ route('analytics.destroy', $evaluation->intEvaluation_ID) }}" method="POST" onsubmit="return confirm('Nonaktifkan evaluasi ini?')">
+                                        <form action="{{ route('analytics.destroy', $evaluation->intEvaluation_ID) }}" method="POST" onsubmit="return confirm('Deactivate this evaluation?')">
                                             @csrf
                                             @method('DELETE')
                                             <button class="btn-icon btn-delete" type="submit"><i class="fa-solid fa-trash"></i></button>
@@ -103,7 +103,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="center">Belum ada data evaluasi.</td></tr>
+                        <tr><td colspan="8" class="center">No evaluation data yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>

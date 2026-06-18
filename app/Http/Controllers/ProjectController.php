@@ -14,6 +14,16 @@ use Illuminate\Validation\Rule;
 
 class ProjectController extends Controller
 {
+    private const PROGRESS_STATUSES = [
+        0 => 'Open',
+        25 => 'Inprogress',
+        50 => 'Project Review',
+        75 => 'Trial/testing',
+        100 => 'Completed',
+    ];
+
+    private const PROGRESS_VALUES = ['0', '25', '50', '75', '100'];
+
     public function index(): View
     {
         $projects = MProject::with(['assignments.intern', 'assignments.mentor'])->orderBy('intProject_ID')->get();
@@ -46,8 +56,7 @@ class ProjectController extends Controller
             'bitActive' => ['nullable', 'boolean'],
             'intIntern_ID' => ['nullable', 'integer', Rule::exists('mIntern', 'intIntern_ID')],
             'intMentor_ID' => ['nullable', 'integer', Rule::exists('mMentor', 'intMentor_ID')],
-            'floatProgress' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'txtStatus' => ['nullable', 'string', 'max:255'],
+            'floatProgress' => ['nullable', Rule::in(self::PROGRESS_VALUES)],
         ]);
 
         DB::transaction(function () use ($validated) {
@@ -67,7 +76,7 @@ class ProjectController extends Controller
                     'intProject_ID' => $project->intProject_ID,
                     'intMentor_ID' => $validated['intMentor_ID'],
                     'floatProgress' => $validated['floatProgress'] ?? 0,
-                    'txtStatus' => $validated['txtStatus'] ?? 'On Track',
+                    'txtStatus' => $this->progressStatus((int) ($validated['floatProgress'] ?? 0)),
                     'bitActive' => true,
                     'txtInsertedBy' => 'system',
                     'dtmInserted' => $now,
@@ -75,7 +84,7 @@ class ProjectController extends Controller
             }
         });
 
-        return redirect()->route('projects.index')->with('success', 'Data project berhasil ditambahkan.');
+        return redirect()->route('projects.index')->with('success', 'Project data has been added.');
     }
 
     public function show(string $project): View
@@ -111,8 +120,7 @@ class ProjectController extends Controller
             'bitActive' => ['nullable', 'boolean'],
             'intIntern_ID' => ['nullable', 'integer', Rule::exists('mIntern', 'intIntern_ID')],
             'intMentor_ID' => ['nullable', 'integer', Rule::exists('mMentor', 'intMentor_ID')],
-            'floatProgress' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'txtStatus' => ['nullable', 'string', 'max:255'],
+            'floatProgress' => ['nullable', Rule::in(self::PROGRESS_VALUES)],
         ]);
 
         DB::transaction(function () use ($projectModel, $validated) {
@@ -133,8 +141,10 @@ class ProjectController extends Controller
                         'intIntern_ID' => $validated['intIntern_ID'],
                         'intMentor_ID' => $validated['intMentor_ID'],
                         'floatProgress' => $validated['floatProgress'] ?? 0,
-                        'txtStatus' => $validated['txtStatus'] ?? 'On Track',
+                        'txtStatus' => $this->progressStatus((int) ($validated['floatProgress'] ?? 0)),
                         'bitActive' => true,
+                        'txtInsertedBy' => 'system',
+                        'dtmInserted' => $now,
                         'txtUpdatedBy' => 'system',
                         'dtmUpdated' => $now,
                     ],
@@ -142,7 +152,7 @@ class ProjectController extends Controller
             }
         });
 
-        return redirect()->route('projects.index')->with('success', 'Data project berhasil diperbarui.');
+        return redirect()->route('projects.index')->with('success', 'Project data has been updated.');
     }
 
     public function destroy(string $project): RedirectResponse
@@ -161,6 +171,11 @@ class ProjectController extends Controller
             'dtmUpdated' => $now,
         ]);
 
-        return redirect()->route('projects.index')->with('success', 'Data project berhasil dinonaktifkan.');
+        return redirect()->route('projects.index')->with('success', 'Project data has been deactivated.');
+    }
+
+    private function progressStatus(int $progress): string
+    {
+        return self::PROGRESS_STATUSES[$progress] ?? self::PROGRESS_STATUSES[0];
     }
 }

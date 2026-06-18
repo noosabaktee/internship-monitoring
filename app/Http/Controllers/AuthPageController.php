@@ -31,7 +31,7 @@ class AuthPageController extends Controller
 
         if (! $user || ! Hash::check($credentials['txtPassword'], $user->txtPassword)) {
             return back()
-                ->withErrors(['txtEmail' => 'Email atau password tidak sesuai.'])
+                ->withErrors(['txtEmail' => 'Email or password does not match.'])
                 ->onlyInput('txtEmail');
         }
 
@@ -51,6 +51,7 @@ class AuthPageController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'txtRole' => ['required', Rule::in(['Intern', 'Mentor'])],
+            'txtGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtEmail' => ['required', 'email', 'max:255', Rule::unique('mUser', 'txtEmail')],
             'txtPassword' => ['required', 'string', 'min:6', 'confirmed'],
         ]);
@@ -70,6 +71,7 @@ class AuthPageController extends Controller
                 'intUser_ID' => $user->intUser_ID,
                 'txtInternNo' => 'INT-' . str_pad((string) ($user->intUser_ID), 3, '0', STR_PAD_LEFT),
                 'txtInternName' => $validated['name'],
+                'txtInternGender' => $validated['txtGender'] ?? null,
                 'bitActive' => true,
                 'txtInsertedBy' => 'register',
                 'dtmInserted' => $now,
@@ -80,6 +82,7 @@ class AuthPageController extends Controller
             MMentor::create([
                 'intUser_ID' => $user->intUser_ID,
                 'txtMentorName' => $validated['name'],
+                'txtMentorGender' => $validated['txtGender'] ?? null,
                 'txtRole' => 'Mentor',
                 'bitActive' => true,
                 'txtInsertedBy' => 'register',

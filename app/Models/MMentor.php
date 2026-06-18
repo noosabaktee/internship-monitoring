@@ -18,6 +18,7 @@ class MMentor extends Model
         'intMentor_ID',
         'intUser_ID',
         'txtMentorName',
+        'txtMentorGender',
         'txtDepartment',
         'txtRole',
         'bitActive',

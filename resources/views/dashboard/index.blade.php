@@ -84,11 +84,11 @@
                                 <div class="badge">{{ $rank }}</div>
                                 <img src="https://ui-avatars.com/api/?name={{ urlencode($evaluation->intern->txtInternName ?? 'Intern') }}&background=random" alt="{{ $evaluation->intern->txtInternName ?? 'Intern' }}">
                                 <h5>{{ $evaluation->intern->txtInternName ?? '-' }}</h5>
-                                <div class="stars">★★★★★</div>
+                                <div class="stars">*****</div>
                                 <div class="score">{{ number_format((float) $evaluation->floatExposureScore, 0) }}</div>
                             </div>
                         @empty
-                            <div class="card" style="box-shadow:none; margin-bottom:0;">Belum ada evaluasi.</div>
+                            <div class="card" style="box-shadow:none; margin-bottom:0;">No evaluations yet.</div>
                         @endforelse
                     </div>
                 </div>
@@ -148,7 +148,7 @@
                                         <td class="score-a"><i class="fa-solid fa-arrow-up"></i></td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="5">Belum ada data leaderboard.</td></tr>
+                                    <tr><td colspan="5">No leaderboard data yet.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -164,8 +164,8 @@
                     </div>
 
                     <div class="risk-header">
-                        <div><i class="fa-solid fa-graduation-cap" style="font-size:20px; color:var(--primary);"></i> <div>Mahasiswa<br><span style="font-size:10px;font-weight:500;">(We Have)</span></div></div>
-                        <div><i class="fa-regular fa-building" style="font-size:20px; color:var(--secondary);"></i> <div style="text-align:right;">Industri<br><span style="font-size:10px;font-weight:500;">(We Need)</span></div></div>
+                        <div><i class="fa-solid fa-graduation-cap" style="font-size:20px; color:var(--primary);"></i> <div>Students<br><span style="font-size:10px;font-weight:500;">(We Have)</span></div></div>
+                        <div><i class="fa-regular fa-building" style="font-size:20px; color:var(--secondary);"></i> <div style="text-align:right;">Industry<br><span style="font-size:10px;font-weight:500;">(We Need)</span></div></div>
                     </div>
 
                     <div class="risk-row"><div style="flex:1;"><i class="fa-solid fa-check" style="color:var(--success);margin-right:8px;"></i> Hard Skills</div><div class="check"><i class="fa-solid fa-check" style="color:var(--success);"></i></div><div class="check"><i class="fa-solid fa-check" style="color:var(--success);"></i></div></div>
@@ -175,7 +175,7 @@
                     <div class="alert-box">
                         <i class="fa-solid fa-circle-exclamation"></i>
                         <div>
-                            <p>Gap utama: <span>Industry Knowledge</span></p>
+                            <p>Main gap: <span>Industry Knowledge</span></p>
                             <p style="font-weight: 500; font-size:11px; margin-top:2px;">Risk level: <span style="color:var(--danger); font-weight:700;">Medium</span></p>
                         </div>
                     </div>
@@ -188,7 +188,7 @@
                     </div>
                     <ul class="gov-list">
                         <li><div class="gov-info"><div class="gov-icon"><i class="fa-regular fa-comments"></i></div><div class="gov-text"><h5>Meeting / Review</h5><p>Daily - Weekly - Monthly</p></div></div><i class="fa-solid fa-chevron-right" style="color:var(--text-gray); font-size:12px;"></i></li>
-                        <li><div class="gov-info"><div class="gov-icon"><i class="fa-solid fa-newspaper"></i></div><div class="gov-text"><h5>Weekly Teknis</h5><p>User Company Review</p></div></div><i class="fa-solid fa-chevron-right" style="color:var(--text-gray); font-size:12px;"></i></li>
+                        <li><div class="gov-info"><div class="gov-icon"><i class="fa-solid fa-newspaper"></i></div><div class="gov-text"><h5>Weekly Technical</h5><p>User Company Review</p></div></div><i class="fa-solid fa-chevron-right" style="color:var(--text-gray); font-size:12px;"></i></li>
                         <li style="border-bottom:none;"><div class="gov-info"><div class="gov-icon"><i class="fa-solid fa-graduation-cap"></i></div><div class="gov-text"><h5>Graduation</h5><p>Final Evaluation</p></div></div><i class="fa-solid fa-chevron-right" style="color:var(--text-gray); font-size:12px;"></i></li>
                     </ul>
                 </div>

@@ -36,13 +36,17 @@ class InternController extends Controller
             'txtEmail' => ['required', 'email', 'max:255', Rule::unique('mUser', 'txtEmail')],
             'txtPassword' => ['nullable', 'string', 'min:6'],
             'txtInternName' => ['required', 'string', 'max:255'],
+            'txtInternGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtUniversity' => ['nullable', 'string', 'max:255'],
             'txtMajor' => ['nullable', 'string', 'max:255'],
+            'dtmInserted' => ['nullable', 'date'],
+            'dtmEndDate' => ['nullable', 'date', 'after_or_equal:dtmInserted'],
             'bitActive' => ['nullable', 'boolean'],
         ]);
 
         DB::transaction(function () use ($validated) {
             $now = now();
+            $joinDate = $validated['dtmInserted'] ?? $now;
             $user = MUser::create([
                 'txtEmail' => $validated['txtEmail'],
                 'txtPassword' => Hash::make($validated['txtPassword'] ?: 'password'),
@@ -56,15 +60,17 @@ class InternController extends Controller
                 'intUser_ID' => $user->intUser_ID,
                 'txtInternNo' => 'INT-' . str_pad((string) $user->intUser_ID, 3, '0', STR_PAD_LEFT),
                 'txtInternName' => $validated['txtInternName'],
+                'txtInternGender' => $validated['txtInternGender'] ?? null,
                 'txtUniversity' => $validated['txtUniversity'] ?? null,
                 'txtMajor' => $validated['txtMajor'] ?? null,
+                'dtmEndDate' => $validated['dtmEndDate'] ?? null,
                 'bitActive' => (bool) ($validated['bitActive'] ?? true),
                 'txtInsertedBy' => 'system',
-                'dtmInserted' => $now,
+                'dtmInserted' => $joinDate,
             ]);
         });
 
-        return redirect()->route('interns.index')->with('success', 'Data intern berhasil ditambahkan.');
+        return redirect()->route('interns.index')->with('success', 'Intern data has been added.');
     }
 
     public function show(string $intern): View
@@ -94,8 +100,11 @@ class InternController extends Controller
             'txtEmail' => ['required', 'email', 'max:255', Rule::unique('mUser', 'txtEmail')->ignore($internModel->intUser_ID, 'intUser_ID')],
             'txtPassword' => ['nullable', 'string', 'min:6'],
             'txtInternName' => ['required', 'string', 'max:255'],
+            'txtInternGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtUniversity' => ['nullable', 'string', 'max:255'],
             'txtMajor' => ['nullable', 'string', 'max:255'],
+            'dtmInserted' => ['nullable', 'date'],
+            'dtmEndDate' => ['nullable', 'date', 'after_or_equal:dtmInserted'],
             'bitActive' => ['nullable', 'boolean'],
         ]);
 
@@ -116,15 +125,18 @@ class InternController extends Controller
             $internModel->user->update($userData);
             $internModel->update([
                 'txtInternName' => $validated['txtInternName'],
+                'txtInternGender' => $validated['txtInternGender'] ?? null,
                 'txtUniversity' => $validated['txtUniversity'] ?? null,
                 'txtMajor' => $validated['txtMajor'] ?? null,
+                'dtmEndDate' => $validated['dtmEndDate'] ?? null,
                 'bitActive' => (bool) ($validated['bitActive'] ?? false),
+                'dtmInserted' => $validated['dtmInserted'] ?? $internModel->dtmInserted,
                 'txtUpdatedBy' => 'system',
                 'dtmUpdated' => $now,
             ]);
         });
 
-        return redirect()->route('interns.index')->with('success', 'Data intern berhasil diperbarui.');
+        return redirect()->route('interns.index')->with('success', 'Intern data has been updated.');
     }
 
     public function destroy(string $intern): RedirectResponse
@@ -143,6 +155,6 @@ class InternController extends Controller
             'dtmUpdated' => $now,
         ]);
 
-        return redirect()->route('interns.index')->with('success', 'Data intern berhasil dinonaktifkan.');
+        return redirect()->route('interns.index')->with('success', 'Intern data has been deactivated.');
     }
 }
