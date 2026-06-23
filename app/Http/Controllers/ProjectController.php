@@ -8,6 +8,7 @@ use App\Models\MProject;
 use App\Models\MSkillSet;
 use App\Models\TrInternProject;
 use App\Models\TrProjectStage;
+use App\Support\ExposureCurveBuilder;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -141,8 +142,9 @@ class ProjectController extends Controller
             'assignments.intern.user',
             'assignments.mentor.user',
         ])->findOrFail($project);
+        $projectSCurvePayload = ExposureCurveBuilder::payload(collect([$project]));
 
-        return view('dashboard.project-detail', compact('project'));
+        return view('dashboard.project-detail', compact('project', 'projectSCurvePayload'));
     }
 
     public function edit(string $project): View

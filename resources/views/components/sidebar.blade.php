@@ -7,6 +7,7 @@
         ['route' => 'projects.index', 'active' => 'projects.*', 'label' => 'Projects', 'icon' => 'fa-regular fa-calendar-check'],
         ['route' => 'calendar-sharing.index', 'active' => 'calendar-sharing.*', 'label' => 'Calendar Sharing', 'icon' => 'fa-regular fa-calendar-days'],
         ['route' => 'project-handles.index', 'active' => 'project-handles.*', 'label' => 'Project Handle', 'icon' => 'fa-solid fa-sliders'],
+        ['route' => 'exposure.index', 'active' => 'exposure.*', 'label' => 'Exposure', 'icon' => 'fa-solid fa-chart-area'],
         ['route' => 'analytics.index', 'active' => 'analytics.*', 'label' => 'Analytics', 'icon' => 'fa-solid fa-chart-line'],
         ['route' => 'achievements.index', 'active' => 'achievements.*', 'label' => 'Achievements', 'icon' => 'fa-solid fa-trophy'],
         ['route' => 'reports.index', 'active' => 'reports.*', 'label' => 'Reports', 'icon' => 'fa-regular fa-file-lines'],

@@ -68,12 +68,15 @@
                     </ul>
                 </div>
 
-                <div class="card" style="margin-bottom: 0;">
-                    <div class="card-title" style="margin-bottom: 10px; font-size:12px;">EXPOSURE PROGRESSION</div>
-                    <div style="height: 150px; position: relative; width: 100%;">
-                        <canvas id="lineChart"></canvas>
-                    </div>
-                </div>
+                <x-s-curve-chart
+                    :payload="$mainSCurvePayload"
+                    title="S Curve Project"
+                    subtitle="Weighted planned vs actual by project type."
+                    mode="main"
+                    height="190px"
+                    compact
+                    class="dashboard-s-curve-card"
+                />
 
                 <div class="card" style="border: none; box-shadow: none; padding: 0; background: transparent; margin-bottom: 0;">
                     <div class="card-title" style="font-size: 13px; margin-bottom: 5px;">TOP PERFORMERS</div>

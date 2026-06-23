@@ -5,6 +5,7 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthPageController;
 use App\Http\Controllers\CalendarSharingController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExposureController;
 use App\Http\Controllers\InternController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\MentorController;
@@ -41,6 +42,7 @@ Route::middleware('kmi.auth')->group(function () {
 
     Route::resource('projects', ProjectController::class);
     Route::resource('calendar-sharing', CalendarSharingController::class);
+    Route::get('exposure', [ExposureController::class, 'index'])->name('exposure.index');
 
     Route::resource('leaderboard', LeaderboardController::class)->only(['index', 'show']);
     Route::resource('interns', InternController::class)->only(['index', 'show']);

@@ -1712,6 +1712,622 @@ a.btn-icon {
     font-size: 11px;
 }
 
+.s-curve-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 18px;
+    min-width: 0;
+    width: 100%;
+}
+
+.s-curve-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.s-curve-head h3 {
+    color: var(--primary);
+    font-size: 15px;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin: 0;
+}
+
+.s-curve-head p {
+    color: var(--text-gray);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin: 4px 0 0;
+}
+
+.s-curve-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.s-curve-legend span {
+    color: var(--text-gray);
+    font-size: 11px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.s-curve-legend i {
+    width: 20px;
+    height: 3px;
+    border-radius: 99px;
+    display: inline-block;
+}
+
+.s-curve-legend i.actual {
+    background: var(--secondary);
+}
+
+.s-curve-legend i.planned {
+    background: #6D5BD0;
+}
+
+.s-curve-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(90px, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.s-curve-kpis div {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-body);
+    padding: 10px;
+    min-width: 0;
+}
+
+.s-curve-kpis span {
+    display: block;
+    color: var(--text-gray);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.s-curve-kpis strong {
+    color: var(--text-dark);
+    font-size: 16px;
+    line-height: 1;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.s-curve-chart-shell {
+    position: relative;
+    width: 100%;
+}
+
+.s-curve-chart-shell canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.s-curve-empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 8px;
+    color: var(--text-gray);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: var(--bg-body);
+    text-align: center;
+    padding: 16px;
+}
+
+.s-curve-empty i {
+    color: var(--primary);
+    font-size: 22px;
+}
+
+.s-curve-empty strong {
+    color: var(--text-dark);
+    font-size: 14px;
+}
+
+.s-curve-empty span {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.s-curve-card-compact {
+    padding: 16px;
+}
+
+.s-curve-card-compact .s-curve-head {
+    margin-bottom: 10px;
+}
+
+.s-curve-card-compact .s-curve-head h3 {
+    font-size: 13px;
+}
+
+.s-curve-card-compact .s-curve-head p,
+.s-curve-card-compact .s-curve-legend {
+    display: none;
+}
+
+.s-curve-card-compact .s-curve-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-bottom: 10px;
+}
+
+.s-curve-card-compact .s-curve-kpis div {
+    padding: 8px;
+}
+
+.s-curve-card-compact .s-curve-kpis strong {
+    font-size: 14px;
+}
+
+.project-detail-exposure {
+    margin-bottom: 18px;
+}
+
+.exposure-page {
+    display: grid;
+    gap: 18px;
+}
+
+.exposure-kpi-row {
+    margin-bottom: 0;
+}
+
+.exposure-kpi-row .kpi-card:nth-child(2) .kpi-icon {
+    background: #2563EB;
+}
+
+.exposure-kpi-row .kpi-card:nth-child(3) .kpi-icon {
+    background: var(--warning);
+}
+
+.exposure-kpi-row .kpi-card:nth-child(4) .kpi-icon {
+    background: #7C3AED;
+}
+
+.exposure-toolbar,
+.exposure-chart-panel,
+.exposure-side-panel,
+.exposure-detail-panel {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    min-width: 0;
+}
+
+.exposure-toolbar {
+    padding: 16px;
+    display: grid;
+    gap: 16px;
+}
+
+.exposure-mode-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.exposure-mode-tab {
+    border: 1px solid var(--border);
+    background: var(--bg-body);
+    color: var(--text-gray);
+    border-radius: 6px;
+    padding: 10px 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: 0.2s;
+    min-height: 40px;
+}
+
+.exposure-mode-tab:hover,
+.exposure-mode-tab.active {
+    border-color: var(--secondary);
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.exposure-mode-tab.active {
+    box-shadow: inset 0 -2px 0 var(--secondary);
+}
+
+.exposure-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr)) minmax(260px, auto);
+    gap: 12px;
+    align-items: end;
+}
+
+.exposure-filter-field {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 8px;
+    margin: -8px;
+    transition: 0.2s;
+}
+
+.exposure-filter-field.is-active {
+    border-color: var(--secondary);
+    background: var(--primary-light);
+}
+
+.exposure-line-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-height: 40px;
+}
+
+.exposure-check {
+    border: 1px solid var(--border);
+    background: var(--bg-body);
+    border-radius: 6px;
+    color: var(--text-dark);
+    font-size: 12px;
+    font-weight: 800;
+    padding: 8px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    min-height: 36px;
+}
+
+.exposure-check input {
+    accent-color: var(--primary);
+}
+
+.exposure-check-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.exposure-check-dot.actual {
+    background: var(--secondary);
+}
+
+.exposure-check-dot.planned {
+    background: #6D5BD0;
+}
+
+.exposure-weight-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.exposure-weight-pill {
+    border: 1px solid var(--border);
+    background: var(--bg-body);
+    color: var(--text-dark);
+    border-radius: 8px;
+    padding: 11px 12px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 7px 9px;
+    align-items: center;
+    text-align: left;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.exposure-weight-pill:hover {
+    border-color: var(--secondary);
+    background: var(--primary-light);
+}
+
+.exposure-weight-pill i {
+    font-size: 15px;
+}
+
+.exposure-weight-pill span {
+    color: var(--text-dark);
+    font-size: 12px;
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.exposure-weight-pill strong {
+    color: var(--primary);
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.exposure-weight-pill small {
+    grid-column: 2 / 4;
+    color: var(--text-gray);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.exposure-chart-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.65fr);
+    gap: 18px;
+    align-items: stretch;
+}
+
+.exposure-chart-panel,
+.exposure-side-panel,
+.exposure-detail-panel {
+    padding: 18px;
+}
+
+.exposure-panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.exposure-panel-head h3 {
+    color: var(--primary);
+    font-size: 15px;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin: 0;
+}
+
+.exposure-panel-head p {
+    color: var(--text-gray);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin: 4px 0 0;
+}
+
+.exposure-legend {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.exposure-legend span {
+    color: var(--text-gray);
+    font-size: 12px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.exposure-legend i {
+    width: 22px;
+    height: 3px;
+    border-radius: 99px;
+    display: inline-block;
+}
+
+.exposure-legend i.actual {
+    background: var(--secondary);
+}
+
+.exposure-legend i.planned {
+    background: #6D5BD0;
+}
+
+.exposure-chart-shell {
+    height: 400px;
+    width: 100%;
+    position: relative;
+}
+
+.exposure-chart-shell canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.exposure-empty-state {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 8px;
+    color: var(--text-gray);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: var(--bg-body);
+    text-align: center;
+    padding: 18px;
+}
+
+.exposure-empty-state i {
+    color: var(--primary);
+    font-size: 22px;
+}
+
+.exposure-empty-state strong {
+    color: var(--text-dark);
+    font-size: 14px;
+}
+
+.exposure-empty-state span {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.exposure-scrubber {
+    display: grid;
+    grid-template-columns: auto minmax(120px, 1fr) 42px;
+    gap: 12px;
+    align-items: center;
+    margin-top: 14px;
+}
+
+.exposure-scrubber label,
+.exposure-scrubber output {
+    color: var(--text-gray);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.exposure-scrubber input {
+    accent-color: var(--primary);
+}
+
+.exposure-scrubber output {
+    text-align: right;
+    color: var(--primary);
+}
+
+.exposure-point-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(100px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.exposure-point-grid div {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-body);
+    padding: 11px 12px;
+}
+
+.exposure-point-grid span {
+    display: block;
+    color: var(--text-gray);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+
+.exposure-point-grid strong {
+    color: var(--text-dark);
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.exposure-contribution-list {
+    display: grid;
+    gap: 10px;
+}
+
+.exposure-contribution-card {
+    border: 1px solid var(--border);
+    background: var(--bg-body);
+    border-radius: 8px;
+    padding: 12px;
+    display: grid;
+    gap: 10px;
+    text-align: left;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.exposure-contribution-card:hover,
+.exposure-contribution-card.active {
+    border-color: var(--secondary);
+    background: var(--primary-light);
+}
+
+.exposure-contribution-card.is-empty {
+    opacity: 0.65;
+}
+
+.exposure-contribution-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 5px 9px;
+    align-items: center;
+}
+
+.exposure-contribution-head i {
+    grid-row: span 2;
+    font-size: 16px;
+}
+
+.exposure-contribution-head strong {
+    color: var(--text-dark);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.exposure-contribution-head span {
+    color: var(--text-gray);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.exposure-contribution-values {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.exposure-contribution-values b {
+    color: var(--primary);
+    font-size: 18px;
+    line-height: 1;
+}
+
+.exposure-contribution-values small {
+    color: var(--text-gray);
+    font-size: 11px;
+    font-weight: 800;
+    text-align: right;
+}
+
+.exposure-contribution-track {
+    height: 7px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.exposure-contribution-track div {
+    height: 100%;
+    border-radius: inherit;
+}
+
+.exposure-detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+    gap: 18px;
+}
+
+.exposure-table {
+    min-width: 520px;
+}
+
 /* Bootstrap theme overrides */
 .btn-primary {
     --bs-btn-bg: var(--primary);
@@ -3090,5 +3706,109 @@ body.profile-page {
     .calendar-day {
         min-height: 58px;
         padding: 6px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .exposure-filter-grid {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+    }
+
+    .exposure-line-controls {
+        justify-content: flex-start;
+    }
+
+    .exposure-weight-strip {
+        grid-template-columns: repeat(2, minmax(150px, 1fr));
+    }
+
+    .exposure-chart-grid,
+    .exposure-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .s-curve-head {
+        flex-direction: column;
+    }
+
+    .s-curve-legend {
+        justify-content: flex-start;
+    }
+
+    .s-curve-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .exposure-mode-tabs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .exposure-mode-tab {
+        width: 100%;
+        padding: 10px;
+    }
+
+    .exposure-filter-grid,
+    .exposure-weight-strip {
+        grid-template-columns: 1fr;
+    }
+
+    .exposure-panel-head {
+        flex-direction: column;
+    }
+
+    .exposure-legend {
+        justify-content: flex-start;
+    }
+
+    .exposure-chart-panel,
+    .exposure-side-panel,
+    .exposure-detail-panel {
+        padding: 16px;
+    }
+
+    .exposure-chart-shell {
+        height: 320px;
+    }
+
+    .exposure-point-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .s-curve-kpis {
+        grid-template-columns: 1fr;
+    }
+
+    .exposure-mode-tabs,
+    .exposure-point-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .exposure-line-controls {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: 100%;
+    }
+
+    .exposure-line-controls .btn {
+        width: 100%;
+    }
+
+    .exposure-scrubber {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .exposure-scrubber output {
+        text-align: left;
+    }
+
+    .exposure-chart-shell {
+        height: 280px;
     }
 }

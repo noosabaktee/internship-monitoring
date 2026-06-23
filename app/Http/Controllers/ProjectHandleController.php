@@ -139,9 +139,9 @@ class ProjectHandleController extends Controller
         return MProjectWeight::where('bitActive', true)->orderBy('intProjectWeight_ID')->first()
             ?? MProjectWeight::create([
                 'intProjectWeightMain' => 10,
-                'intProjectWeightCollaboration' => 7,
-                'intProjectWeightSatellite' => 5,
-                'intProjectWeightSharing' => 3,
+                'intProjectWeightCollaboration' => 6,
+                'intProjectWeightSatellite' => 2,
+                'intProjectWeightSharing' => 4,
                 'bitActive' => true,
                 'txtInsertedBy' => 'system',
                 'dtmInserted' => now(),

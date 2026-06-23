@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\MIntern;
+use App\Models\MProject;
 use App\Models\TrAchievement;
 use App\Models\TrCalendarSharing;
 use App\Models\TrEvaluation;
 use App\Models\TrInternProject;
+use App\Support\ExposureCurveBuilder;
 use App\Support\ProjectScoreboard;
 use Illuminate\Contracts\View\View;
 
@@ -43,6 +45,10 @@ class DashboardController extends Controller
             ->orderBy('intCalendarSharing_ID')
             ->take(5)
             ->get();
+        $sCurveProjects = MProject::with(['stages', 'assignments.intern'])
+            ->where('bitActive', true)
+            ->orderBy('txtProjectName')
+            ->get();
 
         return view('dashboard.index', [
             'interns' => $interns,
@@ -57,6 +63,7 @@ class DashboardController extends Controller
             'achievementCount' => TrAchievement::where('bitActive', true)->count(),
             'skillSetProjects' => $skillSetProjects,
             'upcomingCalendarSharings' => $upcomingCalendarSharings,
+            'mainSCurvePayload' => ExposureCurveBuilder::payload($sCurveProjects),
         ]);
     }
 }

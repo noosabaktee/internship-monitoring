@@ -66,9 +66,9 @@ class ProjectScoreboard
 
         return [
             'main' => (int) ($weight?->intProjectWeightMain ?? 10),
-            'collaboration' => (int) ($weight?->intProjectWeightCollaboration ?? 7),
-            'satellite' => (int) ($weight?->intProjectWeightSatellite ?? 5),
-            'sharing' => (int) ($weight?->intProjectWeightSharing ?? 3),
+            'collaboration' => (int) ($weight?->intProjectWeightCollaboration ?? 6),
+            'satellite' => (int) ($weight?->intProjectWeightSatellite ?? 2),
+            'sharing' => (int) ($weight?->intProjectWeightSharing ?? 4),
         ];
     }
 }
