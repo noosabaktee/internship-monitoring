@@ -11,14 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('mProject', function (Blueprint $table) {
-            $table->integer('intProject_ID')->primary();
-            $table->string('txtProjectName')->nullable();
-            $table->string('txtProjectType')->nullable()->comment('Main, Satellite, Collaboration, Sharing');
-            $table->integer('intSkillSet_ID')->nullable();
-            $table->timestamp('dtmProjectStartDate')->nullable();
-            $table->timestamp('dtmProjectEndDate')->nullable();
-            $table->string('txtDescription')->nullable();
+        Schema::create('mSkillSet', function (Blueprint $table) {
+            $table->integer('intSkillSet_ID')->primary();
+            $table->string('txtSkillSetName')->nullable();
+            $table->string('txtSkillSetDescription')->nullable();
             $table->boolean('bitActive')->nullable();
             $table->string('txtInsertedBy')->nullable();
             $table->timestamp('dtmInserted')->nullable();
@@ -32,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('mProject');
+        Schema::dropIfExists('mSkillSet');
     }
 };

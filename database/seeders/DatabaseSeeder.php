@@ -5,10 +5,15 @@ namespace Database\Seeders;
 use App\Models\MIntern;
 use App\Models\MMentor;
 use App\Models\MProject;
+use App\Models\MProjectHandle;
+use App\Models\MProjectWeight;
+use App\Models\MSkillSet;
 use App\Models\MUser;
 use App\Models\TrAchievement;
+use App\Models\TrCalendarSharing;
 use App\Models\TrEvaluation;
 use App\Models\TrInternProject;
+use App\Models\TrProjectStage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +38,9 @@ class DatabaseSeeder extends Seeder
                 75 => 'Trial/testing',
                 100 => 'Completed',
             ];
+            $skillSetIds = $this->seedSkillSets();
+            $this->seedProjectHandles();
+            $this->seedProjectWeight();
             $mentorNames = collect($internRows)->pluck('mentor')->unique()->values();
             $mentorIds = [];
 
@@ -91,9 +99,10 @@ class DatabaseSeeder extends Seeder
                     'txtInternName' => $row['name'],
                     'txtInternGender' => $row['gender'],
                     'txtUniversity' => $row['university'],
-                    'txtMajor' => $row['department'],
+                    'txtDept' => $row['department'],
                     'txtBio' => null,
                     'dtmEndDate' => $this->dateFromSheet($row['end_date']),
+                    'txtInternExtendEndDates' => [],
                     'bitActive' => true,
                     'txtInsertedBy' => 'seeder',
                     'dtmInserted' => $this->dateFromSheet($row['join_date']),
@@ -113,11 +122,15 @@ class DatabaseSeeder extends Seeder
                             'intProject_ID' => $nextProjectId,
                             'txtProjectName' => $projectName,
                             'txtProjectType' => $projectType,
+                            'intSkillSet_ID' => $this->skillSetIdForProject($projectName, $projectType, $skillSetIds),
+                            'dtmProjectStartDate' => $this->dateFromSheet($row['join_date']),
+                            'dtmProjectEndDate' => $this->dateFromSheet($row['end_date']),
                             'txtDescription' => $projectType . ' project for ' . $row['department'],
                             'bitActive' => true,
                             'txtInsertedBy' => 'seeder',
                             'dtmInserted' => $this->dateFromSheet($row['join_date']),
                         ]);
+                        $this->seedProjectStages($nextProjectId, $projectType);
 
                         $nextProjectId++;
                     }
@@ -171,18 +184,255 @@ class DatabaseSeeder extends Seeder
                     'dtmInserted' => $this->dateFromSheet($row['join_date']),
                 ]);
             }
+            $this->seedCalendarSharings();
         });
     }
 
     private function clearCustomTables(): void
     {
+        TrCalendarSharing::query()->delete();
         TrAchievement::query()->delete();
         TrEvaluation::query()->delete();
         TrInternProject::query()->delete();
+        TrProjectStage::query()->delete();
         MProject::query()->delete();
+        MSkillSet::query()->delete();
+        MProjectHandle::query()->delete();
+        MProjectWeight::query()->delete();
         MIntern::query()->delete();
         MMentor::query()->delete();
         MUser::query()->delete();
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function seedSkillSets(): array
+    {
+        $rows = [
+            'Web Development' => 'Web application, dashboard, and workflow interface development.',
+            'Embedded Systems & IoT Data Acquisition' => 'Sensor, machine, and operational data acquisition.',
+            'AI & Computer Vision' => 'AI model, visual inspection, and computer vision initiatives.',
+            'Robotic Process Automation (RPA)' => 'Workflow automation and repetitive process orchestration.',
+            'Engineering Modeling & Simulation' => '3D modeling, CFD, digital twin, and engineering simulation.',
+            'Reverse Engineering' => 'Reverse engineering and technical reconstruction activities.',
+        ];
+        $ids = [];
+
+        foreach ($rows as $skillSetName => $description) {
+            $id = count($ids) + 1;
+
+            MSkillSet::create([
+                'intSkillSet_ID' => $id,
+                'txtSkillSetName' => $skillSetName,
+                'txtSkillSetDescription' => $description,
+                'bitActive' => true,
+                'txtInsertedBy' => 'seeder',
+                'dtmInserted' => now(),
+            ]);
+
+            $ids[$skillSetName] = $id;
+        }
+
+        return $ids;
+    }
+
+    private function seedProjectHandles(): void
+    {
+        foreach ([
+            ['1 month', 0, 1, 1, 1],
+            ['3 months', 1, 1, 1, 2],
+            ['6 months', 2, 2, 2, 3],
+            ['1 year', 3, 4, 3, 4],
+        ] as $index => [$duration, $main, $collaboration, $satellite, $sharing]) {
+            MProjectHandle::create([
+                'intProjectHandle_ID' => $index + 1,
+                'txtProjectHandleDuration' => $duration,
+                'intProjectHandleMain' => $main,
+                'intProjectHandleCollaboration' => $collaboration,
+                'intProjectHandleSatellite' => $satellite,
+                'intProjectHandleSharing' => $sharing,
+                'bitActive' => true,
+                'txtInsertedBy' => 'seeder',
+                'dtmInserted' => now(),
+            ]);
+        }
+    }
+
+    private function seedProjectWeight(): void
+    {
+        MProjectWeight::create([
+            'intProjectWeight_ID' => 1,
+            'intProjectWeightMain' => 10,
+            'intProjectWeightCollaboration' => 7,
+            'intProjectWeightSatellite' => 5,
+            'intProjectWeightSharing' => 3,
+            'bitActive' => true,
+            'txtInsertedBy' => 'seeder',
+            'dtmInserted' => now(),
+        ]);
+    }
+
+    private function seedCalendarSharings(): void
+    {
+        $creatorIds = MUser::where('txtRole', 'Mentor')->orderBy('intUser_ID')->pluck('intUser_ID')->values();
+
+        if ($creatorIds->isEmpty()) {
+            $creatorIds = MUser::orderBy('intUser_ID')->pluck('intUser_ID')->values();
+        }
+
+        $rows = [
+            ['Workflow Automation with n8n', 'Understand RPA workflow design for engineering operations.', 'Hands-on sharing about automation opportunities and simple workflow patterns.', 'Engineering Interns', now()->subDays(5), 'Complete', 'fa-solid fa-robot'],
+            ['Digital Twin Project Review', 'Align simulation model progress and expected project output.', 'Sharing session for digital twin learning points and project risks.', 'MDP Interns', now()->addDays(3), 'Open', 'fa-solid fa-network-wired'],
+            ['Computer Vision Use Case', 'Introduce AI and visual inspection opportunities.', 'Discussion about camera setup, dataset planning, and model evaluation.', 'All Interns', now()->addDays(9), 'Open', 'fa-solid fa-brain'],
+            ['CFD Simulation Clinic', 'Improve engineering modeling and simulation practice.', 'Peer learning session for CFD assumptions, meshing, and validation.', 'Engineering Modeling Team', now()->addDays(15), 'Open', 'fa-solid fa-gears'],
+            ['Reverse Engineering Showcase', 'Share reverse engineering method and documentation output.', 'Case study session from reverse engineering project execution.', 'Manufacturing Interns', now()->addDays(22), 'Reschedule', 'fa-solid fa-screwdriver-wrench'],
+            ['Web Dashboard Mini Demo', 'Show progress of intern dashboard and project tracking features.', 'Short demo and feedback session for web dashboard improvement.', 'Mentors and Interns', now()->addMonth()->addDays(2), 'Open', 'fa-solid fa-laptop-code'],
+        ];
+
+        foreach ($rows as $index => [$theme, $objective, $description, $audience, $date, $status, $icon]) {
+            TrCalendarSharing::create([
+                'intCalendarSharing_ID' => $index + 1,
+                'intCalendarSharingCreatorUser_ID' => $creatorIds[$index % max(1, $creatorIds->count())] ?? null,
+                'txtCalendarSharingTheme' => $theme,
+                'txtCalendarSharingObjective' => $objective,
+                'txtCalendarSharingDescription' => $description,
+                'txtCalendarSharingTargetAudience' => $audience,
+                'dtmCalendarSharingDate' => $date->copy()->startOfDay(),
+                'txtCalendarSharingStatus' => $status,
+                'txtCalendarSharingIcon' => $icon,
+                'bitActive' => true,
+                'txtInsertedBy' => 'seeder',
+                'dtmInserted' => now(),
+            ]);
+        }
+    }
+
+    private function seedProjectStages(int $projectId, string $projectType): void
+    {
+        $templates = match ($projectType) {
+            'Sharing' => [
+                [
+                    ['Topic Preparation', 30],
+                    ['Sharing Session', 50],
+                    ['Documentation', 20],
+                ],
+                [
+                    ['Topic Selection', 15],
+                    ['Audience Mapping', 15],
+                    ['Material Draft', 25],
+                    ['Sharing Session', 30],
+                    ['Feedback Recap', 15],
+                ],
+                [
+                    ['Theme Research', 10],
+                    ['Objective Alignment', 10],
+                    ['Speaker Preparation', 10],
+                    ['Material Development', 20],
+                    ['Dry Run', 10],
+                    ['Session Delivery', 25],
+                    ['Q&A Recap', 10],
+                    ['Documentation', 5],
+                ],
+            ],
+            'Satellite' => [
+                [
+                    ['Initiation', 20],
+                    ['Execution', 65],
+                    ['Handover', 15],
+                ],
+                [
+                    ['Scope Definition', 10],
+                    ['Design Setup', 15],
+                    ['Build', 35],
+                    ['Testing', 20],
+                    ['Review', 10],
+                    ['Handover', 10],
+                ],
+                [
+                    ['Observation', 8],
+                    ['Scope Definition', 10],
+                    ['Setup', 12],
+                    ['Execution', 25],
+                    ['Data Capture', 10],
+                    ['Issue Fixing', 12],
+                    ['Validation', 10],
+                    ['Documentation', 8],
+                    ['Handover', 5],
+                ],
+            ],
+            'Collaboration' => [
+                [
+                    ['Alignment', 15],
+                    ['Joint Development', 50],
+                    ['Validation', 25],
+                    ['Closing', 10],
+                ],
+                [
+                    ['Kickoff', 10],
+                    ['Requirement Alignment', 10],
+                    ['Task Splitting', 10],
+                    ['Development', 30],
+                    ['Integration', 15],
+                    ['Validation', 15],
+                    ['Handover', 10],
+                ],
+                [
+                    ['Stakeholder Mapping', 5],
+                    ['Kickoff', 8],
+                    ['Requirement Sync', 10],
+                    ['Data Preparation', 10],
+                    ['Development Sprint', 22],
+                    ['Peer Review', 10],
+                    ['Integration', 10],
+                    ['Validation', 10],
+                    ['Final Adjustment', 8],
+                    ['Closing', 7],
+                ],
+            ],
+            default => [
+                [
+                    ['Initiation', 10],
+                    ['Planning', 15],
+                    ['Development', 40],
+                    ['Testing', 20],
+                    ['Review', 15],
+                ],
+                [
+                    ['Problem Definition', 10],
+                    ['Data Collection', 15],
+                    ['Concept Design', 15],
+                    ['Execution', 35],
+                    ['Validation', 15],
+                    ['Final Report', 10],
+                ],
+                [
+                    ['Observation', 5],
+                    ['Problem Framing', 8],
+                    ['Literature Study', 7],
+                    ['Concept Design', 10],
+                    ['Prototype Setup', 15],
+                    ['Execution', 25],
+                    ['Testing', 10],
+                    ['Revision', 8],
+                    ['Final Presentation', 7],
+                    ['Handover', 5],
+                ],
+            ],
+        };
+        $rows = $templates[($projectId - 1) % count($templates)];
+
+        foreach ($rows as $index => [$step, $weight]) {
+            TrProjectStage::create([
+                'intProject_ID' => $projectId,
+                'intProjectStageNumber' => $index + 1,
+                'txtProjectStageStep' => $step,
+                'floatProjectStageWeight' => $weight,
+                'bitActive' => true,
+                'txtInsertedBy' => 'seeder',
+                'dtmInserted' => now(),
+            ]);
+        }
     }
 
     /**
@@ -350,6 +600,40 @@ class DatabaseSeeder extends Seeder
         $localPart = trim($localPart, '.');
 
         return $localPart . '@kalbe.co.id';
+    }
+
+    /**
+     * @param array<string, int> $skillSetIds
+     */
+    private function skillSetIdForProject(string $projectName, string $projectType, array $skillSetIds): int
+    {
+        $name = strtolower($projectName);
+
+        if (trim(strtoupper($projectName)) === 'RE') {
+            return $skillSetIds['Reverse Engineering'];
+        }
+
+        if (str_contains($name, '3d') || str_contains($name, 'cfd') || str_contains($name, 'digital twin') || str_contains($name, 'simulation')) {
+            return $skillSetIds['Engineering Modeling & Simulation'];
+        }
+
+        if (str_contains($name, 'workflow') || str_contains($name, 'n8n')) {
+            return $skillSetIds['Robotic Process Automation (RPA)'];
+        }
+
+        if (str_contains($name, 'spray') || str_contains($name, 'wwtps') || str_contains($name, 'preventive') || str_contains($name, 'data')) {
+            return $skillSetIds['Embedded Systems & IoT Data Acquisition'];
+        }
+
+        if (str_contains($name, 'optimus')) {
+            return $skillSetIds['AI & Computer Vision'];
+        }
+
+        if ($projectType === 'Sharing') {
+            return $skillSetIds['Web Development'];
+        }
+
+        return $skillSetIds['Web Development'];
     }
 
     private function dateFromSheet(string $value): Carbon

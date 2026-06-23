@@ -38,9 +38,11 @@ class InternController extends Controller
             'txtInternName' => ['required', 'string', 'max:255'],
             'txtInternGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtUniversity' => ['nullable', 'string', 'max:255'],
-            'txtMajor' => ['nullable', 'string', 'max:255'],
+            'txtDept' => ['nullable', 'string', 'max:255'],
             'dtmInserted' => ['nullable', 'date'],
             'dtmEndDate' => ['nullable', 'date', 'after_or_equal:dtmInserted'],
+            'txtInternExtendEndDates' => ['nullable', 'array'],
+            'txtInternExtendEndDates.*' => ['nullable', 'date'],
             'bitActive' => ['nullable', 'boolean'],
         ]);
 
@@ -62,8 +64,9 @@ class InternController extends Controller
                 'txtInternName' => $validated['txtInternName'],
                 'txtInternGender' => $validated['txtInternGender'] ?? null,
                 'txtUniversity' => $validated['txtUniversity'] ?? null,
-                'txtMajor' => $validated['txtMajor'] ?? null,
+                'txtDept' => $validated['txtDept'] ?? null,
                 'dtmEndDate' => $validated['dtmEndDate'] ?? null,
+                'txtInternExtendEndDates' => $this->extensionDates($validated['txtInternExtendEndDates'] ?? []),
                 'bitActive' => (bool) ($validated['bitActive'] ?? true),
                 'txtInsertedBy' => 'system',
                 'dtmInserted' => $joinDate,
@@ -102,9 +105,11 @@ class InternController extends Controller
             'txtInternName' => ['required', 'string', 'max:255'],
             'txtInternGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtUniversity' => ['nullable', 'string', 'max:255'],
-            'txtMajor' => ['nullable', 'string', 'max:255'],
+            'txtDept' => ['nullable', 'string', 'max:255'],
             'dtmInserted' => ['nullable', 'date'],
             'dtmEndDate' => ['nullable', 'date', 'after_or_equal:dtmInserted'],
+            'txtInternExtendEndDates' => ['nullable', 'array'],
+            'txtInternExtendEndDates.*' => ['nullable', 'date'],
             'bitActive' => ['nullable', 'boolean'],
         ]);
 
@@ -127,8 +132,9 @@ class InternController extends Controller
                 'txtInternName' => $validated['txtInternName'],
                 'txtInternGender' => $validated['txtInternGender'] ?? null,
                 'txtUniversity' => $validated['txtUniversity'] ?? null,
-                'txtMajor' => $validated['txtMajor'] ?? null,
+                'txtDept' => $validated['txtDept'] ?? null,
                 'dtmEndDate' => $validated['dtmEndDate'] ?? null,
+                'txtInternExtendEndDates' => $this->extensionDates($validated['txtInternExtendEndDates'] ?? []),
                 'bitActive' => (bool) ($validated['bitActive'] ?? false),
                 'dtmInserted' => $validated['dtmInserted'] ?? $internModel->dtmInserted,
                 'txtUpdatedBy' => 'system',
@@ -156,5 +162,17 @@ class InternController extends Controller
         ]);
 
         return redirect()->route('interns.index')->with('success', 'Intern data has been deactivated.');
+    }
+
+    /**
+     * @param array<int, string|null> $dates
+     * @return array<int, string>
+     */
+    private function extensionDates(array $dates): array
+    {
+        return collect($dates)
+            ->filter()
+            ->values()
+            ->all();
     }
 }

@@ -11,14 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('mProject', function (Blueprint $table) {
-            $table->integer('intProject_ID')->primary();
-            $table->string('txtProjectName')->nullable();
-            $table->string('txtProjectType')->nullable()->comment('Main, Satellite, Collaboration, Sharing');
-            $table->integer('intSkillSet_ID')->nullable();
-            $table->timestamp('dtmProjectStartDate')->nullable();
-            $table->timestamp('dtmProjectEndDate')->nullable();
-            $table->string('txtDescription')->nullable();
+        Schema::create('mProjectWeight', function (Blueprint $table) {
+            $table->integer('intProjectWeight_ID')->primary();
+            $table->integer('intProjectWeightMain')->nullable();
+            $table->integer('intProjectWeightCollaboration')->nullable();
+            $table->integer('intProjectWeightSatellite')->nullable();
+            $table->integer('intProjectWeightSharing')->nullable();
             $table->boolean('bitActive')->nullable();
             $table->string('txtInsertedBy')->nullable();
             $table->timestamp('dtmInserted')->nullable();
@@ -32,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('mProject');
+        Schema::dropIfExists('mProjectWeight');
     }
 };

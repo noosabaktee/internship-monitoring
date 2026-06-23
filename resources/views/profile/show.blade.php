@@ -12,6 +12,10 @@
     $groupedProjects = $activeProjects->groupBy(fn ($assignment) => $assignment->project?->txtProjectType ?: 'Other');
     $mentors = $activeProjects->pluck('mentor')->filter()->unique('intMentor_ID');
     $achievements = $intern?->achievements?->sortByDesc('dtmAwarded')->take(5) ?? collect();
+    $profilePhotoUrl = $intern?->user?->txtProfilePhoto
+        ? asset('storage/' . $intern->user->txtProfilePhoto)
+        : 'https://ui-avatars.com/api/?name=' . urlencode($intern?->txtInternName ?? 'Intern') . '&background=8CC63F&color=fff&size=160';
+    $canUpdatePhoto = $intern && session('auth_user_id') === $intern->intUser_ID;
 @endphp
 
 @section('content')
@@ -35,7 +39,18 @@
         <div class="profile-page-wrap">
             <section class="profile-hero">
                 <div class="profile-identity">
-                    <img class="profile-avatar" src="https://ui-avatars.com/api/?name={{ urlencode($intern->txtInternName) }}&background=8CC63F&color=fff&size=160" alt="{{ $intern->txtInternName }}">
+                    <div class="profile-avatar-wrap">
+                        <img class="profile-avatar" src="{{ $profilePhotoUrl }}" alt="{{ $intern->txtInternName }}">
+                        @if ($canUpdatePhoto)
+                            <form class="profile-photo-form" action="{{ route('profile.photo.update') }}" method="POST" enctype="multipart/form-data">
+                                @csrf
+                                <label class="profile-photo-button" title="Upload profile photo">
+                                    <i class="fa-solid fa-camera"></i>
+                                    <input type="file" name="txtProfilePhoto" accept="image/*" onchange="this.form.submit()">
+                                </label>
+                            </form>
+                        @endif
+                    </div>
                     <div class="profile-name">
                         <h1>{{ $intern->txtInternName }}</h1>
                         <p>{{ $intern->txtBio ?: 'This intern profile does not have a bio yet. Add a short summary of project focus and program progress from the edit profile page.' }}</p>
@@ -43,6 +58,7 @@
                             <span class="profile-pill"><i class="fa-solid fa-id-card"></i> {{ $intern->txtInternNo ?: 'INT-' . str_pad((string) $intern->intIntern_ID, 3, '0', STR_PAD_LEFT) }}</span>
                             <span class="profile-pill"><i class="fa-solid fa-venus-mars"></i> {{ $intern->txtInternGender ?: '-' }}</span>
                             <span class="profile-pill"><i class="fa-solid fa-graduation-cap"></i> {{ $intern->txtUniversity ?: '-' }}</span>
+                            <span class="profile-pill"><i class="fa-solid fa-building"></i> {{ $intern->txtDept ?: '-' }}</span>
                             <span class="profile-pill"><i class="fa-regular fa-calendar"></i> {{ $intern->dtmInserted?->format('d M Y') ?? '-' }}</span>
                             <span class="profile-pill"><i class="fa-solid fa-calendar-check"></i> {{ $intern->dtmEndDate?->format('d M Y') ?? '-' }}</span>
                             <span class="profile-pill"><i class="fa-solid fa-circle-check"></i> {{ $intern->bitActive ? 'Active' : 'Inactive' }}</span>

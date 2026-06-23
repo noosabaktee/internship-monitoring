@@ -17,6 +17,17 @@
         75 => 'Trial/testing',
         100 => 'Completed',
     ];
+    $projectStageRows = old('stages');
+    if ($projectStageRows === null && isset($editingProject)) {
+        $projectStageRows = $editingProject->stages
+            ->map(fn ($stage) => [
+                'txtProjectStageStep' => $stage->txtProjectStageStep,
+                'floatProjectStageWeight' => $stage->floatProjectStageWeight,
+            ])
+            ->values()
+            ->all();
+    }
+    $projectStageRows = is_array($projectStageRows) ? array_values($projectStageRows) : [];
 @endphp
 
 @section('content')
@@ -57,11 +68,28 @@
                     </select>
                 </div>
                 <div class="col-md-3">
+                    <label class="form-label">Skill Set</label>
+                    <select class="form-control" name="intSkillSet_ID" required>
+                        <option value="">Select skill set</option>
+                        @foreach ($skillSets as $skillSet)
+                            <option value="{{ $skillSet->intSkillSet_ID }}" @selected((string) old('intSkillSet_ID', $editingProject->intSkillSet_ID ?? '') === (string) $skillSet->intSkillSet_ID)>{{ $skillSet->txtSkillSetName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <label class="form-label">Project Status</label>
                     <select class="form-control" name="bitActive">
                         <option value="1" @selected((string) old('bitActive', (int) ($editingProject->bitActive ?? true)) === '1')>Active</option>
                         <option value="0" @selected((string) old('bitActive', (int) ($editingProject->bitActive ?? true)) === '0')>Inactive</option>
                     </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Start Project</label>
+                    <input class="form-control" type="date" name="dtmProjectStartDate" value="{{ old('dtmProjectStartDate', isset($editingProject) && $editingProject->dtmProjectStartDate ? $editingProject->dtmProjectStartDate->format('Y-m-d') : '') }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Project</label>
+                    <input class="form-control" type="date" name="dtmProjectEndDate" value="{{ old('dtmProjectEndDate', isset($editingProject) && $editingProject->dtmProjectEndDate ? $editingProject->dtmProjectEndDate->format('Y-m-d') : '') }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Intern</label>
@@ -94,6 +122,32 @@
                     <textarea class="form-control" name="txtDescription" rows="3">{{ old('txtDescription', $editingProject->txtDescription ?? '') }}</textarea>
                 </div>
                 <div class="col-12">
+                    <div class="project-stage-head">
+                        <div>
+                            <label class="form-label">Project Stages</label>
+                            <div class="project-stage-total" id="projectStageTotal">Total: 0%</div>
+                        </div>
+                        <button class="btn btn-outline-primary btn-sm" id="addProjectStageButton" type="button"><i class="fa-solid fa-plus"></i> Add Tahap</button>
+                    </div>
+                    <p class="project-stage-warning" id="projectStageWarning" hidden></p>
+                    <div class="project-stage-list" id="projectStageList">
+                        @foreach ($projectStageRows as $stageIndex => $stage)
+                            <div class="project-stage-row">
+                                <div class="project-stage-number">Tahap {{ $stageIndex + 1 }}</div>
+                                <div>
+                                    <label class="form-label">Step</label>
+                                    <input class="form-control project-stage-step" name="stages[{{ $stageIndex }}][txtProjectStageStep]" value="{{ $stage['txtProjectStageStep'] ?? '' }}">
+                                </div>
+                                <div>
+                                    <label class="form-label">Weight (%)</label>
+                                    <input class="form-control project-stage-weight" type="number" min="0" max="100" step="0.01" name="stages[{{ $stageIndex }}][floatProjectStageWeight]" value="{{ $stage['floatProjectStageWeight'] ?? '' }}">
+                                </div>
+                                <button class="btn-icon btn-delete project-stage-remove" type="button" title="Remove stage"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+                <div class="col-12">
                     <button class="btn btn-primary btn-save" type="submit">{{ isset($editingProject) ? 'Save Changes' : 'Save Project' }}</button>
                 </div>
             </form>
@@ -104,18 +158,26 @@
         <div class="table-responsive">
             <table class="table data-table align-middle mb-0">
                 <thead>
-                    <tr><th>Project Name</th><th>Type</th><th>Intern</th><th>PIC / Mentor</th><th>Progress</th><th>Status</th><th>Action</th></tr>
+                    <tr><th>Project Name</th><th>Type</th><th>Skill Set</th><th>Stages</th><th>Start</th><th>End</th><th>Intern</th><th>PIC / Mentor</th><th>Progress</th><th>Status</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($projects as $project)
-                        @php($rowAssignment = $project->assignments->first())
+                        @php
+                            $rowAssignment = $project->assignments->first();
+                        @endphp
                         <tr>
-                            <td><strong>{{ $project->txtProjectName }}</strong><br><span style="color:var(--text-gray); font-size:11px;">{{ $project->txtDescription }}</span></td>
+                            <td><a class="auth-link" href="{{ route('projects.show', $project->intProject_ID) }}"><strong>{{ $project->txtProjectName }}</strong></a><br><span style="color:var(--text-gray); font-size:11px;">{{ $project->txtDescription }}</span></td>
                             <td>{{ $project->txtProjectType }}</td>
+                            <td>{{ $project->skillSet?->txtSkillSetName ?? '-' }}</td>
+                            <td>{{ $project->stages->count() ? $project->stages->count() . ' Tahap / ' . number_format((float) $project->stages->sum('floatProjectStageWeight'), 0) . '%' : '-' }}</td>
+                            <td>{{ $project->dtmProjectStartDate?->format('d M Y') ?? '-' }}</td>
+                            <td>{{ $project->dtmProjectEndDate?->format('d M Y') ?? '-' }}</td>
                             <td>{{ $rowAssignment?->intern?->txtInternName ?? '-' }}</td>
                             <td>{{ $rowAssignment?->mentor?->txtMentorName ?? '-' }}</td>
                             <td>
-                                @php($progress = (float) ($rowAssignment?->floatProgress ?? 0))
+                                @php
+                                    $progress = (float) ($rowAssignment?->floatProgress ?? 0);
+                                @endphp
                                 <div style="display:flex; align-items:center; gap:8px; min-width:120px;">
                                     <div style="background:var(--border); border-radius:3px; height:8px; flex:1;"><div style="background:var(--secondary); width:{{ $progress }}%; height:100%; border-radius:3px;"></div></div>
                                     <strong>{{ number_format($progress, 0) }}%</strong>
@@ -134,7 +196,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="center">No project data yet.</td></tr>
+                        <tr><td colspan="11" class="center">No project data yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>

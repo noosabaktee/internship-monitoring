@@ -8,6 +8,10 @@
 @php
     $assignments = $mentor->internProjects->where('bitActive', true);
     $interns = $assignments->pluck('intern')->filter()->unique('intIntern_ID');
+    $profilePhotoUrl = $mentor->user?->txtProfilePhoto
+        ? asset('storage/' . $mentor->user->txtProfilePhoto)
+        : 'https://ui-avatars.com/api/?name=' . urlencode($mentor->txtMentorName) . '&background=006838&color=fff&size=160';
+    $canUpdatePhoto = session('auth_user_id') === $mentor->intUser_ID;
 @endphp
 
 @section('content')
@@ -24,7 +28,18 @@
     <div class="profile-page-wrap">
         <section class="profile-hero">
             <div class="profile-identity">
-                <img class="profile-avatar" src="https://ui-avatars.com/api/?name={{ urlencode($mentor->txtMentorName) }}&background=006838&color=fff&size=160" alt="{{ $mentor->txtMentorName }}">
+                <div class="profile-avatar-wrap">
+                    <img class="profile-avatar" src="{{ $profilePhotoUrl }}" alt="{{ $mentor->txtMentorName }}">
+                    @if ($canUpdatePhoto)
+                        <form class="profile-photo-form" action="{{ route('profile.photo.update') }}" method="POST" enctype="multipart/form-data">
+                            @csrf
+                            <label class="profile-photo-button" title="Upload profile photo">
+                                <i class="fa-solid fa-camera"></i>
+                                <input type="file" name="txtProfilePhoto" accept="image/*" onchange="this.form.submit()">
+                            </label>
+                        </form>
+                    @endif
+                </div>
                 <div class="profile-name">
                     <h1>{{ $mentor->txtMentorName }}</h1>
                     <p>{{ $mentor->txtDepartment ?: 'Mentor department has not been filled in.' }}</p>

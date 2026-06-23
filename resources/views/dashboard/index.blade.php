@@ -19,8 +19,8 @@
                 <div class="kpi-icon"><i class="fa-solid fa-star"></i></div>
                 <div class="kpi-data">
                     <h4>Average Score</h4>
-                    <h2>{{ $averageScore }} <span>/100</span></h2>
-                    <p><span class="trend-up"><i class="fa-solid fa-arrow-up"></i> 8.5%</span> vs last month</p>
+                    <h2>{{ $averageScore }}</h2>
+                    <p>Weighted project score</p>
                 </div>
             </div>
             <div class="kpi-card">
@@ -48,7 +48,7 @@
                         <div class="card-num">1</div>
                         <div class="card-title">EXPOSURE</div>
                     </div>
-                    <ul class="exposure-list">
+                    <ul class="exposure-list ps-1">
                         <li>
                             <div class="level score-a"><div class="dot" style="background:var(--primary)"></div> A (High)</div>
                             <div class="interns">{{ $latestEvaluations->where('floatExposureScore', '>=', 85)->pluck('intern.txtInternName')->filter()->join(', ') ?: '-' }}</div>
@@ -79,13 +79,15 @@
                     <div class="card-title" style="font-size: 13px; margin-bottom: 5px;">TOP PERFORMERS</div>
                     <div class="podium-section">
                         @forelse ($topPerformers as $index => $evaluation)
-                            @php($rank = $index + 1)
+                            @php
+                                $rank = $index + 1;
+                            @endphp
                             <div class="podium p-{{ $rank }}">
                                 <div class="badge">{{ $rank }}</div>
-                                <img src="https://ui-avatars.com/api/?name={{ urlencode($evaluation->intern->txtInternName ?? 'Intern') }}&background=random" alt="{{ $evaluation->intern->txtInternName ?? 'Intern' }}">
-                                <h5>{{ $evaluation->intern->txtInternName ?? '-' }}</h5>
+                                <img src="{{ $evaluation['intern']->user?->txtProfilePhoto ? asset('storage/' . $evaluation['intern']->user->txtProfilePhoto) : 'https://ui-avatars.com/api/?name=' . urlencode($evaluation['intern']->txtInternName ?? 'Intern') . '&background=random' }}" alt="{{ $evaluation['intern']->txtInternName ?? 'Intern' }}">
+                                <h5>{{ $evaluation['intern']->txtInternName ?? '-' }}</h5>
                                 <div class="stars">*****</div>
-                                <div class="score">{{ number_format((float) $evaluation->floatExposureScore, 0) }}</div>
+                                <div class="score">{{ number_format((float) $evaluation['score'], 0) }}</div>
                             </div>
                         @empty
                             <div class="card" style="box-shadow:none; margin-bottom:0;">No evaluations yet.</div>
@@ -100,13 +102,13 @@
                         <div class="card-num">2</div>
                         <div class="card-title">EXPOSURE MATRIX</div>
                     </div>
-                    <div class="table-responsive">
+                    <div class="table-responsive interns-leaderboard-scroll">
                         <table class="data-table">
                             <thead>
                                 <tr>
                                     <th>PROJECT / AREA</th>
-                                    @foreach ($interns->take(5) as $intern)
-                                        <th class="center">{{ \Illuminate\Support\Str::limit($intern->txtInternName, 8, '') }}</th>
+                                    @foreach ($interns as $intern)
+                                        <th class="center">{{ \Illuminate\Support\Str::of($intern->txtInternName)->trim()->before(' ') }}</th>
                                     @endforeach
                                 </tr>
                             </thead>
@@ -114,21 +116,25 @@
                                 @foreach (['Collaboration', 'Main', 'Satellite', 'Sharing'] as $type)
                                     <tr>
                                         <td>{{ $type }}</td>
-                                        @foreach ($interns->take(5) as $intern)
-                                            @php($qty = $assignments->filter(fn ($assignment) => $assignment->intIntern_ID === $intern->intIntern_ID && $assignment->project?->txtProjectType === $type)->count())
-                                            <td class="center {{ $qty > 10 ? 'score-a' : ($qty >= 5 ? 'score-b' : ($qty >= 2 ? 'score-c' : ($qty === 1 ? 'score-d' : ''))) }}">{{ $qty ?: '-' }}</td>
+                                        @foreach ($interns as $intern)
+                                            @php
+                                                $matchingAssignments = $assignments->filter(fn ($assignment) => $assignment->bitActive && $assignment->project?->bitActive && $assignment->intIntern_ID === $intern->intIntern_ID && $assignment->project?->txtProjectType === $type);
+                                                $totalProject = $matchingAssignments->count();
+                                                $completedProject = $matchingAssignments->filter(fn ($assignment) => (float) $assignment->floatProgress >= 100 || $assignment->txtStatus === 'Completed')->count();
+                                            @endphp
+                                            <td class="center {{ $totalProject > 10 ? 'score-a' : ($totalProject >= 5 ? 'score-b' : ($totalProject >= 2 ? 'score-c' : ($totalProject === 1 ? 'score-d' : ''))) }}">{{ $totalProject ? $completedProject . '/' . $totalProject : '-' }}</td>
                                         @endforeach
                                     </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
-                    <div style="margin-top:15px; font-size:11px; display:flex; gap:10px; justify-content:center; font-weight: 600; flex-wrap: wrap;">
-                        <span><span class="dot" style="display:inline-block;background:var(--primary);"></span> &gt;10 Qty</span>
-                        <span><span class="dot" style="display:inline-block;background:var(--secondary);"></span> 5-10 Qty</span>
-                        <span><span class="dot" style="display:inline-block;background:var(--warning);"></span> 2-4 Qty</span>
-                        <span><span class="dot" style="display:inline-block;background:#EA580C;"></span> 1 Qty</span>
-                    </div>
+                    <!-- <div style="margin-top:15px; font-size:11px; display:flex; gap:10px; justify-content:center; font-weight: 600; flex-wrap: wrap;">
+                        <span><span class="dot" style="display:inline-block;background:var(--primary);"></span> &gt;10 Total</span>
+                        <span><span class="dot" style="display:inline-block;background:var(--secondary);"></span> 5-10 Total</span>
+                        <span><span class="dot" style="display:inline-block;background:var(--warning);"></span> 2-4 Total</span>
+                        <span><span class="dot" style="display:inline-block;background:#EA580C;"></span> 1 Total</span>
+                    </div> -->
                 </div>
 
                 <div class="card" style="flex-grow: 1; margin-bottom: 0;">
@@ -136,19 +142,18 @@
                     <div class="table-responsive">
                         <table class="data-table">
                             <thead>
-                                <tr><th>RANK</th><th>INTERN</th><th>MAIN PROJECT</th><th>SCORE</th><th>TREND</th></tr>
+                                <tr><th>RANK</th><th>INTERN</th><th>SCORE</th><th>PERIOD</th></tr>
                             </thead>
                             <tbody>
-                                @forelse ($topPerformers as $index => $evaluation)
+                                @forelse ($leaderboardRows as $index => $row)
                                     <tr>
                                         <td><span class="card-num" style="background:transparent;border:1px solid var(--border);border-radius:50%;width:20px;height:20px;color:var(--text-dark);">{{ $index + 1 }}</span></td>
-                                        <td>{{ $evaluation->intern->txtInternName ?? '-' }}</td>
-                                        <td>{{ $evaluation->intern?->projects?->first()?->project?->txtProjectName ?? '-' }}</td>
-                                        <td class="score-a">{{ number_format((float) $evaluation->floatExposureScore, 0) }}</td>
-                                        <td class="score-a"><i class="fa-solid fa-arrow-up"></i></td>
+                                        <td>{{ $row['intern']->txtInternName ?? '-' }}</td>
+                                        <td class="score-a">{{ number_format((float) $row['score'], 0) }}</td>
+                                        <td>{{ $row['period'] }}</td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="5">No leaderboard data yet.</td></tr>
+                                    <tr><td colspan="4">No leaderboard data yet.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -160,36 +165,51 @@
                 <div class="card" style="margin-bottom: 0;">
                     <div class="card-header">
                         <div class="card-num">3</div>
-                        <div class="card-title">GAP / RISK ANALYSIS</div>
+                        <div class="card-title">SKILL SET</div>
                     </div>
 
-                    <div class="risk-header">
-                        <div><i class="fa-solid fa-graduation-cap" style="font-size:20px; color:var(--primary);"></i> <div>Students<br><span style="font-size:10px;font-weight:500;">(We Have)</span></div></div>
-                        <div><i class="fa-regular fa-building" style="font-size:20px; color:var(--secondary);"></i> <div style="text-align:right;">Industry<br><span style="font-size:10px;font-weight:500;">(We Need)</span></div></div>
+                    <div class="skill-pie-wrap">
+                        <canvas id="skillSetPieChart"></canvas>
                     </div>
-
-                    <div class="risk-row"><div style="flex:1;"><i class="fa-solid fa-check" style="color:var(--success);margin-right:8px;"></i> Hard Skills</div><div class="check"><i class="fa-solid fa-check" style="color:var(--success);"></i></div><div class="check"><i class="fa-solid fa-check" style="color:var(--success);"></i></div></div>
-                    <div class="risk-row"><div style="flex:1;"><i class="fa-solid fa-check" style="color:var(--success);margin-right:8px;"></i> Project Exposure</div><div class="check"><i class="fa-solid fa-check" style="color:var(--success);"></i></div><div class="check"><i class="fa-solid fa-check" style="color:var(--success);"></i></div></div>
-                    <div class="risk-row"><div style="flex:1;"><i class="fa-solid fa-check" style="color:var(--success);margin-right:8px;"></i> Industry Knowledge</div><div class="check"><i class="fa-solid fa-xmark" style="color:var(--danger);font-size:16px;"></i></div><div class="check"><i class="fa-solid fa-check" style="color:var(--success);"></i></div></div>
-
-                    <div class="alert-box">
-                        <i class="fa-solid fa-circle-exclamation"></i>
-                        <div>
-                            <p>Main gap: <span>Industry Knowledge</span></p>
-                            <p style="font-weight: 500; font-size:11px; margin-top:2px;">Risk level: <span style="color:var(--danger); font-weight:700;">Medium</span></p>
-                        </div>
-                    </div>
+                    <script type="application/json" id="skillSetPieData">{!! json_encode([
+                        'labels' => $skillSetProjects->keys()->values(),
+                        'values' => $skillSetProjects->values(),
+                    ]) !!}</script>
+                    <!-- <div class="skill-set-list">
+                        @forelse ($skillSetProjects as $skillSetName => $total)
+                            <div class="skill-set-row"><span>{{ $skillSetName }}</span><strong>{{ $total }}</strong></div>
+                        @empty
+                            <div class="skill-set-row"><span>No mapped skill set projects yet.</span><strong>0</strong></div>
+                        @endforelse
+                    </div> -->
                 </div>
 
                 <div class="card" style="flex-grow:1; margin-bottom: 0;">
                     <div class="card-header">
                         <div class="card-num">4</div>
-                        <div class="card-title">GOVERNANCE</div>
+                        <div class="card-title">CALENDAR SHARING</div>
                     </div>
-                    <ul class="gov-list">
-                        <li><div class="gov-info"><div class="gov-icon"><i class="fa-regular fa-comments"></i></div><div class="gov-text"><h5>Meeting / Review</h5><p>Daily - Weekly - Monthly</p></div></div><i class="fa-solid fa-chevron-right" style="color:var(--text-gray); font-size:12px;"></i></li>
-                        <li><div class="gov-info"><div class="gov-icon"><i class="fa-solid fa-newspaper"></i></div><div class="gov-text"><h5>Weekly Technical</h5><p>User Company Review</p></div></div><i class="fa-solid fa-chevron-right" style="color:var(--text-gray); font-size:12px;"></i></li>
-                        <li style="border-bottom:none;"><div class="gov-info"><div class="gov-icon"><i class="fa-solid fa-graduation-cap"></i></div><div class="gov-text"><h5>Graduation</h5><p>Final Evaluation</p></div></div><i class="fa-solid fa-chevron-right" style="color:var(--text-gray); font-size:12px;"></i></li>
+                    <ul class="gov-list ps-1">
+                        @forelse ($upcomingCalendarSharings as $sharing)
+                            @php
+                                $creatorName = $sharing->creator?->intern?->txtInternName
+                                    ?? $sharing->creator?->mentor?->txtMentorName
+                                    ?? $sharing->creator?->txtEmail
+                                    ?? '-';
+                            @endphp
+                            <li>
+                                <div class="gov-info">
+                                    <div class="gov-icon"><i class="{{ $sharing->txtCalendarSharingIcon ?: 'fa-regular fa-calendar-days' }}"></i></div>
+                                    <div class="gov-text">
+                                        <h5>{{ $sharing->txtCalendarSharingTheme }}</h5>
+                                        <p>{{ $sharing->dtmCalendarSharingDate?->format('d M Y') ?? '-' }} - {{ $sharing->txtCalendarSharingStatus ?: 'Open' }} - {{ $creatorName }}</p>
+                                    </div>
+                                </div>
+                                <a href="{{ route('calendar-sharing.index', ['month' => $sharing->dtmCalendarSharingDate?->format('Y-m') ?? now()->format('Y-m')]) }}" class="gov-link-icon" aria-label="Open Calendar Sharing"><i class="fa-solid fa-chevron-right"></i></a>
+                            </li>
+                        @empty
+                            <li style="border-bottom:none;"><div class="gov-info"><div class="gov-icon"><i class="fa-regular fa-calendar-days"></i></div><div class="gov-text"><h5>No upcoming sharing</h5><p>New sharing schedules will appear here.</p></div></div></li>
+                        @endforelse
                     </ul>
                 </div>
             </div>

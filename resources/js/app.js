@@ -34,6 +34,18 @@ window.openDatePicker = function () {
     }
 };
 
+window.toggleNavDropdown = function (dropdownId) {
+    const dropdown = document.getElementById(dropdownId);
+    const toggle = dropdown ? dropdown.querySelector('.nav-dropdown-toggle') : null;
+
+    if (!dropdown || !toggle) {
+        return;
+    }
+
+    dropdown.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', dropdown.classList.contains('open') ? 'true' : 'false');
+};
+
 const modalTemplates = {
     intern: `
         <div class="form-group">
@@ -54,10 +66,6 @@ const modalTemplates = {
         <div class="form-group">
             <label>University</label>
             <input type="text" class="form-control" placeholder="Enter university name">
-        </div>
-        <div class="form-group">
-            <label>Major</label>
-            <input type="text" class="form-control" placeholder="Enter major">
         </div>
         <div class="form-group">
             <label>Status</label>
@@ -177,6 +185,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const topbarDate = document.getElementById('topbarDate');
     const today = new Date();
     const modal = document.getElementById('crudModal');
+    const internExtendButton = document.getElementById('internExtendButton');
+    const internExtendFields = document.getElementById('internExtendFields');
+    const internExtendNote = document.getElementById('internExtendNote');
+    const addProjectStageButton = document.getElementById('addProjectStageButton');
+    const projectStageList = document.getElementById('projectStageList');
+    const projectStageTotal = document.getElementById('projectStageTotal');
+    const projectStageWarning = document.getElementById('projectStageWarning');
+    let internExtendAddedThisEdit = false;
 
     if (topbarDate && !topbarDate.value) {
         topbarDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -224,6 +240,188 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const latestInternEndDateInput = () => {
+        const extensionInputs = Array.from(document.querySelectorAll('.intern-extend-date'));
+
+        return extensionInputs.at(-1) || document.querySelector('input[name="dtmEndDate"]');
+    };
+
+    const canExtendIntern = () => {
+        const latestInput = latestInternEndDateInput();
+
+        if (!latestInput || !latestInput.value) {
+            return false;
+        }
+
+        const todayDate = new Date();
+        todayDate.setHours(0, 0, 0, 0);
+
+        const latestDate = new Date(`${latestInput.value}T00:00:00`);
+        const diffDays = Math.ceil((latestDate - todayDate) / 86400000);
+
+        return diffDays <= 14;
+    };
+
+    const refreshInternExtendButton = () => {
+        if (!internExtendButton) {
+            return;
+        }
+
+        if (internExtendAddedThisEdit) {
+            internExtendButton.hidden = true;
+
+            if (internExtendNote) {
+                internExtendNote.textContent = 'Save changes dulu untuk menambahkan extend berikutnya.';
+            }
+
+            return;
+        }
+
+        internExtendButton.hidden = false;
+        internExtendButton.disabled = !canExtendIntern();
+
+        if (internExtendNote) {
+            internExtendNote.textContent = internExtendButton.disabled
+                ? 'Extend can be added when the latest end date is within 14 days.'
+                : 'Latest end date is eligible for extension.';
+        }
+    };
+
+    const bindInternExtendInputs = () => {
+        document.querySelectorAll('.intern-extend-date, input[name="dtmEndDate"]').forEach((input) => {
+            input.removeEventListener('change', refreshInternExtendButton);
+            input.addEventListener('change', refreshInternExtendButton);
+        });
+    };
+
+    if (internExtendButton && internExtendFields) {
+        bindInternExtendInputs();
+        refreshInternExtendButton();
+
+        internExtendButton.addEventListener('click', () => {
+            if (!canExtendIntern()) {
+                return;
+            }
+
+            const nextIndex = internExtendFields.querySelectorAll('.intern-extend-field').length + 1;
+            const field = document.createElement('div');
+
+            field.className = 'intern-extend-field';
+            field.innerHTML = `
+                <label class="form-label">Extend ${nextIndex} End Date</label>
+                <input class="form-control intern-extend-date" type="date" name="txtInternExtendEndDates[]">
+            `;
+            internExtendFields.appendChild(field);
+            field.querySelector('input')?.focus();
+            bindInternExtendInputs();
+            internExtendAddedThisEdit = true;
+            refreshInternExtendButton();
+        });
+    }
+
+    const refreshProjectStageNumbers = () => {
+        if (!projectStageList) {
+            return;
+        }
+
+        projectStageList.querySelectorAll('.project-stage-row').forEach((row, index) => {
+            const number = index + 1;
+            const label = row.querySelector('.project-stage-number');
+            const stepInput = row.querySelector('.project-stage-step');
+            const weightInput = row.querySelector('.project-stage-weight');
+
+            if (label) {
+                label.textContent = `Tahap ${number}`;
+            }
+
+            if (stepInput) {
+                stepInput.name = `stages[${index}][txtProjectStageStep]`;
+            }
+
+            if (weightInput) {
+                weightInput.name = `stages[${index}][floatProjectStageWeight]`;
+            }
+        });
+    };
+
+    const refreshProjectStageTotal = () => {
+        if (!projectStageList || !projectStageTotal) {
+            return;
+        }
+
+        const total = Array.from(projectStageList.querySelectorAll('.project-stage-weight'))
+            .reduce((sum, input) => sum + Number(input.value || 0), 0);
+        const roundedTotal = Math.round(total * 100) / 100;
+        const overLimit = roundedTotal > 100;
+        const isComplete = Math.abs(roundedTotal - 100) < 0.001;
+
+        projectStageTotal.classList.toggle('is-valid', isComplete);
+        projectStageTotal.classList.toggle('is-invalid', overLimit || (roundedTotal > 0 && roundedTotal < 100));
+        projectStageTotal.textContent = overLimit
+            ? `Total: ${roundedTotal}% - melebihi 100%`
+            : `Total: ${roundedTotal}%`;
+
+        projectStageList.querySelectorAll('.project-stage-weight').forEach((input) => {
+            input.classList.toggle('is-invalid', overLimit);
+        });
+
+        if (projectStageWarning) {
+            projectStageWarning.hidden = !overLimit;
+            projectStageWarning.textContent = overLimit
+                ? `Warning: total bobot tahap sudah ${roundedTotal}%, kurangi ${Math.round((roundedTotal - 100) * 100) / 100}%.`
+                : '';
+        }
+    };
+
+    const bindProjectStageRows = () => {
+        if (!projectStageList) {
+            return;
+        }
+
+        projectStageList.querySelectorAll('.project-stage-weight').forEach((input) => {
+            input.removeEventListener('input', refreshProjectStageTotal);
+            input.addEventListener('input', refreshProjectStageTotal);
+        });
+
+        projectStageList.querySelectorAll('.project-stage-remove').forEach((button) => {
+            button.addEventListener('click', () => {
+                button.closest('.project-stage-row')?.remove();
+                refreshProjectStageNumbers();
+                refreshProjectStageTotal();
+            }, { once: true });
+        });
+    };
+
+    if (addProjectStageButton && projectStageList) {
+        bindProjectStageRows();
+        refreshProjectStageNumbers();
+        refreshProjectStageTotal();
+
+        addProjectStageButton.addEventListener('click', () => {
+            const index = projectStageList.querySelectorAll('.project-stage-row').length;
+            const row = document.createElement('div');
+
+            row.className = 'project-stage-row';
+            row.innerHTML = `
+                <div class="project-stage-number">Tahap ${index + 1}</div>
+                <div>
+                    <label class="form-label">Step</label>
+                    <input class="form-control project-stage-step" name="stages[${index}][txtProjectStageStep]">
+                </div>
+                <div>
+                    <label class="form-label">Weight (%)</label>
+                    <input class="form-control project-stage-weight" type="number" min="0" max="100" step="0.01" name="stages[${index}][floatProjectStageWeight]">
+                </div>
+                <button class="btn-icon btn-delete project-stage-remove" type="button" title="Remove stage"><i class="fa-solid fa-trash"></i></button>
+            `;
+            projectStageList.appendChild(row);
+            bindProjectStageRows();
+            refreshProjectStageNumbers();
+            refreshProjectStageTotal();
+            row.querySelector('.project-stage-step')?.focus();
+        });
+    }
+
     document.querySelectorAll('.icon-choice input[type="radio"]').forEach((input) => {
         input.addEventListener('change', () => {
             document.querySelectorAll(`.icon-choice input[name="${input.name}"]`).forEach((radio) => {
@@ -265,6 +463,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 scales: {
                     x: { grid: { display: false }, ticks: { font: { size: 10 } } },
                     y: { display: false, min: 0, max: 100 },
+                },
+            },
+        });
+    }
+
+    const skillSetPieCanvas = document.getElementById('skillSetPieChart');
+    const skillSetPieData = document.getElementById('skillSetPieData');
+
+    if (skillSetPieCanvas && skillSetPieData && window.Chart) {
+        const parsedData = JSON.parse(skillSetPieData.textContent || '{"labels":[],"values":[]}');
+
+        new window.Chart(skillSetPieCanvas.getContext('2d'), {
+            type: 'pie',
+            data: {
+                labels: parsedData.labels,
+                datasets: [{
+                    data: parsedData.values,
+                    backgroundColor: ['#006838', '#8CC63F', '#F59E0B', '#2563EB', '#7C3AED', '#ED1C24', '#14B8A6'],
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 10,
+                            font: { size: 11, weight: '600' },
+                        },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `${context.label}: ${context.parsed} project`,
+                        },
+                    },
                 },
             },
         });

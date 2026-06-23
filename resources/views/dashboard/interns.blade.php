@@ -10,6 +10,8 @@
         ? route('interns.update', $editingIntern->intIntern_ID)
         : route('interns.store');
     $isMentor = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole === 'Mentor';
+    $extendDates = old('txtInternExtendEndDates', $editingIntern->txtInternExtendEndDates ?? []);
+    $extendDates = is_array($extendDates) ? array_values(array_filter($extendDates)) : [];
 @endphp
 
 @section('content')
@@ -72,8 +74,8 @@
                     <input class="form-control" name="txtUniversity" value="{{ old('txtUniversity', $editingIntern->txtUniversity ?? '') }}">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Major</label>
-                    <input class="form-control" name="txtMajor" value="{{ old('txtMajor', $editingIntern->txtMajor ?? '') }}">
+                    <label class="form-label">Dept</label>
+                    <input class="form-control" name="txtDept" value="{{ old('txtDept', $editingIntern->txtDept ?? '') }}">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Join Date</label>
@@ -82,6 +84,20 @@
                 <div class="col-md-6">
                     <label class="form-label">End Date</label>
                     <input class="form-control" type="date" name="dtmEndDate" value="{{ old('dtmEndDate', isset($editingIntern) && $editingIntern->dtmEndDate ? $editingIntern->dtmEndDate->format('Y-m-d') : '') }}">
+                </div>
+                <div class="col-12">
+                    <div class="intern-extend-grid" id="internExtendFields">
+                        @foreach ($extendDates as $extendIndex => $extendDate)
+                            <div class="intern-extend-field">
+                                <label class="form-label">Extend {{ $extendIndex + 1 }} End Date</label>
+                                <input class="form-control intern-extend-date" type="date" name="txtInternExtendEndDates[]" value="{{ $extendDate }}">
+                            </div>
+                        @endforeach
+                    </div>
+                    <button class="btn btn-outline-primary btn-sm intern-extend-button" id="internExtendButton" type="button" data-base-input="dtmEndDate" data-target="internExtendFields">
+                        <i class="fa-solid fa-calendar-plus"></i> Extend
+                    </button>
+                    <p class="intern-extend-note" id="internExtendNote">Extend can be added when the latest end date is within 14 days.</p>
                 </div>
                 <div class="col-12">
                     <button class="btn btn-primary btn-save" type="submit">{{ isset($editingIntern) ? 'Save Changes' : 'Save Intern' }}</button>
@@ -94,7 +110,7 @@
         <div class="table-responsive">
             <table class="table data-table align-middle mb-0">
                 <thead>
-                    <tr><th>ID</th><th>Full Name</th><th>Gender</th><th>Email</th><th>University</th><th>Major</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
+                    <tr><th>ID</th><th>Full Name</th><th>Gender</th><th>Email</th><th>University</th><th>Dept</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($interns as $intern)
@@ -104,7 +120,7 @@
                             <td>{{ $intern->txtInternGender ?: '-' }}</td>
                             <td>{{ $intern->user->txtEmail ?? '-' }}</td>
                             <td>{{ $intern->txtUniversity ?: '-' }}</td>
-                            <td>{{ $intern->txtMajor ?: '-' }}</td>
+                            <td>{{ $intern->txtDept ?: '-' }}</td>
                             <td>{{ $intern->dtmInserted?->format('d M Y') ?? '-' }}</td>
                             <td>{{ $intern->dtmEndDate?->format('d M Y') ?? '-' }}</td>
                             <td><span class="status-badge {{ $intern->bitActive ? 'status-active' : 'status-inactive' }}">{{ $intern->bitActive ? 'Active' : 'Inactive' }}</span></td>

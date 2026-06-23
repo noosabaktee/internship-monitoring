@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('txtEmail')->nullable();
             $table->string('txtPassword')->nullable();
             $table->string('txtRole')->nullable()->comment('Admin, Mentor, or Intern');
+            $table->string('txtProfilePhoto')->nullable();
             $table->boolean('bitActive')->nullable();
             $table->string('txtInsertedBy')->nullable();
             $table->timestamp('dtmInserted')->nullable();

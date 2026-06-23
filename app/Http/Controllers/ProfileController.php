@@ -9,6 +9,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
@@ -76,6 +77,32 @@ class ProfileController extends Controller
         return $this->updateInternProfile($request, $intern);
     }
 
+    public function updatePhoto(Request $request): RedirectResponse
+    {
+        $user = $this->currentUser();
+
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        $validated = $request->validate([
+            'txtProfilePhoto' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ]);
+
+        if ($user->txtProfilePhoto) {
+            Storage::disk('public')->delete($user->txtProfilePhoto);
+        }
+
+        $path = $validated['txtProfilePhoto']->store('profile-photos', 'public');
+        $user->update([
+            'txtProfilePhoto' => $path,
+            'txtUpdatedBy' => 'profile',
+            'dtmUpdated' => now(),
+        ]);
+
+        return redirect()->route('profile.show')->with('success', 'Profile photo has been updated.');
+    }
+
     public function showIntern(MIntern $intern): View
     {
         $intern->load(['user', 'projects.project', 'projects.mentor', 'achievements', 'evaluations']);
@@ -104,7 +131,7 @@ class ProfileController extends Controller
             'txtPassword' => ['nullable', 'string', 'min:6'],
             'txtInternGender' => ['nullable', 'in:Male,Female,Laki-laki,Perempuan'],
             'txtUniversity' => ['nullable', 'string', 'max:255'],
-            'txtMajor' => ['nullable', 'string', 'max:255'],
+            'txtDept' => ['nullable', 'string', 'max:255'],
             'txtBio' => ['nullable', 'string', 'max:255'],
             'dtmInserted' => ['nullable', 'date'],
             'dtmEndDate' => ['nullable', 'date', 'after_or_equal:dtmInserted'],
@@ -128,7 +155,7 @@ class ProfileController extends Controller
             'txtInternName' => $validated['txtInternName'],
             'txtInternGender' => $validated['txtInternGender'] ?? null,
             'txtUniversity' => $validated['txtUniversity'] ?? null,
-            'txtMajor' => $validated['txtMajor'] ?? null,
+            'txtDept' => $validated['txtDept'] ?? null,
             'txtBio' => $validated['txtBio'] ?? null,
             'dtmInserted' => $validated['dtmInserted'] ?? $intern->dtmInserted,
             'dtmEndDate' => $validated['dtmEndDate'] ?? null,

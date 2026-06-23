@@ -4,6 +4,9 @@
         ?? $authUser?->mentor?->txtMentorName
         ?? 'Admin';
     $displayRole = $authUser?->txtRole ?? 'HR Development';
+    $avatarUrl = $authUser?->txtProfilePhoto
+        ? asset('storage/' . $authUser->txtProfilePhoto)
+        : 'https://ui-avatars.com/api/?name=' . urlencode($displayName) . '&background=8CC63F&color=fff';
 @endphp
 
 <header class="topbar d-flex align-items-center justify-content-between">
@@ -27,7 +30,7 @@
         <div class="user-profile d-flex align-items-center gap-2">
             <i class="fa-regular fa-bell" style="font-size: 20px; color: var(--text-gray); margin-right: 5px; cursor: pointer;"></i>
             <button class="profile-trigger" id="profileTrigger" type="button" aria-haspopup="true" aria-expanded="false">
-                <img src="https://ui-avatars.com/api/?name={{ urlencode($displayName) }}&background=8CC63F&color=fff" alt="{{ $displayName }}">
+                <img src="{{ $avatarUrl }}" alt="{{ $displayName }}">
                 <div class="user-info">
                         <div class="name fw-semibold">{{ $displayName }}</div>
                         <div class="role small">{{ $displayRole }}</div>

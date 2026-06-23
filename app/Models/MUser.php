@@ -19,6 +19,7 @@ class MUser extends Model
         'txtEmail',
         'txtPassword',
         'txtRole',
+        'txtProfilePhoto',
         'bitActive',
         'txtInsertedBy',
         'dtmInserted',
@@ -40,5 +41,10 @@ class MUser extends Model
     public function mentor()
     {
         return $this->hasOne(MMentor::class, 'intUser_ID', 'intUser_ID');
+    }
+
+    public function calendarSharings()
+    {
+        return $this->hasMany(TrCalendarSharing::class, 'intCalendarSharingCreatorUser_ID', 'intUser_ID');
     }
 }

@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\MIntern;
 use App\Models\MMentor;
 use App\Models\MProject;
+use App\Models\MSkillSet;
 use App\Models\TrInternProject;
+use App\Models\TrProjectStage;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,23 +28,26 @@ class ProjectController extends Controller
 
     public function index(): View
     {
-        $projects = MProject::with(['assignments.intern', 'assignments.mentor'])->orderBy('intProject_ID')->get();
+        $projects = MProject::with(['skillSet', 'stages', 'assignments.intern', 'assignments.mentor'])->orderBy('intProject_ID')->get();
         $interns = MIntern::where('bitActive', true)->orderBy('txtInternName')->get();
         $mentors = MMentor::where('bitActive', true)->orderBy('txtMentorName')->get();
+        $skillSets = MSkillSet::where('bitActive', true)->orderBy('txtSkillSetName')->get();
 
-        return view('dashboard.projects', compact('projects', 'interns', 'mentors'));
+        return view('dashboard.projects', compact('projects', 'interns', 'mentors', 'skillSets'));
     }
 
     public function create(): View
     {
-        $projects = MProject::with(['assignments.intern', 'assignments.mentor'])->orderBy('intProject_ID')->get();
+        $projects = MProject::with(['skillSet', 'stages', 'assignments.intern', 'assignments.mentor'])->orderBy('intProject_ID')->get();
         $interns = MIntern::where('bitActive', true)->orderBy('txtInternName')->get();
         $mentors = MMentor::where('bitActive', true)->orderBy('txtMentorName')->get();
+        $skillSets = MSkillSet::where('bitActive', true)->orderBy('txtSkillSetName')->get();
 
         return view('dashboard.projects', [
             'projects' => $projects,
             'interns' => $interns,
             'mentors' => $mentors,
+            'skillSets' => $skillSets,
             'mode' => 'create',
         ]);
     }
@@ -52,18 +57,42 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'txtProjectName' => ['required', 'string', 'max:255'],
             'txtProjectType' => ['required', Rule::in(['Main', 'Satellite', 'Collaboration', 'Sharing'])],
+            'intSkillSet_ID' => ['required', 'integer', Rule::exists('mSkillSet', 'intSkillSet_ID')],
+            'dtmProjectStartDate' => ['nullable', 'date'],
+            'dtmProjectEndDate' => ['nullable', 'date', 'after_or_equal:dtmProjectStartDate'],
             'txtDescription' => ['nullable', 'string', 'max:255'],
             'bitActive' => ['nullable', 'boolean'],
             'intIntern_ID' => ['nullable', 'integer', Rule::exists('mIntern', 'intIntern_ID')],
             'intMentor_ID' => ['nullable', 'integer', Rule::exists('mMentor', 'intMentor_ID')],
             'floatProgress' => ['nullable', Rule::in(self::PROGRESS_VALUES)],
+            'stages' => ['nullable', 'array'],
+            'stages.*.txtProjectStageStep' => ['nullable', 'string', 'max:255'],
+            'stages.*.floatProjectStageWeight' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
+        $stageRows = $validated['stages'] ?? [];
 
-        DB::transaction(function () use ($validated) {
+        if (! $this->projectStageRowsAreComplete($stageRows)) {
+            return back()
+                ->withInput()
+                ->withErrors(['stages' => 'Setiap tahap yang diisi harus memiliki step dan weight.']);
+        }
+
+        $stages = $this->projectStages($stageRows);
+
+        if (! $this->stageWeightIsValid($stages)) {
+            return back()
+                ->withInput()
+                ->withErrors(['stages' => 'Total weight tahap project harus tepat 100%.']);
+        }
+
+        DB::transaction(function () use ($validated, $stages) {
             $now = now();
             $project = MProject::create([
                 'txtProjectName' => $validated['txtProjectName'],
                 'txtProjectType' => $validated['txtProjectType'],
+                'intSkillSet_ID' => $validated['intSkillSet_ID'],
+                'dtmProjectStartDate' => $validated['dtmProjectStartDate'] ?? null,
+                'dtmProjectEndDate' => $validated['dtmProjectEndDate'] ?? null,
                 'txtDescription' => $validated['txtDescription'] ?? null,
                 'bitActive' => (bool) ($validated['bitActive'] ?? true),
                 'txtInsertedBy' => 'system',
@@ -82,6 +111,8 @@ class ProjectController extends Controller
                     'dtmInserted' => $now,
                 ]);
             }
+
+            $this->syncProjectStages($project, $stages, $now);
         });
 
         return redirect()->route('projects.index')->with('success', 'Project data has been added.');
@@ -89,45 +120,76 @@ class ProjectController extends Controller
 
     public function show(string $project): View
     {
-        $project = MProject::with(['assignments.intern', 'assignments.mentor'])->findOrFail($project);
+        $project = MProject::with([
+            'skillSet',
+            'stages',
+            'assignments.intern.user',
+            'assignments.mentor.user',
+        ])->findOrFail($project);
 
-        return view('dashboard.projects', compact('project'));
+        return view('dashboard.project-detail', compact('project'));
     }
 
     public function edit(string $project): View
     {
-        $projects = MProject::with(['assignments.intern', 'assignments.mentor'])->orderBy('intProject_ID')->get();
-        $editingProject = MProject::with(['assignments.intern', 'assignments.mentor'])->findOrFail($project);
+        $projects = MProject::with(['skillSet', 'stages', 'assignments.intern', 'assignments.mentor'])->orderBy('intProject_ID')->get();
+        $editingProject = MProject::with(['skillSet', 'stages', 'assignments.intern', 'assignments.mentor'])->findOrFail($project);
         $interns = MIntern::where('bitActive', true)->orderBy('txtInternName')->get();
         $mentors = MMentor::where('bitActive', true)->orderBy('txtMentorName')->get();
+        $skillSets = MSkillSet::where('bitActive', true)->orderBy('txtSkillSetName')->get();
 
         return view('dashboard.projects', [
             'projects' => $projects,
             'editingProject' => $editingProject,
             'interns' => $interns,
             'mentors' => $mentors,
+            'skillSets' => $skillSets,
             'mode' => 'edit',
         ]);
     }
 
     public function update(Request $request, string $project): RedirectResponse
     {
-        $projectModel = MProject::with('assignments')->findOrFail($project);
+        $projectModel = MProject::with(['assignments', 'stages'])->findOrFail($project);
         $validated = $request->validate([
             'txtProjectName' => ['required', 'string', 'max:255'],
             'txtProjectType' => ['required', Rule::in(['Main', 'Satellite', 'Collaboration', 'Sharing'])],
+            'intSkillSet_ID' => ['required', 'integer', Rule::exists('mSkillSet', 'intSkillSet_ID')],
+            'dtmProjectStartDate' => ['nullable', 'date'],
+            'dtmProjectEndDate' => ['nullable', 'date', 'after_or_equal:dtmProjectStartDate'],
             'txtDescription' => ['nullable', 'string', 'max:255'],
             'bitActive' => ['nullable', 'boolean'],
             'intIntern_ID' => ['nullable', 'integer', Rule::exists('mIntern', 'intIntern_ID')],
             'intMentor_ID' => ['nullable', 'integer', Rule::exists('mMentor', 'intMentor_ID')],
             'floatProgress' => ['nullable', Rule::in(self::PROGRESS_VALUES)],
+            'stages' => ['nullable', 'array'],
+            'stages.*.txtProjectStageStep' => ['nullable', 'string', 'max:255'],
+            'stages.*.floatProjectStageWeight' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
+        $stageRows = $validated['stages'] ?? [];
 
-        DB::transaction(function () use ($projectModel, $validated) {
+        if (! $this->projectStageRowsAreComplete($stageRows)) {
+            return back()
+                ->withInput()
+                ->withErrors(['stages' => 'Setiap tahap yang diisi harus memiliki step dan weight.']);
+        }
+
+        $stages = $this->projectStages($stageRows);
+
+        if (! $this->stageWeightIsValid($stages)) {
+            return back()
+                ->withInput()
+                ->withErrors(['stages' => 'Total weight tahap project harus tepat 100%.']);
+        }
+
+        DB::transaction(function () use ($projectModel, $validated, $stages) {
             $now = now();
             $projectModel->update([
                 'txtProjectName' => $validated['txtProjectName'],
                 'txtProjectType' => $validated['txtProjectType'],
+                'intSkillSet_ID' => $validated['intSkillSet_ID'],
+                'dtmProjectStartDate' => $validated['dtmProjectStartDate'] ?? null,
+                'dtmProjectEndDate' => $validated['dtmProjectEndDate'] ?? null,
                 'txtDescription' => $validated['txtDescription'] ?? null,
                 'bitActive' => (bool) ($validated['bitActive'] ?? false),
                 'txtUpdatedBy' => 'system',
@@ -150,6 +212,8 @@ class ProjectController extends Controller
                     ],
                 );
             }
+
+            $this->syncProjectStages($projectModel, $stages, $now);
         });
 
         return redirect()->route('projects.index')->with('success', 'Project data has been updated.');
@@ -170,6 +234,11 @@ class ProjectController extends Controller
             'txtUpdatedBy' => 'system',
             'dtmUpdated' => $now,
         ]);
+        TrProjectStage::where('intProject_ID', $projectModel->intProject_ID)->update([
+            'bitActive' => false,
+            'txtUpdatedBy' => 'system',
+            'dtmUpdated' => $now,
+        ]);
 
         return redirect()->route('projects.index')->with('success', 'Project data has been deactivated.');
     }
@@ -177,5 +246,76 @@ class ProjectController extends Controller
     private function progressStatus(int $progress): string
     {
         return self::PROGRESS_STATUSES[$progress] ?? self::PROGRESS_STATUSES[0];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $stageRows
+     */
+    private function projectStageRowsAreComplete(array $stageRows): bool
+    {
+        foreach ($stageRows as $stage) {
+            $hasStep = trim((string) ($stage['txtProjectStageStep'] ?? '')) !== '';
+            $hasWeight = ($stage['floatProjectStageWeight'] ?? '') !== '';
+
+            if ($hasStep !== $hasWeight) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $stageRows
+     * @return array<int, array{txtProjectStageStep: string, floatProjectStageWeight: float}>
+     */
+    private function projectStages(array $stageRows): array
+    {
+        return collect($stageRows)
+            ->filter(fn ($stage) => ! empty($stage['txtProjectStageStep']) || ($stage['floatProjectStageWeight'] ?? '') !== '')
+            ->map(fn ($stage) => [
+                'txtProjectStageStep' => trim((string) ($stage['txtProjectStageStep'] ?? '')),
+                'floatProjectStageWeight' => (float) ($stage['floatProjectStageWeight'] ?? 0),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param array<int, array{txtProjectStageStep: string, floatProjectStageWeight: float}> $stages
+     */
+    private function stageWeightIsValid(array $stages): bool
+    {
+        if ($stages === []) {
+            return true;
+        }
+
+        $totalWeight = collect($stages)->sum('floatProjectStageWeight');
+
+        return abs($totalWeight - 100) < 0.001;
+    }
+
+    /**
+     * @param array<int, array{txtProjectStageStep: string, floatProjectStageWeight: float}> $stages
+     */
+    private function syncProjectStages(MProject $project, array $stages, $now): void
+    {
+        TrProjectStage::where('intProject_ID', $project->intProject_ID)->update([
+            'bitActive' => false,
+            'txtUpdatedBy' => 'system',
+            'dtmUpdated' => $now,
+        ]);
+
+        foreach ($stages as $index => $stage) {
+            TrProjectStage::create([
+                'intProject_ID' => $project->intProject_ID,
+                'intProjectStageNumber' => $index + 1,
+                'txtProjectStageStep' => $stage['txtProjectStageStep'],
+                'floatProjectStageWeight' => $stage['floatProjectStageWeight'],
+                'bitActive' => true,
+                'txtInsertedBy' => 'system',
+                'dtmInserted' => $now,
+            ]);
+        }
     }
 }

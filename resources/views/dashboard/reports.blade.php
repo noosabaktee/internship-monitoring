@@ -1,17 +1,23 @@
 @extends('layouts.app', [
     'title' => 'Reports - Kalbe Internship Dashboard',
     'pageTitle' => 'REPORTS',
-    'pageSubtitle' => 'Manage Kalbe report data.',
+    'pageSubtitle' => 'SharePoint report workspace.',
 ])
+
+@php
+    $sharePointReportUrl = 'https://onekn-my.sharepoint.com/:f:/g/personal/irpan_pamil_kalbenutritionals_com/Ep6fkRRjaqhCq6xy5BnPq8UBhJCG1hsLrAbpi5LhRUa0_w?e=wMiusc';
+@endphp
 
 @section('content')
     <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
-        <h2>Reporting Center</h2>
+        <div>
+            <h2>Report</h2>
+            <p>Embedded SharePoint folder for internship report files.</p>
+        </div>
+        <a class="btn btn-primary btn-add" href="{{ $sharePointReportUrl }}" target="_blank" rel="noopener" style="text-decoration:none;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open SharePoint</a>
     </div>
 
-    <div class="card" style="text-align: center; padding: 40px;">
-        <i class="fa-solid fa-file-pdf" style="font-size: 40px; color: var(--text-gray);"></i>
-        <h3 style="margin: 15px 0;">Generate PDF/Excel Reports</h3>
-        <button class="btn btn-primary btn-add mx-auto" onclick="alert('Download is running...')"><i class="fa-solid fa-download"></i> Download File</button>
+    <div class="card report-embed-card">
+        <iframe class="report-embed-frame" src="{{ $sharePointReportUrl }}" title="SharePoint Report"></iframe>
     </div>
 @endsection

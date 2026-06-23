@@ -18,9 +18,10 @@ return new class extends Migration
             $table->string('txtInternName')->nullable();
             $table->string('txtInternGender')->nullable()->comment('Male or Female');
             $table->string('txtUniversity')->nullable();
-            $table->string('txtMajor')->nullable();
+            $table->string('txtDept')->nullable();
             $table->string('txtBio')->nullable();
             $table->timestamp('dtmEndDate')->nullable();
+            $table->json('txtInternExtendEndDates')->nullable();
             $table->boolean('bitActive')->nullable();
             $table->string('txtInsertedBy')->nullable();
             $table->timestamp('dtmInserted')->nullable();
