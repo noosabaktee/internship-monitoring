@@ -429,14 +429,18 @@ class DatabaseSeeder extends Seeder
 
         $stageCount = count($rows);
         $projectDays = max(1, $projectStartDate->diffInDays($projectEndDate) + 1);
+        $actualTargets = [0, 12, 28, 43, 58, 76, 100];
+        $remainingActual = $actualTargets[$projectId % count($actualTargets)];
 
-        foreach ($rows as $index => [$step, $weight]) {
+        foreach ($rows as $index => [$step, $plan]) {
             $stageStartOffset = (int) floor($projectDays * $index / $stageCount);
             $stageEndOffset = $index === $stageCount - 1
                 ? $projectDays - 1
                 : (int) floor($projectDays * ($index + 1) / $stageCount) - 1;
             $stageStartDate = $projectStartDate->copy()->addDays(max(0, $stageStartOffset));
             $stageEndDate = $projectStartDate->copy()->addDays(max($stageStartOffset, $stageEndOffset));
+            $actual = min($plan, max(0, $remainingActual));
+            $remainingActual -= $actual;
 
             TrProjectStage::create([
                 'intProject_ID' => $projectId,
@@ -444,7 +448,8 @@ class DatabaseSeeder extends Seeder
                 'txtProjectStageStep' => $step,
                 'dtmProjectStageStartDate' => $stageStartDate,
                 'dtmProjectStageEndDate' => $stageEndDate,
-                'floatProjectStageWeight' => $weight,
+                'floatProjectStagePlan' => $plan,
+                'floatProjectStageActual' => $actual,
                 'bitActive' => true,
                 'txtInsertedBy' => 'seeder',
                 'dtmInserted' => now(),

@@ -24,7 +24,8 @@
                 'txtProjectStageStep' => $stage->txtProjectStageStep,
                 'dtmProjectStageStartDate' => $stage->dtmProjectStageStartDate?->format('Y-m-d'),
                 'dtmProjectStageEndDate' => $stage->dtmProjectStageEndDate?->format('Y-m-d'),
-                'floatProjectStageWeight' => $stage->floatProjectStageWeight,
+                'floatProjectStagePlan' => $stage->floatProjectStagePlan,
+                'floatProjectStageActual' => $stage->floatProjectStageActual,
             ])
             ->values()
             ->all();
@@ -127,7 +128,7 @@
                     <div class="project-stage-head">
                         <div>
                             <label class="form-label">Project Stages</label>
-                            <div class="project-stage-total" id="projectStageTotal">Total: 0%</div>
+                            <div class="project-stage-total" id="projectStageTotal">Total Plan: 0%</div>
                         </div>
                         <button class="btn btn-outline-primary btn-sm" id="addProjectStageButton" type="button"><i class="fa-solid fa-plus"></i> Add Tahap</button>
                     </div>
@@ -149,8 +150,12 @@
                                     <input class="form-control project-stage-end" type="date" name="stages[{{ $stageIndex }}][dtmProjectStageEndDate]" value="{{ $stage['dtmProjectStageEndDate'] ?? '' }}">
                                 </div>
                                 <div>
-                                    <label class="form-label">Weight (%)</label>
-                                    <input class="form-control project-stage-weight" type="number" min="0" max="100" step="0.01" name="stages[{{ $stageIndex }}][floatProjectStageWeight]" value="{{ $stage['floatProjectStageWeight'] ?? '' }}">
+                                    <label class="form-label">Plan (%)</label>
+                                    <input class="form-control project-stage-plan" type="number" min="0" max="100" step="0.01" name="stages[{{ $stageIndex }}][floatProjectStagePlan]" value="{{ $stage['floatProjectStagePlan'] ?? '' }}">
+                                </div>
+                                <div>
+                                    <label class="form-label">Actual (%)</label>
+                                    <input class="form-control project-stage-actual" type="number" min="0" max="100" step="0.01" name="stages[{{ $stageIndex }}][floatProjectStageActual]" value="{{ $stage['floatProjectStageActual'] ?? 0 }}">
                                 </div>
                                 <button class="btn-icon btn-delete project-stage-remove" type="button" title="Remove stage"><i class="fa-solid fa-trash"></i></button>
                             </div>
@@ -179,7 +184,7 @@
                             <td><a class="auth-link" href="{{ route('projects.show', $project->intProject_ID) }}"><strong>{{ $project->txtProjectName }}</strong></a><br><span style="color:var(--text-gray); font-size:11px;">{{ $project->txtDescription }}</span></td>
                             <td>{{ $project->txtProjectType }}</td>
                             <td>{{ $project->skillSet?->txtSkillSetName ?? '-' }}</td>
-                            <td>{{ $project->stages->count() ? $project->stages->count() . ' Tahap / ' . number_format((float) $project->stages->sum('floatProjectStageWeight'), 0) . '%' : '-' }}</td>
+                            <td>{{ $project->stages->count() ? $project->stages->count() . ' Tahap / Plan ' . number_format((float) $project->stages->sum('floatProjectStagePlan'), 0) . '% / Actual ' . number_format((float) $project->stages->sum('floatProjectStageActual'), 0) . '%' : '-' }}</td>
                             <td>{{ $project->dtmProjectStartDate?->format('d M Y') ?? '-' }}</td>
                             <td>{{ $project->dtmProjectEndDate?->format('d M Y') ?? '-' }}</td>
                             <td>{{ $rowAssignment?->intern?->txtInternName ?? '-' }}</td>

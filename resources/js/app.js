@@ -330,7 +330,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const stepInput = row.querySelector('.project-stage-step');
             const startInput = row.querySelector('.project-stage-start');
             const endInput = row.querySelector('.project-stage-end');
-            const weightInput = row.querySelector('.project-stage-weight');
+            const planInput = row.querySelector('.project-stage-plan');
+            const actualInput = row.querySelector('.project-stage-actual');
 
             if (label) {
                 label.textContent = `Tahap ${number}`;
@@ -348,8 +349,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 endInput.name = `stages[${index}][dtmProjectStageEndDate]`;
             }
 
-            if (weightInput) {
-                weightInput.name = `stages[${index}][floatProjectStageWeight]`;
+            if (planInput) {
+                planInput.name = `stages[${index}][floatProjectStagePlan]`;
+            }
+
+            if (actualInput) {
+                actualInput.name = `stages[${index}][floatProjectStageActual]`;
             }
         });
     };
@@ -359,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const total = Array.from(projectStageList.querySelectorAll('.project-stage-weight'))
+        const total = Array.from(projectStageList.querySelectorAll('.project-stage-plan'))
             .reduce((sum, input) => sum + Number(input.value || 0), 0);
         const roundedTotal = Math.round(total * 100) / 100;
         const overLimit = roundedTotal > 100;
@@ -368,18 +373,34 @@ document.addEventListener('DOMContentLoaded', () => {
         projectStageTotal.classList.toggle('is-valid', isComplete);
         projectStageTotal.classList.toggle('is-invalid', overLimit || (roundedTotal > 0 && roundedTotal < 100));
         projectStageTotal.textContent = overLimit
-            ? `Total: ${roundedTotal}% - melebihi 100%`
-            : `Total: ${roundedTotal}%`;
+            ? `Total Plan: ${roundedTotal}% - melebihi 100%`
+            : `Total Plan: ${roundedTotal}%`;
 
-        projectStageList.querySelectorAll('.project-stage-weight').forEach((input) => {
+        projectStageList.querySelectorAll('.project-stage-plan').forEach((input) => {
             input.classList.toggle('is-invalid', overLimit);
         });
 
+        let actualOverPlanCount = 0;
+
+        projectStageList.querySelectorAll('.project-stage-row').forEach((row) => {
+            const planInput = row.querySelector('.project-stage-plan');
+            const actualInput = row.querySelector('.project-stage-actual');
+            const actualOverPlan = Number(actualInput?.value || 0) > Number(planInput?.value || 0);
+
+            if (actualOverPlan) {
+                actualOverPlanCount += 1;
+            }
+
+            actualInput?.classList.toggle('is-invalid', actualOverPlan);
+        });
+
         if (projectStageWarning) {
-            projectStageWarning.hidden = !overLimit;
+            projectStageWarning.hidden = !overLimit && actualOverPlanCount === 0;
             projectStageWarning.textContent = overLimit
-                ? `Warning: total bobot tahap sudah ${roundedTotal}%, kurangi ${Math.round((roundedTotal - 100) * 100) / 100}%.`
-                : '';
+                ? `Warning: total plan tahap sudah ${roundedTotal}%, kurangi ${Math.round((roundedTotal - 100) * 100) / 100}%.`
+                : actualOverPlanCount > 0
+                    ? 'Warning: actual tahap tidak boleh lebih besar dari plan.'
+                    : '';
         }
     };
 
@@ -388,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        projectStageList.querySelectorAll('.project-stage-weight').forEach((input) => {
+        projectStageList.querySelectorAll('.project-stage-plan, .project-stage-actual').forEach((input) => {
             input.removeEventListener('input', refreshProjectStageTotal);
             input.addEventListener('input', refreshProjectStageTotal);
         });
@@ -427,8 +448,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input class="form-control project-stage-end" type="date" name="stages[${index}][dtmProjectStageEndDate]">
                 </div>
                 <div>
-                    <label class="form-label">Weight (%)</label>
-                    <input class="form-control project-stage-weight" type="number" min="0" max="100" step="0.01" name="stages[${index}][floatProjectStageWeight]">
+                    <label class="form-label">Plan (%)</label>
+                    <input class="form-control project-stage-plan" type="number" min="0" max="100" step="0.01" name="stages[${index}][floatProjectStagePlan]">
+                </div>
+                <div>
+                    <label class="form-label">Actual (%)</label>
+                    <input class="form-control project-stage-actual" type="number" min="0" max="100" step="0.01" name="stages[${index}][floatProjectStageActual]" value="0">
                 </div>
                 <button class="btn-icon btn-delete project-stage-remove" type="button" title="Remove stage"><i class="fa-solid fa-trash"></i></button>
             `;

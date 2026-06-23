@@ -1,14 +1,15 @@
 @extends('layouts.app', [
     'title' => $project->txtProjectName . ' - Project Detail',
     'pageTitle' => 'PROJECT DETAIL',
-    'pageSubtitle' => 'Project overview, assignments, and stage plan.',
+    'pageSubtitle' => 'Project overview, assignments, plan, and actual progress.',
 ])
 
 @php
     $assignments = $project->assignments;
     $primaryAssignment = $assignments->first();
-    $averageProgress = (float) ($assignments->avg('floatProgress') ?? 0);
-    $totalStageWeight = (float) $project->stages->sum('floatProjectStageWeight');
+    $totalStagePlan = (float) $project->stages->sum('floatProjectStagePlan');
+    $totalStageActual = (float) $project->stages->sum('floatProjectStageActual');
+    $stageProgress = $totalStagePlan > 0 ? ($totalStageActual / $totalStagePlan) * 100 : 0;
     $startDate = $project->dtmProjectStartDate;
     $endDate = $project->dtmProjectEndDate;
     $durationDays = $startDate && $endDate ? $startDate->diffInDays($endDate) + 1 : null;
@@ -36,12 +37,12 @@
             <p>{{ $project->txtDescription ?: 'No description has been added for this project.' }}</p>
         </div>
         <div class="project-detail-progress">
-            <span>Progress</span>
-            <strong>{{ number_format($averageProgress, 0) }}%</strong>
+            <span>Actual vs Plan</span>
+            <strong>{{ number_format($stageProgress, 0) }}%</strong>
             <div class="progress-track">
-                <div class="progress-fill" style="width: {{ min(100, max(0, $averageProgress)) }}%;"></div>
+                <div class="progress-fill" style="width: {{ min(100, max(0, $stageProgress)) }}%;"></div>
             </div>
-            <small>{{ $primaryAssignment?->txtStatus ?? ($project->bitActive ? 'Active' : 'Inactive') }}</small>
+            <small>Actual {{ number_format($totalStageActual, 0) }}% of Plan {{ number_format($totalStagePlan, 0) }}%</small>
         </div>
     </section>
 
@@ -63,8 +64,8 @@
         </div>
         <div class="project-detail-metric">
             <i class="fa-solid fa-layer-group"></i>
-            <span>Stages</span>
-            <strong>{{ $project->stages->count() }} / {{ number_format($totalStageWeight, 0) }}%</strong>
+            <span>Plan / Actual</span>
+            <strong>{{ number_format($totalStagePlan, 0) }}% / {{ number_format($totalStageActual, 0) }}%</strong>
         </div>
     </section>
 
@@ -119,22 +120,31 @@
     <section class="project-detail-panel project-stage-panel">
         <div class="project-detail-panel-head">
             <h3>Project Stages</h3>
-            <span>Total Weight {{ number_format($totalStageWeight, 0) }}%</span>
+            <span>{{ $project->stages->count() }} stages | Plan {{ number_format($totalStagePlan, 0) }}% | Actual {{ number_format($totalStageActual, 0) }}%</span>
         </div>
         <div class="project-stage-timeline">
             @forelse ($project->stages as $stage)
+                @php
+                    $stagePlan = (float) $stage->floatProjectStagePlan;
+                    $stageActual = (float) $stage->floatProjectStageActual;
+                    $stageCompletion = $stagePlan > 0 ? ($stageActual / $stagePlan) * 100 : 0;
+                @endphp
                 <article class="project-stage-card">
                     <div class="project-stage-badge">{{ $stage->intProjectStageNumber }}</div>
                     <div class="project-stage-card-body">
                         <div class="project-stage-card-head">
                             <h4>{{ $stage->txtProjectStageStep }}</h4>
-                            <strong>{{ number_format((float) $stage->floatProjectStageWeight, 0) }}%</strong>
+                            <strong>{{ number_format($stageCompletion, 0) }}%</strong>
                         </div>
                         <div class="project-stage-card-dates">
                             <span><i class="fa-solid fa-calendar-day"></i> {{ $stage->dtmProjectStageStartDate?->format('d M Y') ?? '-' }} <i class="fa-solid fa-arrow-right"></i> {{ $stage->dtmProjectStageEndDate?->format('d M Y') ?? '-' }}</span>
                         </div>
+                        <div class="project-stage-card-progress">
+                            <span>Plan {{ number_format($stagePlan, 0) }}%</span>
+                            <span>Actual {{ number_format($stageActual, 0) }}%</span>
+                        </div>
                         <div class="progress-track">
-                            <div class="progress-fill" style="width: {{ min(100, max(0, (float) $stage->floatProjectStageWeight)) }}%;"></div>
+                            <div class="progress-fill" style="width: {{ min(100, max(0, $stageCompletion)) }}%;"></div>
                         </div>
                     </div>
                 </article>

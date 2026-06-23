@@ -18,7 +18,8 @@ return new class extends Migration
             $table->string('txtProjectStageStep')->nullable();
             $table->timestamp('dtmProjectStageStartDate')->nullable();
             $table->timestamp('dtmProjectStageEndDate')->nullable();
-            $table->float('floatProjectStageWeight')->nullable()->comment('Percentage weight, total active stages per project must equal 100');
+            $table->float('floatProjectStagePlan')->nullable()->comment('Planned percentage, total active stages per project must equal 100');
+            $table->float('floatProjectStageActual')->nullable()->comment('Actual percentage completed for S-curve comparison');
             $table->boolean('bitActive')->nullable();
             $table->string('txtInsertedBy')->nullable();
             $table->timestamp('dtmInserted')->nullable();
