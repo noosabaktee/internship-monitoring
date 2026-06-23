@@ -130,6 +130,9 @@
                             <h4>{{ $stage->txtProjectStageStep }}</h4>
                             <strong>{{ number_format((float) $stage->floatProjectStageWeight, 0) }}%</strong>
                         </div>
+                        <div class="project-stage-card-dates">
+                            <span><i class="fa-solid fa-calendar-day"></i> {{ $stage->dtmProjectStageStartDate?->format('d M Y') ?? '-' }} <i class="fa-solid fa-arrow-right"></i> {{ $stage->dtmProjectStageEndDate?->format('d M Y') ?? '-' }}</span>
+                        </div>
                         <div class="progress-track">
                             <div class="progress-fill" style="width: {{ min(100, max(0, (float) $stage->floatProjectStageWeight)) }}%;"></div>
                         </div>

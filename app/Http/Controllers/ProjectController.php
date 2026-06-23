@@ -67,6 +67,8 @@ class ProjectController extends Controller
             'floatProgress' => ['nullable', Rule::in(self::PROGRESS_VALUES)],
             'stages' => ['nullable', 'array'],
             'stages.*.txtProjectStageStep' => ['nullable', 'string', 'max:255'],
+            'stages.*.dtmProjectStageStartDate' => ['nullable', 'date'],
+            'stages.*.dtmProjectStageEndDate' => ['nullable', 'date'],
             'stages.*.floatProjectStageWeight' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
         $stageRows = $validated['stages'] ?? [];
@@ -74,7 +76,13 @@ class ProjectController extends Controller
         if (! $this->projectStageRowsAreComplete($stageRows)) {
             return back()
                 ->withInput()
-                ->withErrors(['stages' => 'Setiap tahap yang diisi harus memiliki step dan weight.']);
+                ->withErrors(['stages' => 'Setiap tahap yang diisi harus memiliki step, start date, end date, dan weight.']);
+        }
+
+        if (! $this->projectStageDatesAreValid($stageRows)) {
+            return back()
+                ->withInput()
+                ->withErrors(['stages' => 'End date tahap project tidak boleh sebelum start date.']);
         }
 
         $stages = $this->projectStages($stageRows);
@@ -164,6 +172,8 @@ class ProjectController extends Controller
             'floatProgress' => ['nullable', Rule::in(self::PROGRESS_VALUES)],
             'stages' => ['nullable', 'array'],
             'stages.*.txtProjectStageStep' => ['nullable', 'string', 'max:255'],
+            'stages.*.dtmProjectStageStartDate' => ['nullable', 'date'],
+            'stages.*.dtmProjectStageEndDate' => ['nullable', 'date'],
             'stages.*.floatProjectStageWeight' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
         $stageRows = $validated['stages'] ?? [];
@@ -171,7 +181,13 @@ class ProjectController extends Controller
         if (! $this->projectStageRowsAreComplete($stageRows)) {
             return back()
                 ->withInput()
-                ->withErrors(['stages' => 'Setiap tahap yang diisi harus memiliki step dan weight.']);
+                ->withErrors(['stages' => 'Setiap tahap yang diisi harus memiliki step, start date, end date, dan weight.']);
+        }
+
+        if (! $this->projectStageDatesAreValid($stageRows)) {
+            return back()
+                ->withInput()
+                ->withErrors(['stages' => 'End date tahap project tidak boleh sebelum start date.']);
         }
 
         $stages = $this->projectStages($stageRows);
@@ -255,9 +271,12 @@ class ProjectController extends Controller
     {
         foreach ($stageRows as $stage) {
             $hasStep = trim((string) ($stage['txtProjectStageStep'] ?? '')) !== '';
+            $hasStartDate = ($stage['dtmProjectStageStartDate'] ?? '') !== '';
+            $hasEndDate = ($stage['dtmProjectStageEndDate'] ?? '') !== '';
             $hasWeight = ($stage['floatProjectStageWeight'] ?? '') !== '';
+            $filledCount = collect([$hasStep, $hasStartDate, $hasEndDate, $hasWeight])->filter()->count();
 
-            if ($hasStep !== $hasWeight) {
+            if ($filledCount > 0 && $filledCount < 4) {
                 return false;
             }
         }
@@ -267,14 +286,33 @@ class ProjectController extends Controller
 
     /**
      * @param array<int, array<string, mixed>> $stageRows
-     * @return array<int, array{txtProjectStageStep: string, floatProjectStageWeight: float}>
+     */
+    private function projectStageDatesAreValid(array $stageRows): bool
+    {
+        foreach ($stageRows as $stage) {
+            $startDate = $stage['dtmProjectStageStartDate'] ?? null;
+            $endDate = $stage['dtmProjectStageEndDate'] ?? null;
+
+            if ($startDate && $endDate && strtotime((string) $endDate) < strtotime((string) $startDate)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $stageRows
+     * @return array<int, array{txtProjectStageStep: string, dtmProjectStageStartDate: string, dtmProjectStageEndDate: string, floatProjectStageWeight: float}>
      */
     private function projectStages(array $stageRows): array
     {
         return collect($stageRows)
-            ->filter(fn ($stage) => ! empty($stage['txtProjectStageStep']) || ($stage['floatProjectStageWeight'] ?? '') !== '')
+            ->filter(fn ($stage) => ! empty($stage['txtProjectStageStep']) || ($stage['dtmProjectStageStartDate'] ?? '') !== '' || ($stage['dtmProjectStageEndDate'] ?? '') !== '' || ($stage['floatProjectStageWeight'] ?? '') !== '')
             ->map(fn ($stage) => [
                 'txtProjectStageStep' => trim((string) ($stage['txtProjectStageStep'] ?? '')),
+                'dtmProjectStageStartDate' => (string) ($stage['dtmProjectStageStartDate'] ?? ''),
+                'dtmProjectStageEndDate' => (string) ($stage['dtmProjectStageEndDate'] ?? ''),
                 'floatProjectStageWeight' => (float) ($stage['floatProjectStageWeight'] ?? 0),
             ])
             ->values()
@@ -282,7 +320,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * @param array<int, array{txtProjectStageStep: string, floatProjectStageWeight: float}> $stages
+     * @param array<int, array{txtProjectStageStep: string, dtmProjectStageStartDate: string, dtmProjectStageEndDate: string, floatProjectStageWeight: float}> $stages
      */
     private function stageWeightIsValid(array $stages): bool
     {
@@ -296,7 +334,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * @param array<int, array{txtProjectStageStep: string, floatProjectStageWeight: float}> $stages
+     * @param array<int, array{txtProjectStageStep: string, dtmProjectStageStartDate: string, dtmProjectStageEndDate: string, floatProjectStageWeight: float}> $stages
      */
     private function syncProjectStages(MProject $project, array $stages, $now): void
     {
@@ -311,6 +349,8 @@ class ProjectController extends Controller
                 'intProject_ID' => $project->intProject_ID,
                 'intProjectStageNumber' => $index + 1,
                 'txtProjectStageStep' => $stage['txtProjectStageStep'],
+                'dtmProjectStageStartDate' => $stage['dtmProjectStageStartDate'],
+                'dtmProjectStageEndDate' => $stage['dtmProjectStageEndDate'],
                 'floatProjectStageWeight' => $stage['floatProjectStageWeight'],
                 'bitActive' => true,
                 'txtInsertedBy' => 'system',

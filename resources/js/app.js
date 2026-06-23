@@ -328,6 +328,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const number = index + 1;
             const label = row.querySelector('.project-stage-number');
             const stepInput = row.querySelector('.project-stage-step');
+            const startInput = row.querySelector('.project-stage-start');
+            const endInput = row.querySelector('.project-stage-end');
             const weightInput = row.querySelector('.project-stage-weight');
 
             if (label) {
@@ -336,6 +338,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (stepInput) {
                 stepInput.name = `stages[${index}][txtProjectStageStep]`;
+            }
+
+            if (startInput) {
+                startInput.name = `stages[${index}][dtmProjectStageStartDate]`;
+            }
+
+            if (endInput) {
+                endInput.name = `stages[${index}][dtmProjectStageEndDate]`;
             }
 
             if (weightInput) {
@@ -407,6 +417,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div>
                     <label class="form-label">Step</label>
                     <input class="form-control project-stage-step" name="stages[${index}][txtProjectStageStep]">
+                </div>
+                <div>
+                    <label class="form-label">Start</label>
+                    <input class="form-control project-stage-start" type="date" name="stages[${index}][dtmProjectStageStartDate]">
+                </div>
+                <div>
+                    <label class="form-label">End</label>
+                    <input class="form-control project-stage-end" type="date" name="stages[${index}][dtmProjectStageEndDate]">
                 </div>
                 <div>
                     <label class="form-label">Weight (%)</label>

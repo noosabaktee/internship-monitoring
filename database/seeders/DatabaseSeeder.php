@@ -130,7 +130,12 @@ class DatabaseSeeder extends Seeder
                             'txtInsertedBy' => 'seeder',
                             'dtmInserted' => $this->dateFromSheet($row['join_date']),
                         ]);
-                        $this->seedProjectStages($nextProjectId, $projectType);
+                        $this->seedProjectStages(
+                            $nextProjectId,
+                            $projectType,
+                            $this->dateFromSheet($row['join_date']),
+                            $this->dateFromSheet($row['end_date']),
+                        );
 
                         $nextProjectId++;
                     }
@@ -264,9 +269,9 @@ class DatabaseSeeder extends Seeder
         MProjectWeight::create([
             'intProjectWeight_ID' => 1,
             'intProjectWeightMain' => 10,
-            'intProjectWeightCollaboration' => 7,
-            'intProjectWeightSatellite' => 5,
-            'intProjectWeightSharing' => 3,
+            'intProjectWeightCollaboration' => 6,
+            'intProjectWeightSatellite' => 2,
+            'intProjectWeightSharing' => 4,
             'bitActive' => true,
             'txtInsertedBy' => 'seeder',
             'dtmInserted' => now(),
@@ -308,7 +313,7 @@ class DatabaseSeeder extends Seeder
         }
     }
 
-    private function seedProjectStages(int $projectId, string $projectType): void
+    private function seedProjectStages(int $projectId, string $projectType, Carbon $projectStartDate, Carbon $projectEndDate): void
     {
         $templates = match ($projectType) {
             'Sharing' => [
@@ -422,11 +427,23 @@ class DatabaseSeeder extends Seeder
         };
         $rows = $templates[($projectId - 1) % count($templates)];
 
+        $stageCount = count($rows);
+        $projectDays = max(1, $projectStartDate->diffInDays($projectEndDate) + 1);
+
         foreach ($rows as $index => [$step, $weight]) {
+            $stageStartOffset = (int) floor($projectDays * $index / $stageCount);
+            $stageEndOffset = $index === $stageCount - 1
+                ? $projectDays - 1
+                : (int) floor($projectDays * ($index + 1) / $stageCount) - 1;
+            $stageStartDate = $projectStartDate->copy()->addDays(max(0, $stageStartOffset));
+            $stageEndDate = $projectStartDate->copy()->addDays(max($stageStartOffset, $stageEndOffset));
+
             TrProjectStage::create([
                 'intProject_ID' => $projectId,
                 'intProjectStageNumber' => $index + 1,
                 'txtProjectStageStep' => $step,
+                'dtmProjectStageStartDate' => $stageStartDate,
+                'dtmProjectStageEndDate' => $stageEndDate,
                 'floatProjectStageWeight' => $weight,
                 'bitActive' => true,
                 'txtInsertedBy' => 'seeder',
@@ -585,7 +602,7 @@ class DatabaseSeeder extends Seeder
                 'join_date' => 'Tuesday, 02 June 2026',
                 'end_date' => 'Wednesday, 02 September 2026',
                 'projects' => [
-                    'Main' => 'TREASURY LITE?',
+                    'Main' => 'Treasury Lite',
                     'Satellite' => '',
                     'Collaboration' => '',
                     'Sharing' => '',

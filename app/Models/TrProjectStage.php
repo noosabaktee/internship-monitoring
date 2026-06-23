@@ -19,6 +19,8 @@ class TrProjectStage extends Model
         'intProject_ID',
         'intProjectStageNumber',
         'txtProjectStageStep',
+        'dtmProjectStageStartDate',
+        'dtmProjectStageEndDate',
         'floatProjectStageWeight',
         'bitActive',
         'txtInsertedBy',
@@ -30,6 +32,8 @@ class TrProjectStage extends Model
     protected $casts = [
         'bitActive' => 'boolean',
         'intProjectStageNumber' => 'integer',
+        'dtmProjectStageStartDate' => 'datetime',
+        'dtmProjectStageEndDate' => 'datetime',
         'floatProjectStageWeight' => 'float',
         'dtmInserted' => 'datetime',
         'dtmUpdated' => 'datetime',

@@ -16,6 +16,8 @@ return new class extends Migration
             $table->integer('intProject_ID');
             $table->integer('intProjectStageNumber')->nullable();
             $table->string('txtProjectStageStep')->nullable();
+            $table->timestamp('dtmProjectStageStartDate')->nullable();
+            $table->timestamp('dtmProjectStageEndDate')->nullable();
             $table->float('floatProjectStageWeight')->nullable()->comment('Percentage weight, total active stages per project must equal 100');
             $table->boolean('bitActive')->nullable();
             $table->string('txtInsertedBy')->nullable();

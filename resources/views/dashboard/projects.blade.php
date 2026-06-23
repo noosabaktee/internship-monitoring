@@ -22,6 +22,8 @@
         $projectStageRows = $editingProject->stages
             ->map(fn ($stage) => [
                 'txtProjectStageStep' => $stage->txtProjectStageStep,
+                'dtmProjectStageStartDate' => $stage->dtmProjectStageStartDate?->format('Y-m-d'),
+                'dtmProjectStageEndDate' => $stage->dtmProjectStageEndDate?->format('Y-m-d'),
                 'floatProjectStageWeight' => $stage->floatProjectStageWeight,
             ])
             ->values()
@@ -137,6 +139,14 @@
                                 <div>
                                     <label class="form-label">Step</label>
                                     <input class="form-control project-stage-step" name="stages[{{ $stageIndex }}][txtProjectStageStep]" value="{{ $stage['txtProjectStageStep'] ?? '' }}">
+                                </div>
+                                <div>
+                                    <label class="form-label">Start</label>
+                                    <input class="form-control project-stage-start" type="date" name="stages[{{ $stageIndex }}][dtmProjectStageStartDate]" value="{{ $stage['dtmProjectStageStartDate'] ?? '' }}">
+                                </div>
+                                <div>
+                                    <label class="form-label">End</label>
+                                    <input class="form-control project-stage-end" type="date" name="stages[{{ $stageIndex }}][dtmProjectStageEndDate]" value="{{ $stage['dtmProjectStageEndDate'] ?? '' }}">
                                 </div>
                                 <div>
                                     <label class="form-label">Weight (%)</label>
