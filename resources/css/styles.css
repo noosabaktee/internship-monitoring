@@ -886,6 +886,84 @@ body.sidebar-is-expanded .main-wrapper {
     background: var(--primary-light);
 }
 
+.table-control-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.table-search {
+    position: relative;
+    width: min(340px, 100%);
+}
+
+.table-search i {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    transform: translateY(-50%);
+    color: var(--text-gray);
+    font-size: 13px;
+    pointer-events: none;
+}
+
+.table-search .table-search-input {
+    padding-left: 36px;
+    min-height: 38px;
+}
+
+.table-page-summary {
+    color: var(--text-gray);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.table-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+
+.table-page-button {
+    min-width: 34px;
+    height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--white);
+    color: var(--text-dark);
+    font-size: 12px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.table-page-button:hover:not(:disabled) {
+    border-color: var(--secondary);
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.table-page-button.active,
+.table-page-button:disabled.active {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: #ffffff;
+}
+
+.table-page-button:disabled:not(.active) {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .score-a {
     color: var(--primary);
     font-weight: bold;

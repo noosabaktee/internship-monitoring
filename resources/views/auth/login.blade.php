@@ -67,9 +67,9 @@
                     </button>
                 </form>
 
-                <div class="auth-switch">
+                <!-- <div class="auth-switch">
                     Do not have an account? <a href="{{ route('register') }}" class="auth-link">Register now</a>
-                </div>
+                </div> -->
             </div>
         </section>
     </main>

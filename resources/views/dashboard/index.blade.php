@@ -2,6 +2,7 @@
     'title' => 'Kalbe Internship Management Dashboard',
     'pageTitle' => 'INTERNSHIP DASHBOARD',
     'pageSubtitle' => '<span>Expose</span> &bull; <span>Learn</span> &bull; <span>Grow</span>',
+    'bodyClass' => 'dashboard-index',
 ])
 
 @section('content')

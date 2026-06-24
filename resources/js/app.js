@@ -179,6 +179,207 @@ window.saveData = function () {
     window.closeModal('crudModal');
 };
 
+const initializeTableControls = () => {
+    const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/';
+
+    if (normalizedPath === '/' || document.body.classList.contains('dashboard-index')) {
+        return;
+    }
+
+    document.querySelectorAll('table.data-table').forEach((table, tableIndex) => {
+        const tbody = table.tBodies[0];
+
+        if (!tbody || table.dataset.tableControls === 'ready') {
+            return;
+        }
+
+        table.dataset.tableControls = 'ready';
+
+        const pageSize = 10;
+        const columnCount = table.tHead?.rows[0]?.cells.length || table.rows[0]?.cells.length || 1;
+        const tableWrap = table.closest('.table-responsive') || table;
+        const host = tableWrap.parentElement;
+        const state = {
+            page: 1,
+            query: '',
+        };
+        let rows = [];
+        let placeholderRows = [];
+        let noResultRow = null;
+        let refreshFrame = null;
+
+        const tableLabel = table.closest('.card, .profile-card, .exposure-detail-panel')?.querySelector('h2, h3, .card-title')?.textContent?.trim() || `Table ${tableIndex + 1}`;
+        const controlId = `tableSearch${tableIndex + 1}`;
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'table-control-bar';
+        toolbar.innerHTML = `
+            <div class="table-search">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <input id="${controlId}" class="form-control table-search-input" type="search" placeholder="Search " aria-label="Search ">
+            </div>
+            <div class="table-page-summary" aria-live="polite"></div>
+        `;
+
+        const pagination = document.createElement('div');
+        pagination.className = 'table-pagination';
+
+        host.insertBefore(toolbar, tableWrap);
+        host.insertBefore(pagination, tableWrap.nextSibling);
+
+        const searchInput = toolbar.querySelector('.table-search-input');
+        const summary = toolbar.querySelector('.table-page-summary');
+
+        const isPlaceholderRow = (row) => {
+            const onlyCell = row.cells.length === 1 ? row.cells[0] : null;
+
+            return Boolean(onlyCell && onlyCell.colSpan >= columnCount && onlyCell.classList.contains('center'));
+        };
+
+        const searchableText = (row) => row.textContent.replace(/\s+/g, ' ').trim().toLowerCase();
+
+        const createNoResultRow = () => {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+
+            cell.colSpan = columnCount;
+            cell.className = 'center';
+            cell.textContent = 'No matching data found.';
+            row.dataset.tableGenerated = 'no-results';
+            row.appendChild(cell);
+
+            return row;
+        };
+
+        const visiblePageNumbers = (current, total) => {
+            const windowSize = 5;
+            let start = Math.max(1, current - Math.floor(windowSize / 2));
+            const end = Math.min(total, start + windowSize - 1);
+
+            start = Math.max(1, end - windowSize + 1);
+
+            return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+        };
+
+        const renderPagination = (totalPages) => {
+            pagination.textContent = '';
+            pagination.hidden = totalPages <= 1;
+
+            if (totalPages <= 1) {
+                return;
+            }
+
+            const makeButton = (label, page, iconClass = '') => {
+                const button = document.createElement('button');
+
+                button.type = 'button';
+                button.className = 'table-page-button';
+                button.disabled = page === state.page;
+                button.setAttribute('aria-label', iconClass ? label : `Page ${label}`);
+
+                if (iconClass) {
+                    const icon = document.createElement('i');
+
+                    icon.className = iconClass;
+                    button.appendChild(icon);
+                } else {
+                    button.textContent = label;
+                }
+
+                button.addEventListener('click', () => {
+                    state.page = page;
+                    render();
+                });
+
+                return button;
+            };
+
+            pagination.appendChild(makeButton('Previous page', Math.max(1, state.page - 1), 'fa-solid fa-chevron-left'));
+
+            visiblePageNumbers(state.page, totalPages).forEach((page) => {
+                const button = makeButton(String(page), page);
+
+                button.classList.toggle('active', page === state.page);
+                pagination.appendChild(button);
+            });
+
+            pagination.appendChild(makeButton('Next page', Math.min(totalPages, state.page + 1), 'fa-solid fa-chevron-right'));
+        };
+
+        const render = () => {
+            const filteredRows = rows.filter((row) => !state.query || searchableText(row).includes(state.query));
+            const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+            const hasRows = rows.length > 0;
+
+            state.page = Math.min(Math.max(state.page, 1), totalPages);
+
+            const startIndex = (state.page - 1) * pageSize;
+            const visibleRows = filteredRows.slice(startIndex, startIndex + pageSize);
+
+            rows.forEach((row) => {
+                row.hidden = true;
+            });
+
+            placeholderRows.forEach((row) => {
+                row.hidden = hasRows;
+            });
+
+            if (!hasRows) {
+                if (noResultRow) {
+                    noResultRow.hidden = true;
+                }
+
+                toolbar.hidden = true;
+                pagination.hidden = true;
+                return;
+            }
+
+            toolbar.hidden = false;
+
+            if (!noResultRow || !tbody.contains(noResultRow)) {
+                noResultRow = createNoResultRow();
+                tbody.appendChild(noResultRow);
+            }
+
+            noResultRow.hidden = filteredRows.length > 0;
+            visibleRows.forEach((row) => {
+                row.hidden = false;
+            });
+
+            const endIndex = Math.min(startIndex + visibleRows.length, filteredRows.length);
+            const fromText = filteredRows.length ? startIndex + 1 : 0;
+            const searchSuffix = state.query ? ` from ${rows.length}` : '';
+
+            summary.textContent = `Showing ${fromText}-${endIndex} of ${filteredRows.length}${searchSuffix}`;
+            renderPagination(totalPages);
+        };
+
+        const refreshRows = () => {
+            if (refreshFrame) {
+                window.cancelAnimationFrame(refreshFrame);
+            }
+
+            refreshFrame = window.requestAnimationFrame(() => {
+                const allRows = Array.from(tbody.rows);
+
+                placeholderRows = allRows.filter((row) => row.dataset.tableGenerated !== 'no-results' && isPlaceholderRow(row));
+                rows = allRows.filter((row) => row.dataset.tableGenerated !== 'no-results' && !isPlaceholderRow(row));
+                state.page = 1;
+                render();
+            });
+        };
+
+        searchInput.addEventListener('input', () => {
+            state.query = searchInput.value.trim().toLowerCase();
+            state.page = 1;
+            render();
+        });
+
+        new MutationObserver(refreshRows).observe(tbody, { childList: true });
+        refreshRows();
+    });
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     const themeIcon = themeToggleBtn ? themeToggleBtn.querySelector('i') : null;
@@ -550,4 +751,6 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         });
     }
+
+    initializeTableControls();
 });

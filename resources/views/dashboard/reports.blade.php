@@ -5,7 +5,7 @@
 ])
 
 @php
-    $sharePointReportUrl = 'https://onekn-my.sharepoint.com/:f:/g/personal/irpan_pamil_kalbenutritionals_com/Ep6fkRRjaqhCq6xy5BnPq8UBhJCG1hsLrAbpi5LhRUa0_w?e=wMiusc';
+    $sharePointReportUrl = 'https://onekn-my.sharepoint.com/:f:/g/personal/irpan_pamil_kalbenutritionals_com/IgCen5EUY2qoQquscuQZz6vFAYSQhtYbC6wG6YuS4UVGtP8';
 @endphp
 
 @section('content')
