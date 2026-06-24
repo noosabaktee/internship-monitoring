@@ -9,7 +9,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="{{ $bodyClass ?? '' }}">
+@php
+    $layoutBodyClass = trim(($bodyClass ?? '') . (request()->routeIs('dashboard.index') ? '' : ' sidebar-is-expanded'));
+@endphp
+<body class="{{ $layoutBodyClass }}">
     @include('components.sidebar')
 
     <main class="main-wrapper">

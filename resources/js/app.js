@@ -12,8 +12,10 @@ window.toggleSidebar = function () {
     }
 
     if (window.innerWidth > 992) {
-        sidebar.classList.toggle('expanded');
-        body.classList.toggle('sidebar-is-expanded');
+        const shouldExpand = !body.classList.contains('sidebar-is-expanded') && !sidebar.classList.contains('expanded');
+
+        sidebar.classList.toggle('expanded', shouldExpand);
+        body.classList.toggle('sidebar-is-expanded', shouldExpand);
         return;
     }
 
