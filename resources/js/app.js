@@ -382,6 +382,78 @@ const initializeTableControls = () => {
     });
 };
 
+const initializeAuthPage = () => {
+    const authPage = document.querySelector('[data-auth-page]');
+
+    if (!authPage) {
+        return;
+    }
+
+    const tabButtons = Array.from(authPage.querySelectorAll('[data-auth-tab]'));
+    const previewCards = Array.from(authPage.querySelectorAll('[data-auth-card]'));
+    const cycleButton = authPage.querySelector('[data-auth-cycle]');
+    const passwordToggle = authPage.querySelector('[data-password-toggle]');
+    const passwordInput = authPage.querySelector('#txtPassword');
+    const authForm = authPage.querySelector('[data-auth-form]');
+    const submitButton = authPage.querySelector('[data-auth-submit]');
+    const skillTiles = Array.from(authPage.querySelectorAll('.auth-skill-tile'));
+    const tabOrder = ['progress', 'performer', 'sessions'];
+    let activeIndex = 0;
+
+    const setActiveTab = (tabName) => {
+        activeIndex = Math.max(0, tabOrder.indexOf(tabName));
+
+        tabButtons.forEach((button) => {
+            button.classList.toggle('is-active', button.dataset.authTab === tabName);
+        });
+
+        previewCards.forEach((card) => {
+            card.classList.toggle('is-focused', card.dataset.authCard === tabName);
+        });
+    };
+
+    tabButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            setActiveTab(button.dataset.authTab);
+        });
+    });
+
+    if (cycleButton) {
+        cycleButton.addEventListener('click', () => {
+            activeIndex = (activeIndex + 1) % tabOrder.length;
+            setActiveTab(tabOrder[activeIndex]);
+        });
+    }
+
+    skillTiles.forEach((tile) => {
+        tile.addEventListener('click', () => {
+            skillTiles.forEach((item) => item.classList.toggle('is-active', item === tile));
+        });
+    });
+
+    if (passwordToggle && passwordInput) {
+        passwordToggle.addEventListener('click', () => {
+            const shouldShow = passwordInput.type === 'password';
+            const icon = passwordToggle.querySelector('i');
+
+            passwordInput.type = shouldShow ? 'text' : 'password';
+            passwordToggle.setAttribute('aria-label', shouldShow ? 'Hide password' : 'Show password');
+
+            if (icon) {
+                icon.classList.toggle('fa-eye', !shouldShow);
+                icon.classList.toggle('fa-eye-slash', shouldShow);
+            }
+        });
+    }
+
+    if (authForm && submitButton) {
+        authForm.addEventListener('submit', () => {
+            submitButton.classList.add('is-loading');
+            submitButton.querySelector('span').textContent = 'Logging in...';
+        });
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     const themeIcon = themeToggleBtn ? themeToggleBtn.querySelector('i') : null;
@@ -754,5 +826,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    initializeAuthPage();
     initializeTableControls();
 });
