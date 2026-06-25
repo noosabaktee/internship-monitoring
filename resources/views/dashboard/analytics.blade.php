@@ -63,13 +63,13 @@
             </form>
         </section>
     @endif
-
+<!-- 
     <div class="card" style="margin-bottom: 20px;">
         <div class="card-title" style="margin-bottom: 10px;">EXPOSURE PROGRESSION</div>
         <div style="height: 260px; position: relative; width: 100%;">
             <canvas id="lineChart"></canvas>
         </div>
-    </div>
+    </div> -->
 
     <div class="card">
         <div class="table-responsive">
