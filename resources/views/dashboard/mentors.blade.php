@@ -90,9 +90,20 @@
                 </thead>
                 <tbody>
                     @forelse ($mentors as $mentor)
+                        @php
+                            $mentorName = $mentor->txtMentorName ?: 'Mentor';
+                            $mentorPhotoUrl = $mentor->user?->txtProfilePhoto
+                                ? asset('storage/' . $mentor->user->txtProfilePhoto)
+                                : 'https://ui-avatars.com/api/?name=' . urlencode($mentorName) . '&background=006838&color=fff&bold=true';
+                        @endphp
                         <tr>
                             <td>MTR-{{ str_pad((string) $mentor->intMentor_ID, 3, '0', STR_PAD_LEFT) }}</td>
-                            <td><a class="auth-link" href="{{ route('profile.mentor.show', $mentor->intMentor_ID) }}">{{ $mentor->txtMentorName }}</a></td>
+                            <td>
+                                <a class="table-person table-person-link" href="{{ route('profile.mentor.show', $mentor->intMentor_ID) }}">
+                                    <img class="table-person-avatar" src="{{ $mentorPhotoUrl }}" alt="{{ $mentorName }}" loading="lazy">
+                                    <span class="table-person-name">{{ $mentor->txtMentorName ?: '-' }}</span>
+                                </a>
+                            </td>
                             <td>{{ $mentor->txtMentorGender ?: '-' }}</td>
                             <td>{{ $mentor->user->txtEmail ?? '-' }}</td>
                             <td>{{ $mentor->txtDepartment ?: '-' }}</td>

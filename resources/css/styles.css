@@ -895,6 +895,46 @@ body.sidebar-is-expanded .main-wrapper {
     background: var(--primary-light);
 }
 
+.table-person {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    color: var(--text-dark);
+    text-decoration: none;
+    vertical-align: middle;
+}
+
+.table-person-avatar {
+    width: 34px;
+    height: 34px;
+    border: 2px solid var(--white);
+    border-radius: 50%;
+    background: var(--primary-light);
+    object-fit: cover;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(0, 104, 56, 0.12);
+}
+
+.table-person-name {
+    max-width: 190px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: inherit;
+    font-weight: 700;
+}
+
+.table-person-link:hover .table-person-name,
+.table-person-link:focus .table-person-name {
+    color: var(--primary);
+    text-decoration: underline;
+}
+
+.table-person-muted {
+    color: var(--text-gray);
+    font-weight: 700;
+}
+
 .table-control-bar {
     display: flex;
     align-items: center;

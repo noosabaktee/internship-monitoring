@@ -114,9 +114,20 @@
                 </thead>
                 <tbody>
                     @forelse ($interns as $intern)
+                        @php
+                            $internName = $intern->txtInternName ?: 'Intern';
+                            $internPhotoUrl = $intern->user?->txtProfilePhoto
+                                ? asset('storage/' . $intern->user->txtProfilePhoto)
+                                : 'https://ui-avatars.com/api/?name=' . urlencode($internName) . '&background=8CC63F&color=fff&bold=true';
+                        @endphp
                         <tr>
                             <td>{{ $intern->txtInternNo ?: 'INT-' . str_pad((string) $intern->intIntern_ID, 3, '0', STR_PAD_LEFT) }}</td>
-                            <td><a class="auth-link" href="{{ route('profile.intern.show', $intern->intIntern_ID) }}">{{ $intern->txtInternName }}</a></td>
+                            <td>
+                                <a class="table-person table-person-link" href="{{ route('profile.intern.show', $intern->intIntern_ID) }}">
+                                    <img class="table-person-avatar" src="{{ $internPhotoUrl }}" alt="{{ $internName }}" loading="lazy">
+                                    <span class="table-person-name">{{ $intern->txtInternName ?: '-' }}</span>
+                                </a>
+                            </td>
                             <td>{{ $intern->txtInternGender ?: '-' }}</td>
                             <td>{{ $intern->user->txtEmail ?? '-' }}</td>
                             <td>{{ $intern->txtUniversity ?: '-' }}</td>

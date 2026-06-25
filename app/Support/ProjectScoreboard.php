@@ -12,7 +12,7 @@ class ProjectScoreboard
     {
         $weights = self::weights();
 
-        return MIntern::with(['user', 'projects.project'])
+        return MIntern::with(['user', 'projects.project', 'projects.mentor.user'])
             ->where('bitActive', true)
             ->orderBy('txtInternName')
             ->get()
@@ -44,6 +44,7 @@ class ProjectScoreboard
 
                 return [
                     'intern' => $intern,
+                    'mentor' => $latestAssignment?->mentor,
                     'main_project' => $latestMainProject?->project?->txtProjectName ?? '-',
                     'main' => $counts['main'],
                     'collaboration' => $counts['collaboration'],
