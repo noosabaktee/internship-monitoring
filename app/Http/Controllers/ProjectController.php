@@ -29,7 +29,7 @@ class ProjectController extends Controller
 
     public function index(): View
     {
-        $projects = MProject::with(['skillSet', 'stages', 'assignments.intern', 'assignments.mentor'])->orderBy('intProject_ID')->get();
+        $projects = MProject::with($this->projectRelations())->orderBy('intProject_ID')->get();
         $interns = MIntern::where('bitActive', true)->orderBy('txtInternName')->get();
         $mentors = MMentor::where('bitActive', true)->orderBy('txtMentorName')->get();
         $skillSets = MSkillSet::where('bitActive', true)->orderBy('txtSkillSetName')->get();
@@ -39,7 +39,7 @@ class ProjectController extends Controller
 
     public function create(): View
     {
-        $projects = MProject::with(['skillSet', 'stages', 'assignments.intern', 'assignments.mentor'])->orderBy('intProject_ID')->get();
+        $projects = MProject::with($this->projectRelations())->orderBy('intProject_ID')->get();
         $interns = MIntern::where('bitActive', true)->orderBy('txtInternName')->get();
         $mentors = MMentor::where('bitActive', true)->orderBy('txtMentorName')->get();
         $skillSets = MSkillSet::where('bitActive', true)->orderBy('txtSkillSetName')->get();
@@ -63,7 +63,8 @@ class ProjectController extends Controller
             'dtmProjectEndDate' => ['nullable', 'date', 'after_or_equal:dtmProjectStartDate'],
             'txtDescription' => ['nullable', 'string', 'max:255'],
             'bitActive' => ['nullable', 'boolean'],
-            'intIntern_ID' => ['nullable', 'integer', Rule::exists('mIntern', 'intIntern_ID')],
+            'intIntern_ID' => ['nullable', 'array'],
+            'intIntern_ID.*' => ['integer', 'distinct', Rule::exists('mIntern', 'intIntern_ID')],
             'intMentor_ID' => ['nullable', 'integer', Rule::exists('mMentor', 'intMentor_ID')],
             'floatProgress' => ['nullable', Rule::in(self::PROGRESS_VALUES)],
             'stages' => ['nullable', 'array'],
@@ -74,6 +75,13 @@ class ProjectController extends Controller
             'stages.*.floatProjectStageActual' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
         $stageRows = $validated['stages'] ?? [];
+        $internIds = $this->internIds($validated['intIntern_ID'] ?? []);
+
+        if ($internIds !== [] && empty($validated['intMentor_ID'])) {
+            return back()
+                ->withInput()
+                ->withErrors(['intMentor_ID' => 'Mentor harus dipilih saat intern di-assign ke project.']);
+        }
 
         if (! $this->projectStageRowsAreComplete($stageRows)) {
             return back()
@@ -101,7 +109,7 @@ class ProjectController extends Controller
                 ->withErrors(['stages' => 'Total plan tahap project harus tepat 100%.']);
         }
 
-        DB::transaction(function () use ($validated, $stages) {
+        DB::transaction(function () use ($validated, $stages, $internIds) {
             $now = now();
             $project = MProject::create([
                 'txtProjectName' => $validated['txtProjectName'],
@@ -115,19 +123,7 @@ class ProjectController extends Controller
                 'dtmInserted' => $now,
             ]);
 
-            if (! empty($validated['intIntern_ID']) && ! empty($validated['intMentor_ID'])) {
-                TrInternProject::create([
-                    'intIntern_ID' => $validated['intIntern_ID'],
-                    'intProject_ID' => $project->intProject_ID,
-                    'intMentor_ID' => $validated['intMentor_ID'],
-                    'floatProgress' => $validated['floatProgress'] ?? 0,
-                    'txtStatus' => $this->progressStatus((int) ($validated['floatProgress'] ?? 0)),
-                    'bitActive' => true,
-                    'txtInsertedBy' => 'system',
-                    'dtmInserted' => $now,
-                ]);
-            }
-
+            $this->syncProjectAssignments($project, $internIds, $validated, $now);
             $this->syncProjectStages($project, $stages, $now);
         });
 
@@ -136,12 +132,7 @@ class ProjectController extends Controller
 
     public function show(string $project): View
     {
-        $project = MProject::with([
-            'skillSet',
-            'stages',
-            'assignments.intern.user',
-            'assignments.mentor.user',
-        ])->findOrFail($project);
+        $project = MProject::with($this->projectRelations(withUsers: true))->findOrFail($project);
         $projectSCurvePayload = ExposureCurveBuilder::payload(collect([$project]));
 
         return view('dashboard.project-detail', compact('project', 'projectSCurvePayload'));
@@ -149,8 +140,8 @@ class ProjectController extends Controller
 
     public function edit(string $project): View
     {
-        $projects = MProject::with(['skillSet', 'stages', 'assignments.intern', 'assignments.mentor'])->orderBy('intProject_ID')->get();
-        $editingProject = MProject::with(['skillSet', 'stages', 'assignments.intern', 'assignments.mentor'])->findOrFail($project);
+        $projects = MProject::with($this->projectRelations())->orderBy('intProject_ID')->get();
+        $editingProject = MProject::with($this->projectRelations())->findOrFail($project);
         $interns = MIntern::where('bitActive', true)->orderBy('txtInternName')->get();
         $mentors = MMentor::where('bitActive', true)->orderBy('txtMentorName')->get();
         $skillSets = MSkillSet::where('bitActive', true)->orderBy('txtSkillSetName')->get();
@@ -167,7 +158,7 @@ class ProjectController extends Controller
 
     public function update(Request $request, string $project): RedirectResponse
     {
-        $projectModel = MProject::with(['assignments', 'stages'])->findOrFail($project);
+        $projectModel = MProject::findOrFail($project);
         $validated = $request->validate([
             'txtProjectName' => ['required', 'string', 'max:255'],
             'txtProjectType' => ['required', Rule::in(['Main', 'Satellite', 'Collaboration', 'Sharing'])],
@@ -176,7 +167,8 @@ class ProjectController extends Controller
             'dtmProjectEndDate' => ['nullable', 'date', 'after_or_equal:dtmProjectStartDate'],
             'txtDescription' => ['nullable', 'string', 'max:255'],
             'bitActive' => ['nullable', 'boolean'],
-            'intIntern_ID' => ['nullable', 'integer', Rule::exists('mIntern', 'intIntern_ID')],
+            'intIntern_ID' => ['nullable', 'array'],
+            'intIntern_ID.*' => ['integer', 'distinct', Rule::exists('mIntern', 'intIntern_ID')],
             'intMentor_ID' => ['nullable', 'integer', Rule::exists('mMentor', 'intMentor_ID')],
             'floatProgress' => ['nullable', Rule::in(self::PROGRESS_VALUES)],
             'stages' => ['nullable', 'array'],
@@ -187,6 +179,13 @@ class ProjectController extends Controller
             'stages.*.floatProjectStageActual' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
         $stageRows = $validated['stages'] ?? [];
+        $internIds = $this->internIds($validated['intIntern_ID'] ?? []);
+
+        if ($internIds !== [] && empty($validated['intMentor_ID'])) {
+            return back()
+                ->withInput()
+                ->withErrors(['intMentor_ID' => 'Mentor harus dipilih saat intern di-assign ke project.']);
+        }
 
         if (! $this->projectStageRowsAreComplete($stageRows)) {
             return back()
@@ -214,7 +213,7 @@ class ProjectController extends Controller
                 ->withErrors(['stages' => 'Total plan tahap project harus tepat 100%.']);
         }
 
-        DB::transaction(function () use ($projectModel, $validated, $stages) {
+        DB::transaction(function () use ($projectModel, $validated, $stages, $internIds) {
             $now = now();
             $projectModel->update([
                 'txtProjectName' => $validated['txtProjectName'],
@@ -228,23 +227,7 @@ class ProjectController extends Controller
                 'dtmUpdated' => $now,
             ]);
 
-            if (! empty($validated['intIntern_ID']) && ! empty($validated['intMentor_ID'])) {
-                TrInternProject::updateOrCreate(
-                    ['intProject_ID' => $projectModel->intProject_ID],
-                    [
-                        'intIntern_ID' => $validated['intIntern_ID'],
-                        'intMentor_ID' => $validated['intMentor_ID'],
-                        'floatProgress' => $validated['floatProgress'] ?? 0,
-                        'txtStatus' => $this->progressStatus((int) ($validated['floatProgress'] ?? 0)),
-                        'bitActive' => true,
-                        'txtInsertedBy' => 'system',
-                        'dtmInserted' => $now,
-                        'txtUpdatedBy' => 'system',
-                        'dtmUpdated' => $now,
-                    ],
-                );
-            }
-
+            $this->syncProjectAssignments($projectModel, $internIds, $validated, $now);
             $this->syncProjectStages($projectModel, $stages, $now);
         });
 
@@ -278,6 +261,72 @@ class ProjectController extends Controller
     private function progressStatus(int $progress): string
     {
         return self::PROGRESS_STATUSES[$progress] ?? self::PROGRESS_STATUSES[0];
+    }
+
+    private function projectRelations(bool $withUsers = false): array
+    {
+        return [
+            'skillSet',
+            'stages',
+            'assignments' => fn ($query) => $query->where('bitActive', true)->orderBy('intIntern_ID'),
+            $withUsers ? 'assignments.intern.user' : 'assignments.intern',
+            $withUsers ? 'assignments.mentor.user' : 'assignments.mentor',
+        ];
+    }
+
+    private function internIds(mixed $value): array
+    {
+        $values = is_array($value) ? $value : [$value];
+
+        return collect($values)
+            ->filter(fn ($internId) => $internId !== null && $internId !== '')
+            ->map(fn ($internId) => (int) $internId)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function syncProjectAssignments(MProject $project, array $internIds, array $validated, $now): void
+    {
+        $existingAssignments = TrInternProject::where('intProject_ID', $project->intProject_ID)
+            ->get()
+            ->groupBy('intIntern_ID');
+
+        TrInternProject::where('intProject_ID', $project->intProject_ID)->update([
+            'bitActive' => false,
+            'txtUpdatedBy' => 'system',
+            'dtmUpdated' => $now,
+        ]);
+
+        $progress = (int) ($validated['floatProgress'] ?? 0);
+
+        foreach ($internIds as $internId) {
+            $assignment = ($existingAssignments->get($internId) ?? $existingAssignments->get((string) $internId))?->first();
+
+            if ($assignment) {
+                $assignment->update([
+                    'intMentor_ID' => $validated['intMentor_ID'],
+                    'floatProgress' => $progress,
+                    'txtStatus' => $this->progressStatus($progress),
+                    'bitActive' => true,
+                    'txtUpdatedBy' => 'system',
+                    'dtmUpdated' => $now,
+                ]);
+
+                continue;
+            }
+
+            TrInternProject::create([
+                'intIntern_ID' => $internId,
+                'intProject_ID' => $project->intProject_ID,
+                'intMentor_ID' => $validated['intMentor_ID'],
+                'floatProgress' => $progress,
+                'txtStatus' => $this->progressStatus($progress),
+                'bitActive' => true,
+                'txtInsertedBy' => 'system',
+                'dtmInserted' => $now,
+            ]);
+        }
     }
 
     /**

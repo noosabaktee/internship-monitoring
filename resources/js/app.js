@@ -382,6 +382,181 @@ const initializeTableControls = () => {
     });
 };
 
+const initializeLiveMultiselect = () => {
+    document.querySelectorAll('select[data-live-multiselect]').forEach((select) => {
+        if (select.dataset.liveMultiselectReady === 'ready') {
+            return;
+        }
+
+        select.dataset.liveMultiselectReady = 'ready';
+        select.classList.add('live-multi-select-native');
+
+        const placeholder = select.dataset.placeholder || 'Search';
+        const emptyText = select.dataset.emptyText || 'No intern found.';
+        const multiselect = document.createElement('div');
+        const control = document.createElement('div');
+        const tags = document.createElement('div');
+        const searchInput = document.createElement('input');
+        const dropdown = document.createElement('div');
+
+        multiselect.className = 'live-multi-select';
+        control.className = 'live-multi-select-control';
+        tags.className = 'live-multi-select-tags';
+        searchInput.className = 'live-multi-select-input';
+        searchInput.type = 'search';
+        searchInput.autocomplete = 'off';
+        searchInput.placeholder = placeholder;
+        dropdown.className = 'live-multi-select-dropdown';
+        dropdown.hidden = true;
+
+        control.appendChild(tags);
+        control.appendChild(searchInput);
+        multiselect.appendChild(control);
+        multiselect.appendChild(dropdown);
+        select.insertAdjacentElement('afterend', multiselect);
+
+        const allOptions = () => Array.from(select.options).filter((option) => option.value !== '');
+        const selectedOptions = () => allOptions().filter((option) => option.selected);
+        const matchingOptions = () => {
+            const query = searchInput.value.trim().toLowerCase();
+
+            return allOptions().filter((option) => option.textContent.trim().toLowerCase().includes(query));
+        };
+
+        const dispatchChange = () => {
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+
+        const closeDropdown = () => {
+            dropdown.hidden = true;
+            multiselect.classList.remove('is-open');
+        };
+
+        const openDropdown = () => {
+            dropdown.hidden = false;
+            multiselect.classList.add('is-open');
+            renderOptions();
+        };
+
+        const toggleOption = (option) => {
+            option.selected = !option.selected;
+            searchInput.value = '';
+            dispatchChange();
+            render();
+            openDropdown();
+            searchInput.focus();
+        };
+
+        const removeOption = (option) => {
+            option.selected = false;
+            dispatchChange();
+            render();
+        };
+
+        const renderTags = () => {
+            tags.textContent = '';
+
+            selectedOptions().forEach((option) => {
+                const tag = document.createElement('span');
+                const label = document.createElement('span');
+                const removeButton = document.createElement('button');
+
+                tag.className = 'live-multi-select-tag';
+                label.textContent = option.textContent.trim();
+                removeButton.type = 'button';
+                removeButton.className = 'live-multi-select-remove';
+                removeButton.setAttribute('aria-label', `Remove ${label.textContent}`);
+                removeButton.textContent = 'x';
+                removeButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    removeOption(option);
+                    searchInput.focus();
+                });
+
+                tag.appendChild(removeButton);
+                tag.appendChild(label);
+                tags.appendChild(tag);
+            });
+
+            searchInput.placeholder = selectedOptions().length ? 'Search' : placeholder;
+        };
+
+        const renderOptions = () => {
+            const options = matchingOptions();
+
+            dropdown.textContent = '';
+
+            if (options.length === 0) {
+                const emptyOption = document.createElement('div');
+
+                emptyOption.className = 'live-multi-select-empty';
+                emptyOption.textContent = emptyText;
+                dropdown.appendChild(emptyOption);
+                return;
+            }
+
+            options.forEach((option) => {
+                const optionButton = document.createElement('button');
+
+                optionButton.type = 'button';
+                optionButton.className = 'live-multi-select-option';
+                optionButton.classList.toggle('is-selected', option.selected);
+                optionButton.textContent = option.textContent.trim();
+                optionButton.addEventListener('mousedown', (event) => {
+                    event.preventDefault();
+                    toggleOption(option);
+                });
+
+                dropdown.appendChild(optionButton);
+            });
+        };
+
+        const render = () => {
+            renderTags();
+            renderOptions();
+        };
+
+        control.addEventListener('click', () => {
+            searchInput.focus();
+            openDropdown();
+        });
+
+        searchInput.addEventListener('focus', openDropdown);
+        searchInput.addEventListener('input', openDropdown);
+        searchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Backspace' && searchInput.value === '') {
+                const lastSelectedOption = selectedOptions().at(-1);
+
+                if (lastSelectedOption) {
+                    event.preventDefault();
+                    removeOption(lastSelectedOption);
+                }
+            }
+
+            if (event.key === 'Enter') {
+                const firstOption = matchingOptions()[0];
+
+                if (firstOption) {
+                    event.preventDefault();
+                    toggleOption(firstOption);
+                }
+            }
+
+            if (event.key === 'Escape') {
+                closeDropdown();
+            }
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!multiselect.contains(event.target)) {
+                closeDropdown();
+            }
+        });
+
+        render();
+    });
+};
+
 const initializeAuthPage = () => {
     const authPage = document.querySelector('[data-auth-page]');
 
@@ -516,6 +691,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    initializeLiveMultiselect();
 
     const latestInternEndDateInput = () => {
         const extensionInputs = Array.from(document.querySelectorAll('.intern-extend-date'));

@@ -5,8 +5,7 @@
 ])
 
 @php
-$assignments = $project->assignments;
-$primaryAssignment = $assignments->first();
+$assignments = $project->assignments->where('bitActive', true);
 $totalStagePlan = (float) $project->stages->sum('floatProjectStagePlan');
 $totalStageActual = (float) $project->stages->sum('floatProjectStageActual');
 $stageProgress = $totalStagePlan > 0 ? ($totalStageActual / $totalStagePlan) * 100 : 0;

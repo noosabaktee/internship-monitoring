@@ -5,7 +5,7 @@
 ])
 
 @php
-    $sharePointReportUrl = 'https://onekn-my.sharepoint.com/:f:/g/personal/irpan_pamil_kalbenutritionals_com/IgCen5EUY2qoQquscuQZz6vFAYSQhtYbC6wG6YuS4UVGtP8';
+    $sharePointReportUrl = 'https://useful-partner-98b.notion.site/ebd//38a7861b550e80cf8fb3f509fdc28ec8?v=38a7861b550e80a98cf8000c308ef3dc';
 @endphp
 
 @section('content')
@@ -14,7 +14,7 @@
             <h2>Report</h2>
             <p>Embedded SharePoint folder for internship report files.</p>
         </div>
-        <a class="btn btn-primary btn-add" href="{{ $sharePointReportUrl }}" target="_blank" rel="noopener" style="text-decoration:none;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open SharePoint</a>
+        <a class="btn btn-primary btn-add" href="{{ $sharePointReportUrl }}" target="_blank" rel="noopener" style="text-decoration:none;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Notion</a>
     </div>
 
     <div class="card report-embed-card">

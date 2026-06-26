@@ -9,7 +9,15 @@
     $formAction = isset($editingProject)
         ? route('projects.update', $editingProject->intProject_ID)
         : route('projects.store');
-    $assignment = isset($editingProject) ? $editingProject->assignments->first() : null;
+    $activeAssignments = isset($editingProject) ? $editingProject->assignments->where('bitActive', true) : collect();
+    $assignment = $activeAssignments->first();
+    $selectedInternIds = old('intIntern_ID');
+    if ($selectedInternIds === null) {
+        $selectedInternIds = $activeAssignments->pluck('intIntern_ID')->all();
+    }
+    $selectedInternIds = collect(is_array($selectedInternIds) ? $selectedInternIds : ($selectedInternIds === '' ? [] : [$selectedInternIds]))
+        ->map(fn ($internId) => (string) $internId)
+        ->all();
     $progressOptions = [
         0 => 'Open',
         25 => 'Inprogress',
@@ -96,10 +104,9 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Intern</label>
-                    <select class="form-control" name="intIntern_ID">
-                        <option value="">Not assigned yet</option>
+                    <select class="form-control" name="intIntern_ID[]" multiple data-live-multiselect data-placeholder="Search intern">
                         @foreach ($interns as $intern)
-                            <option value="{{ $intern->intIntern_ID }}" @selected((string) old('intIntern_ID', $assignment->intIntern_ID ?? '') === (string) $intern->intIntern_ID)>{{ $intern->txtInternName }}</option>
+                            <option value="{{ $intern->intIntern_ID }}" @selected(in_array((string) $intern->intIntern_ID, $selectedInternIds, true))>{{ $intern->txtInternName }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -178,7 +185,18 @@
                 <tbody>
                     @forelse ($projects as $project)
                         @php
-                            $rowAssignment = $project->assignments->first();
+                            $activeAssignments = $project->assignments->where('bitActive', true);
+                            $rowAssignment = $activeAssignments->first();
+                            $internNames = $activeAssignments
+                                ->map(fn ($assignment) => $assignment->intern?->txtInternName)
+                                ->filter()
+                                ->unique()
+                                ->values();
+                            $mentorNames = $activeAssignments
+                                ->map(fn ($assignment) => $assignment->mentor?->txtMentorName)
+                                ->filter()
+                                ->unique()
+                                ->values();
                         @endphp
                         <tr>
                             <td><a class="auth-link" href="{{ route('projects.show', $project->intProject_ID) }}"><strong>{{ $project->txtProjectName }}</strong></a><br><span style="color:var(--text-gray); font-size:11px;">{{ $project->txtDescription }}</span></td>
@@ -187,11 +205,11 @@
                             <td>{{ $project->stages->count() ? $project->stages->count() . ' Tahap / Plan ' . number_format((float) $project->stages->sum('floatProjectStagePlan'), 0) . '% / Actual ' . number_format((float) $project->stages->sum('floatProjectStageActual'), 0) . '%' : '-' }}</td>
                             <td>{{ $project->dtmProjectStartDate?->format('d M Y') ?? '-' }}</td>
                             <td>{{ $project->dtmProjectEndDate?->format('d M Y') ?? '-' }}</td>
-                            <td>{{ $rowAssignment?->intern?->txtInternName ?? '-' }}</td>
-                            <td>{{ $rowAssignment?->mentor?->txtMentorName ?? '-' }}</td>
+                            <td><span class="project-person-list">{{ $internNames->isNotEmpty() ? $internNames->join(', ') : '-' }}</span></td>
+                            <td><span class="project-person-list">{{ $mentorNames->isNotEmpty() ? $mentorNames->join(', ') : '-' }}</span></td>
                             <td>
                                 @php
-                                    $progress = (float) ($rowAssignment?->floatProgress ?? 0);
+                                    $progress = (float) ($activeAssignments->isNotEmpty() ? $activeAssignments->avg('floatProgress') : 0);
                                 @endphp
                                 <div style="display:flex; align-items:center; gap:8px; min-width:120px;">
                                     <div style="background:var(--border); border-radius:3px; height:8px; flex:1;"><div style="background:var(--secondary); width:{{ $progress }}%; height:100%; border-radius:3px;"></div></div>
