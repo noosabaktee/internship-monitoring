@@ -13,6 +13,7 @@ use App\Models\TrAchievement;
 use App\Models\TrCalendarSharing;
 use App\Models\TrEvaluation;
 use App\Models\TrInternProject;
+use App\Models\TrProjectMentor;
 use App\Models\TrProjectStage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -77,6 +78,8 @@ class DatabaseSeeder extends Seeder
             $projectIds = [];
             $nextProjectId = 1;
             $nextAssignmentId = 1;
+            $nextProjectMentorId = 1;
+            $projectMentorPairs = [];
 
             foreach ($internRows as $index => $row) {
                 $internId = $index + 1;
@@ -154,6 +157,22 @@ class DatabaseSeeder extends Seeder
                         'dtmInserted' => $this->dateFromSheet($row['join_date']),
                     ]);
 
+                    $projectMentorKey = $projectIds[$projectKey] . '|' . $mentorIds[$row['mentor']];
+
+                    if (! isset($projectMentorPairs[$projectMentorKey])) {
+                        TrProjectMentor::create([
+                            'intProjectMentor_ID' => $nextProjectMentorId,
+                            'intProject_ID' => $projectIds[$projectKey],
+                            'intMentor_ID' => $mentorIds[$row['mentor']],
+                            'bitActive' => true,
+                            'txtInsertedBy' => 'seeder',
+                            'dtmInserted' => $this->dateFromSheet($row['join_date']),
+                        ]);
+
+                        $projectMentorPairs[$projectMentorKey] = true;
+                        $nextProjectMentorId++;
+                    }
+
                     $nextAssignmentId++;
                 }
 
@@ -198,6 +217,7 @@ class DatabaseSeeder extends Seeder
         TrCalendarSharing::query()->delete();
         TrAchievement::query()->delete();
         TrEvaluation::query()->delete();
+        TrProjectMentor::query()->delete();
         TrInternProject::query()->delete();
         TrProjectStage::query()->delete();
         MProject::query()->delete();

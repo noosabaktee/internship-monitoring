@@ -78,7 +78,7 @@ class InternController extends Controller
 
     public function show(string $intern): View
     {
-        $intern = MIntern::with(['user', 'projects.project', 'projects.mentor', 'achievements', 'evaluations'])
+        $intern = MIntern::with(['user', 'projects.project.projectMentors.mentor', 'projects.mentor', 'achievements', 'evaluations'])
             ->findOrFail($intern);
 
         return view('profile.show', compact('intern'));

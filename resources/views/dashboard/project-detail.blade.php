@@ -6,6 +6,19 @@
 
 @php
 $assignments = $project->assignments->where('bitActive', true);
+$projectMentors = $project->projectMentors->where('bitActive', true);
+$mentorNames = $projectMentors
+    ->map(fn ($projectMentor) => $projectMentor->mentor?->txtMentorName)
+    ->filter()
+    ->unique()
+    ->values();
+if ($mentorNames->isEmpty()) {
+    $mentorNames = $assignments
+        ->map(fn ($assignment) => $assignment->mentor?->txtMentorName)
+        ->filter()
+        ->unique()
+        ->values();
+}
 $totalStagePlan = (float) $project->stages->sum('floatProjectStagePlan');
 $totalStageActual = (float) $project->stages->sum('floatProjectStageActual');
 $stageProgress = $totalStagePlan > 0 ? ($totalStageActual / $totalStagePlan) * 100 : 0;
@@ -109,7 +122,7 @@ $isMentor = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole 
     <section class="project-detail-panel">
         <div class="project-detail-panel-head">
             <h3>Assignments</h3>
-            <span>{{ $assignments->count() }} intern</span>
+            <span>{{ $assignments->count() }} intern / {{ $mentorNames->count() }} mentor</span>
         </div>
         <div class="project-assignment-list">
             @forelse ($assignments as $assignment)
@@ -120,7 +133,7 @@ $isMentor = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole 
                     <p>{{ $assignment->intern?->user?->txtEmail ?: '-' }}</p>
                 </div>
                 <div>
-                    <span>{{ $assignment->mentor?->txtMentorName ?? '-' }}</span>
+                    <span>{{ $mentorNames->isNotEmpty() ? $mentorNames->join(', ') : ($assignment->mentor?->txtMentorName ?? '-') }}</span>
                     <div class="mini-progress">
                         <span>{{ number_format((float) $assignment->floatProgress, 0) }}%</span>
                         <div class="progress-track">

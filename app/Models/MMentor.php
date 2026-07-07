@@ -43,4 +43,9 @@ class MMentor extends Model
     {
         return $this->hasMany(TrInternProject::class, 'intMentor_ID', 'intMentor_ID');
     }
+
+    public function projectMentors()
+    {
+        return $this->hasMany(TrProjectMentor::class, 'intMentor_ID', 'intMentor_ID');
+    }
 }

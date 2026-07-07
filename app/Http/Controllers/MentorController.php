@@ -70,7 +70,12 @@ class MentorController extends Controller
 
     public function show(string $mentor): View
     {
-        $mentor = MMentor::with(['user', 'internProjects.intern', 'internProjects.project'])->findOrFail($mentor);
+        $mentor = MMentor::with([
+            'user',
+            'internProjects.intern',
+            'internProjects.project',
+            'projectMentors.project.assignments.intern',
+        ])->findOrFail($mentor);
 
         return view('dashboard.mentors', compact('mentor'));
     }

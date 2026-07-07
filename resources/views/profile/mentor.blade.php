@@ -6,8 +6,37 @@
 ])
 
 @php
-    $assignments = $mentor->internProjects->where('bitActive', true);
-    $interns = $assignments->pluck('intern')->filter()->unique('intIntern_ID');
+    $projectMentors = $mentor->projectMentors
+        ->where('bitActive', true)
+        ->filter(fn ($projectMentor) => $projectMentor->project?->bitActive)
+        ->values();
+    $assignmentRows = $projectMentors
+        ->flatMap(function ($projectMentor) {
+            $projectAssignments = $projectMentor->project?->assignments ?? collect();
+
+            return $projectAssignments
+                ->where('bitActive', true)
+                ->map(fn ($assignment) => [
+                    'project' => $projectMentor->project,
+                    'assignment' => $assignment,
+                ]);
+        })
+        ->unique(fn ($row) => $row['assignment']->intInternProject_ID)
+        ->values();
+    if ($assignmentRows->isEmpty()) {
+        $assignmentRows = $mentor->internProjects
+            ->where('bitActive', true)
+            ->map(fn ($assignment) => [
+                'project' => $assignment->project,
+                'assignment' => $assignment,
+            ])
+            ->values();
+    }
+    $interns = $assignmentRows->map(fn ($row) => $row['assignment']->intern)->filter()->unique('intIntern_ID');
+    $projectCount = $projectMentors->pluck('intProject_ID')->unique()->count();
+    if ($projectCount === 0) {
+        $projectCount = $assignmentRows->map(fn ($row) => $row['project']?->intProject_ID)->filter()->unique()->count();
+    }
     $profilePhotoUrl = $mentor->user?->txtProfilePhoto
         ? asset('storage/' . $mentor->user->txtProfilePhoto)
         : 'https://ui-avatars.com/api/?name=' . urlencode($mentor->txtMentorName) . '&background=006838&color=fff&size=160';
@@ -53,7 +82,7 @@
             </div>
 
             <div class="profile-score-card">
-                <div class="profile-score-ring"><span>{{ $assignments->count() }}</span></div>
+                <div class="profile-score-ring"><span>{{ $assignmentRows->count() }}</span></div>
                 <div class="profile-score-copy">
                     <h3>Active Assignments</h3>
                     <p>Total active project assignments currently guided by this mentor.</p>
@@ -62,7 +91,7 @@
         </section>
 
         <section class="profile-metrics">
-            <div class="profile-metric"><i class="fa-solid fa-diagram-project"></i><strong>{{ $assignments->count() }}</strong><span>Projects</span></div>
+            <div class="profile-metric"><i class="fa-solid fa-diagram-project"></i><strong>{{ $projectCount }}</strong><span>Projects</span></div>
             <div class="profile-metric"><i class="fa-solid fa-users"></i><strong>{{ $interns->count() }}</strong><span>Interns</span></div>
             <div class="profile-metric"><i class="fa-solid fa-building"></i><strong>{{ $mentor->txtDepartment ?: '-' }}</strong><span>Department</span></div>
             <div class="profile-metric"><i class="fa-solid fa-user-tie"></i><strong>{{ $mentor->txtRole ?: 'Mentor' }}</strong><span>Role</span></div>
@@ -81,10 +110,14 @@
                         <tr><th>Project</th><th>Type</th><th>Intern</th><th>Progress</th><th>Status</th></tr>
                     </thead>
                     <tbody>
-                        @forelse ($assignments as $assignment)
+                        @forelse ($assignmentRows as $row)
+                            @php
+                                $assignment = $row['assignment'];
+                                $project = $row['project'];
+                            @endphp
                             <tr>
-                                <td>{{ $assignment->project->txtProjectName ?? '-' }}</td>
-                                <td>{{ $assignment->project->txtProjectType ?? '-' }}</td>
+                                <td>{{ $project->txtProjectName ?? '-' }}</td>
+                                <td>{{ $project->txtProjectType ?? '-' }}</td>
                                 <td>{{ $assignment->intern->txtInternName ?? '-' }}</td>
                                 <td>{{ number_format((float) $assignment->floatProgress, 0) }}%</td>
                                 <td><span class="status-badge status-active">{{ $assignment->txtStatus ?: 'Active' }}</span></td>

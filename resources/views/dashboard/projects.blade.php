@@ -10,6 +10,7 @@
         ? route('projects.update', $editingProject->intProject_ID)
         : route('projects.store');
     $activeAssignments = isset($editingProject) ? $editingProject->assignments->where('bitActive', true) : collect();
+    $activeProjectMentors = isset($editingProject) ? $editingProject->projectMentors->where('bitActive', true) : collect();
     $assignment = $activeAssignments->first();
     $selectedInternIds = old('intIntern_ID');
     if ($selectedInternIds === null) {
@@ -17,6 +18,17 @@
     }
     $selectedInternIds = collect(is_array($selectedInternIds) ? $selectedInternIds : ($selectedInternIds === '' ? [] : [$selectedInternIds]))
         ->map(fn ($internId) => (string) $internId)
+        ->all();
+    $selectedMentorIds = old('intMentor_ID');
+    if ($selectedMentorIds === null) {
+        $selectedMentorIds = $activeProjectMentors->pluck('intMentor_ID')->all();
+
+        if ($selectedMentorIds === []) {
+            $selectedMentorIds = $activeAssignments->pluck('intMentor_ID')->filter()->unique()->all();
+        }
+    }
+    $selectedMentorIds = collect(is_array($selectedMentorIds) ? $selectedMentorIds : ($selectedMentorIds === '' ? [] : [$selectedMentorIds]))
+        ->map(fn ($mentorId) => (string) $mentorId)
         ->all();
     $progressOptions = [
         0 => 'Open',
@@ -55,7 +67,7 @@
             <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
                 <div class="profile-card-title">
                     <h2>{{ isset($editingProject) ? 'Edit Project' : 'Add New Project' }}</h2>
-                    <p>Project master data is stored in mProject. Intern, mentor, and progress assignments are stored in trInternProject.</p>
+                    <p>Project master data is stored in mProject. Intern/progress assignments use trInternProject, while mentor assignments use trProjectMentor.</p>
                 </div>
                 <a href="{{ route('projects.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Close</a>
             </div>
@@ -65,6 +77,7 @@
                 @isset($editingProject)
                     @method('PUT')
                 @endisset
+                <input type="hidden" name="stages_present" value="1">
 
                 <div class="col-md-6">
                     <label class="form-label">Project Name</label>
@@ -104,7 +117,9 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Intern</label>
-                    <select class="form-control" name="intIntern_ID[]" multiple data-live-multiselect data-placeholder="Search intern">
+                    <input type="hidden" name="intIntern_ID_touched" value="0" id="projectInternTouched">
+                    <input type="hidden" name="intIntern_ID[]" value="">
+                    <select class="form-control" name="intIntern_ID[]" multiple data-live-multiselect data-placeholder="Search intern" data-touch-input="#projectInternTouched">
                         @foreach ($interns as $intern)
                             <option value="{{ $intern->intIntern_ID }}" @selected(in_array((string) $intern->intIntern_ID, $selectedInternIds, true))>{{ $intern->txtInternName }}</option>
                         @endforeach
@@ -112,10 +127,11 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Mentor</label>
-                    <select class="form-control" name="intMentor_ID">
-                        <option value="">Not assigned yet</option>
+                    <input type="hidden" name="intMentor_ID_touched" value="0" id="projectMentorTouched">
+                    <input type="hidden" name="intMentor_ID[]" value="">
+                    <select class="form-control" name="intMentor_ID[]" multiple data-live-multiselect data-placeholder="Search mentor" data-empty-text="No mentor found." data-touch-input="#projectMentorTouched">
                         @foreach ($mentors as $mentor)
-                            <option value="{{ $mentor->intMentor_ID }}" @selected((string) old('intMentor_ID', $assignment->intMentor_ID ?? '') === (string) $mentor->intMentor_ID)>{{ $mentor->txtMentorName }}</option>
+                            <option value="{{ $mentor->intMentor_ID }}" @selected(in_array((string) $mentor->intMentor_ID, $selectedMentorIds, true))>{{ $mentor->txtMentorName }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -186,17 +202,25 @@
                     @forelse ($projects as $project)
                         @php
                             $activeAssignments = $project->assignments->where('bitActive', true);
+                            $activeProjectMentors = $project->projectMentors->where('bitActive', true);
                             $rowAssignment = $activeAssignments->first();
                             $internNames = $activeAssignments
                                 ->map(fn ($assignment) => $assignment->intern?->txtInternName)
                                 ->filter()
                                 ->unique()
                                 ->values();
-                            $mentorNames = $activeAssignments
-                                ->map(fn ($assignment) => $assignment->mentor?->txtMentorName)
+                            $mentorNames = $activeProjectMentors
+                                ->map(fn ($projectMentor) => $projectMentor->mentor?->txtMentorName)
                                 ->filter()
                                 ->unique()
                                 ->values();
+                            if ($mentorNames->isEmpty()) {
+                                $mentorNames = $activeAssignments
+                                    ->map(fn ($assignment) => $assignment->mentor?->txtMentorName)
+                                    ->filter()
+                                    ->unique()
+                                    ->values();
+                            }
                         @endphp
                         <tr>
                             <td><a class="auth-link" href="{{ route('projects.show', $project->intProject_ID) }}"><strong>{{ $project->txtProjectName }}</strong></a><br><span style="color:var(--text-gray); font-size:11px;">{{ $project->txtDescription }}</span></td>

@@ -393,6 +393,7 @@ const initializeLiveMultiselect = () => {
 
         const placeholder = select.dataset.placeholder || 'Search';
         const emptyText = select.dataset.emptyText || 'No intern found.';
+        const touchInput = select.dataset.touchInput ? document.querySelector(select.dataset.touchInput) : null;
         const multiselect = document.createElement('div');
         const control = document.createElement('div');
         const tags = document.createElement('div');
@@ -427,6 +428,12 @@ const initializeLiveMultiselect = () => {
             select.dispatchEvent(new Event('change', { bubbles: true }));
         };
 
+        const markTouched = () => {
+            if (touchInput) {
+                touchInput.value = '1';
+            }
+        };
+
         const closeDropdown = () => {
             dropdown.hidden = true;
             multiselect.classList.remove('is-open');
@@ -439,6 +446,7 @@ const initializeLiveMultiselect = () => {
         };
 
         const toggleOption = (option) => {
+            markTouched();
             option.selected = !option.selected;
             searchInput.value = '';
             dispatchChange();
@@ -448,6 +456,7 @@ const initializeLiveMultiselect = () => {
         };
 
         const removeOption = (option) => {
+            markTouched();
             option.selected = false;
             dispatchChange();
             render();

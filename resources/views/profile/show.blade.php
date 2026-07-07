@@ -10,7 +10,18 @@
     $score = round((float) ($latestEvaluation?->floatExposureScore ?? 0));
     $activeProjects = $intern?->projects?->where('bitActive', true) ?? collect();
     $groupedProjects = $activeProjects->groupBy(fn ($assignment) => $assignment->project?->txtProjectType ?: 'Other');
-    $mentors = $activeProjects->pluck('mentor')->filter()->unique('intMentor_ID');
+    $mentors = $activeProjects
+        ->flatMap(function ($assignment) {
+            $projectMentors = $assignment->project?->projectMentors ?? collect();
+
+            return $projectMentors->where('bitActive', true)->pluck('mentor');
+        })
+        ->filter()
+        ->unique('intMentor_ID')
+        ->values();
+    if ($mentors->isEmpty()) {
+        $mentors = $activeProjects->pluck('mentor')->filter()->unique('intMentor_ID')->values();
+    }
     $achievements = $intern?->achievements?->sortByDesc('dtmAwarded')->take(5) ?? collect();
     $profilePhotoUrl = $intern?->user?->txtProfilePhoto
         ? asset('storage/' . $intern->user->txtProfilePhoto)

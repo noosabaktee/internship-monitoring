@@ -42,6 +42,11 @@ class MProject extends Model
         return $this->hasMany(TrInternProject::class, 'intProject_ID', 'intProject_ID');
     }
 
+    public function projectMentors()
+    {
+        return $this->hasMany(TrProjectMentor::class, 'intProject_ID', 'intProject_ID');
+    }
+
     public function stages()
     {
         return $this->hasMany(TrProjectStage::class, 'intProject_ID', 'intProject_ID')

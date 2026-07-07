@@ -33,7 +33,12 @@ class ProfileController extends Controller
         $user = $this->currentUser();
 
         if ($user?->txtRole === 'Mentor' && $user->mentor) {
-            $mentor = $user->mentor->load(['user', 'internProjects.intern', 'internProjects.project']);
+            $mentor = $user->mentor->load([
+                'user',
+                'internProjects.intern',
+                'internProjects.project',
+                'projectMentors.project.assignments.intern',
+            ]);
 
             return view('profile.mentor', compact('mentor'));
         }
@@ -41,7 +46,7 @@ class ProfileController extends Controller
         $intern = $user?->intern ?? $this->currentIntern();
 
         if ($intern) {
-            $intern->load(['user', 'projects.project', 'projects.mentor', 'achievements', 'evaluations']);
+            $intern->load(['user', 'projects.project.projectMentors.mentor', 'projects.mentor', 'achievements', 'evaluations']);
         }
 
         return view('profile.show', compact('intern'));
@@ -105,14 +110,19 @@ class ProfileController extends Controller
 
     public function showIntern(MIntern $intern): View
     {
-        $intern->load(['user', 'projects.project', 'projects.mentor', 'achievements', 'evaluations']);
+        $intern->load(['user', 'projects.project.projectMentors.mentor', 'projects.mentor', 'achievements', 'evaluations']);
 
         return view('profile.show', compact('intern'));
     }
 
     public function showMentor(MMentor $mentor): View
     {
-        $mentor->load(['user', 'internProjects.intern', 'internProjects.project']);
+        $mentor->load([
+            'user',
+            'internProjects.intern',
+            'internProjects.project',
+            'projectMentors.project.assignments.intern',
+        ]);
 
         return view('profile.mentor', compact('mentor'));
     }
