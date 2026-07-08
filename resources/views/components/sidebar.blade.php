@@ -5,6 +5,7 @@
     ];
     $secondaryNavItems = [
         ['route' => 'projects.index', 'active' => 'projects.*', 'label' => 'Projects', 'icon' => 'fa-regular fa-calendar-check'],
+        ['route' => 'attendance.index', 'active' => 'attendance.*', 'label' => 'Absensi', 'icon' => 'fa-solid fa-user-check'],
         ['route' => 'calendar-sharing.index', 'active' => 'calendar-sharing.*', 'label' => 'Calendar Sharing', 'icon' => 'fa-regular fa-calendar-days'],
         ['route' => 'project-handles.index', 'active' => 'project-handles.*', 'label' => 'Project Handle', 'icon' => 'fa-solid fa-sliders'],
         ['route' => 'exposure.index', 'active' => 'exposure.*', 'label' => 'Exposure', 'icon' => 'fa-solid fa-chart-area'],

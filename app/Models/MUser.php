@@ -47,4 +47,14 @@ class MUser extends Model
     {
         return $this->hasMany(TrCalendarSharing::class, 'intCalendarSharingCreatorUser_ID', 'intUser_ID');
     }
+
+    public function faceEnrollment()
+    {
+        return $this->hasOne(MFaceEnrollment::class, 'intUser_ID', 'intUser_ID');
+    }
+
+    public function attendances()
+    {
+        return $this->hasMany(TrAttendance::class, 'intUser_ID', 'intUser_ID');
+    }
 }
