@@ -249,7 +249,7 @@
                     <div class="attendance-panel-head">
                         <div>
                             <h3>Rangkuman Absensi</h3>
-                            <p>Minggu kerja berjalan, Senin-Jumat.</p>
+                            <p>Hari Senin-Jumat</p>
                         </div>
                         @if ($todayAttendance?->txtAttendanceLocationUrl)
                             <a class="attendance-map-chip" href="{{ $todayAttendance->txtAttendanceLocationUrl }}" target="_blank" rel="noopener">
