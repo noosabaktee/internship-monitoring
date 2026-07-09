@@ -6,6 +6,7 @@ use App\Models\MAttendanceSetting;
 use App\Models\MFaceEnrollment;
 use App\Models\MUser;
 use App\Models\TrAttendance;
+use App\Services\FaceRecognitionService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,12 +15,17 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class AttendanceController extends Controller
 {
     private const TIMEZONE = 'Asia/Jakarta';
     private const MIN_START_TIME = '06:00';
-    private const FACE_ALGORITHM = 'native-canvas-v1';
+    private const FACE_ALGORITHM = 'insightface-buffalo_l-v1';
+
+    public function __construct(private readonly FaceRecognitionService $faceRecognition)
+    {
+    }
 
     public function index(Request $request): View
     {
@@ -81,20 +87,28 @@ class AttendanceController extends Controller
     {
         $authUser = $this->currentUser($request);
         $validated = $request->validate([
-            'txtFaceEnrollmentDescriptor' => ['required', 'string'],
+            'txtFaceEnrollmentImages' => ['required', 'string'],
             'intFaceEnrollmentSampleCount' => ['nullable', 'integer', 'min:1', 'max:12'],
             'floatFaceEnrollmentQuality' => ['nullable', 'numeric', 'min:0', 'max:1'],
         ]);
-        $descriptor = $this->decodeDescriptor($validated['txtFaceEnrollmentDescriptor'], 'txtFaceEnrollmentDescriptor');
+        $images = $this->decodeImageList($validated['txtFaceEnrollmentImages']);
         $now = Carbon::now(self::TIMEZONE);
+
+        try {
+            $facePayload = $this->faceRecognition->enroll($images);
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['attendance' => $exception->getMessage()]);
+        }
+
+        $descriptor = $this->decodeDescriptor($facePayload['embedding'] ?? null, 'txtFaceEnrollmentImages');
 
         MFaceEnrollment::updateOrCreate(
             ['intUser_ID' => $authUser->intUser_ID],
             [
                 'txtFaceEnrollmentDescriptor' => $descriptor,
-                'txtFaceEnrollmentAlgorithm' => self::FACE_ALGORITHM,
-                'intFaceEnrollmentSampleCount' => (int) ($validated['intFaceEnrollmentSampleCount'] ?? 1),
-                'floatFaceEnrollmentQuality' => round((float) ($validated['floatFaceEnrollmentQuality'] ?? 0), 4),
+                'txtFaceEnrollmentAlgorithm' => $facePayload['algorithm'] ?? self::FACE_ALGORITHM,
+                'intFaceEnrollmentSampleCount' => (int) ($facePayload['sample_count'] ?? count($images)),
+                'floatFaceEnrollmentQuality' => round((float) ($facePayload['quality'] ?? 0), 4),
                 'dtmFaceEnrollmentRegistered' => $now,
                 'bitActive' => true,
                 'txtInsertedBy' => $authUser->txtEmail ?? 'system',
@@ -156,18 +170,35 @@ class AttendanceController extends Controller
         }
 
         $validated = $request->validate([
-            'txtAttendanceCapturedDescriptor' => ['required', 'string'],
+            'txtAttendanceCapturedImage' => ['required', 'string'],
             'floatAttendanceLatitude' => ['required', 'numeric', 'between:-90,90'],
             'floatAttendanceLongitude' => ['required', 'numeric', 'between:-180,180'],
             'floatAttendanceLocationAccuracy' => ['nullable', 'numeric', 'min:0', 'max:50000'],
             'txtAttendanceDevice' => ['nullable', 'string', 'max:500'],
         ]);
-        $capturedDescriptor = $this->decodeDescriptor($validated['txtAttendanceCapturedDescriptor'], 'txtAttendanceCapturedDescriptor');
         $enrolledDescriptor = $this->decodeDescriptor($enrollment->txtFaceEnrollmentDescriptor, 'txtFaceEnrollmentDescriptor');
-        $faceDistance = $this->descriptorDistance($capturedDescriptor, $enrolledDescriptor);
-        $threshold = (float) ($setting->floatAttendanceSettingFaceThreshold ?: 0.82);
 
-        if ($faceDistance > $threshold) {
+        if (($enrollment->txtFaceEnrollmentAlgorithm !== self::FACE_ALGORITHM) || count($enrolledDescriptor) !== 512) {
+            return back()->withErrors([
+                'attendance' => 'Face ID lama perlu diperbarui untuk mode Python face recognition.',
+            ]);
+        }
+
+        $threshold = (float) ($setting->floatAttendanceSettingFaceThreshold ?: 0.38);
+
+        try {
+            $facePayload = $this->faceRecognition->verify(
+                $validated['txtAttendanceCapturedImage'],
+                $enrolledDescriptor,
+                $threshold,
+            );
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['attendance' => $exception->getMessage()]);
+        }
+
+        $faceDistance = (float) ($facePayload['distance'] ?? 1.0);
+
+        if (! (bool) ($facePayload['match'] ?? false)) {
             return back()->withErrors([
                 'attendance' => 'Wajah tidak cocok dengan Face ID terdaftar. Coba ulang dengan pencahayaan yang lebih stabil.',
             ]);
@@ -190,7 +221,7 @@ class AttendanceController extends Controller
             'txtAttendanceAddress' => $locationLabel,
             'txtAttendanceLocationUrl' => 'https://www.google.com/maps?q=' . $latitude . ',' . $longitude,
             'floatAttendanceFaceDistance' => round($faceDistance, 4),
-            'txtAttendanceFaceAlgorithm' => self::FACE_ALGORITHM,
+            'txtAttendanceFaceAlgorithm' => $facePayload['algorithm'] ?? self::FACE_ALGORITHM,
             'txtAttendanceDevice' => Str::limit($validated['txtAttendanceDevice'] ?? $request->userAgent() ?? 'Browser', 255, ''),
             'txtInsertedBy' => $authUser->txtEmail ?? 'system',
             'dtmInserted' => $now,
@@ -208,7 +239,9 @@ class AttendanceController extends Controller
             $attendanceData['txtFaceDescriptorMatch'] = [
                 'distance' => round($faceDistance, 4),
                 'threshold' => $threshold,
-                'algorithm' => self::FACE_ALGORITHM,
+                'similarity' => $facePayload['similarity'] ?? null,
+                'quality' => $facePayload['quality'] ?? null,
+                'algorithm' => $facePayload['algorithm'] ?? self::FACE_ALGORITHM,
             ];
         }
 
@@ -243,7 +276,7 @@ class AttendanceController extends Controller
         $validated = $request->validate([
             'txtAttendanceSettingStartTime' => ['required', 'date_format:H:i'],
             'txtAttendanceSettingEndTime' => ['required', 'date_format:H:i'],
-            'floatAttendanceSettingFaceThreshold' => ['required', 'numeric', 'min:0.2', 'max:1.5'],
+            'floatAttendanceSettingFaceThreshold' => ['required', 'numeric', 'min:0.1', 'max:1.5'],
         ]);
 
         if ($validated['txtAttendanceSettingStartTime'] < self::MIN_START_TIME) {
@@ -283,7 +316,7 @@ class AttendanceController extends Controller
             [
                 'txtAttendanceSettingStartTime' => self::MIN_START_TIME,
                 'txtAttendanceSettingEndTime' => '23:59',
-                'floatAttendanceSettingFaceThreshold' => 0.82,
+                'floatAttendanceSettingFaceThreshold' => 0.38,
                 'bitAttendanceSettingLocationRequired' => true,
                 'bitActive' => true,
                 'txtInsertedBy' => 'system',
@@ -430,25 +463,26 @@ class AttendanceController extends Controller
     }
 
     /**
-     * @param array<int, float> $first
-     * @param array<int, float> $second
+     * @return array<int, string>
      */
-    private function descriptorDistance(array $first, array $second): float
+    private function decodeImageList(string $value): array
     {
-        if (count($first) !== count($second)) {
-            throw ValidationException::withMessages([
-                'attendance' => 'Ukuran descriptor wajah tidak cocok.',
-            ]);
+        $decoded = json_decode($value, true);
+
+        if (! is_array($decoded)) {
+            throw ValidationException::withMessages(['txtFaceEnrollmentImages' => 'Data gambar wajah tidak valid.']);
         }
 
-        $sum = 0.0;
+        $images = collect($decoded)
+            ->filter(fn ($image) => is_string($image) && str_starts_with($image, 'data:image/'))
+            ->values()
+            ->all();
 
-        foreach ($first as $index => $value) {
-            $difference = $value - $second[$index];
-            $sum += $difference * $difference;
+        if (count($images) === 0 || count($images) > 5) {
+            throw ValidationException::withMessages(['txtFaceEnrollmentImages' => 'Jumlah sampel wajah tidak valid.']);
         }
 
-        return sqrt($sum / count($first));
+        return $images;
     }
 
     private function coordinateLabel(float $latitude, float $longitude, mixed $accuracy): string

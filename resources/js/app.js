@@ -1,4 +1,5 @@
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+import './attendance-face-service';
 import './exposure';
 import './s-curve-chart';
 
@@ -645,6 +646,10 @@ const initializeAttendancePage = () => {
         return;
     }
 
+    if (page.dataset.attendanceMode === 'python') {
+        return;
+    }
+
     const video = page.querySelector('[data-attendance-video]');
     const canvas = page.querySelector('[data-attendance-canvas]');
     const cameraButton = page.querySelector('[data-attendance-camera]');
@@ -664,7 +669,7 @@ const initializeAttendancePage = () => {
     const accuracyInput = page.querySelector('[data-attendance-accuracy]');
     const deviceInput = page.querySelector('[data-attendance-device]');
     const descriptorScript = document.getElementById('attendanceEnrollmentDescriptor');
-    const faceThreshold = Number(page.dataset.faceThreshold || 0.82);
+    const faceThreshold = Number(page.dataset.faceThreshold || 0.38);
     const descriptorSize = 12;
     let stream = null;
     let detector = null;

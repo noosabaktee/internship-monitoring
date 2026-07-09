@@ -242,7 +242,7 @@ class DatabaseSeeder extends Seeder
             'intAttendanceSetting_ID' => 1,
             'txtAttendanceSettingStartTime' => '06:00',
             'txtAttendanceSettingEndTime' => '23:59',
-            'floatAttendanceSettingFaceThreshold' => 0.82,
+            'floatAttendanceSettingFaceThreshold' => 0.38,
             'bitAttendanceSettingLocationRequired' => true,
             'bitActive' => true,
             'txtInsertedBy' => 'seeder',

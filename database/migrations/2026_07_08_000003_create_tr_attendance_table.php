@@ -24,7 +24,7 @@ return new class extends Migration
                 $table->string('txtAttendanceAddress')->nullable();
                 $table->string('txtAttendanceLocationUrl')->nullable();
                 $table->float('floatAttendanceFaceDistance')->nullable();
-                $table->string('txtAttendanceFaceAlgorithm')->nullable()->default('native-canvas-v1');
+                $table->string('txtAttendanceFaceAlgorithm')->nullable()->default('insightface-buffalo_l-v1');
                 $table->string('txtAttendanceDevice')->nullable();
                 $table->string('txtAttendanceNote')->nullable();
                 $table->string('txtInsertedBy')->nullable();
@@ -77,7 +77,7 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('trAttendance', 'txtAttendanceFaceAlgorithm')) {
-                $table->string('txtAttendanceFaceAlgorithm')->nullable()->default('native-canvas-v1');
+                $table->string('txtAttendanceFaceAlgorithm')->nullable()->default('insightface-buffalo_l-v1');
             }
 
             if (! Schema::hasColumn('trAttendance', 'txtAttendanceDevice')) {

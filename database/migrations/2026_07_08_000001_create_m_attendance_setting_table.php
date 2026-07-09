@@ -16,7 +16,7 @@ return new class extends Migration
                 $table->integer('intAttendanceSetting_ID')->primary();
                 $table->string('txtAttendanceSettingStartTime')->nullable()->default('06:00');
                 $table->string('txtAttendanceSettingEndTime')->nullable()->default('23:59');
-                $table->float('floatAttendanceSettingFaceThreshold')->nullable()->default(0.82);
+                $table->float('floatAttendanceSettingFaceThreshold')->nullable()->default(0.38);
                 $table->boolean('bitAttendanceSettingLocationRequired')->nullable()->default(true);
                 $table->boolean('bitActive')->nullable();
                 $table->string('txtInsertedBy')->nullable();
@@ -38,7 +38,7 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('mAttendanceSetting', 'floatAttendanceSettingFaceThreshold')) {
-                $table->float('floatAttendanceSettingFaceThreshold')->nullable()->default(0.82);
+                $table->float('floatAttendanceSettingFaceThreshold')->nullable()->default(0.38);
             }
 
             if (! Schema::hasColumn('mAttendanceSetting', 'bitAttendanceSettingLocationRequired')) {

@@ -5,7 +5,8 @@
 ])
 
 @php
-    $hasFaceEnrollment = (bool) $enrollment;
+    $isLegacyFaceEnrollment = (bool) $enrollment && ! str_starts_with((string) $enrollment->txtFaceEnrollmentAlgorithm, 'insightface');
+    $hasFaceEnrollment = (bool) $enrollment && ! $isLegacyFaceEnrollment;
     $canAttemptAttendance = $hasFaceEnrollment && ! $todayAttendance && $windowState === 'open';
     $todayStatus = $todayAttendance ? 'Hadir' : ($windowState === 'closed' ? 'Tidak Masuk' : 'Menunggu');
     $windowStatusText = match ($windowState) {
@@ -13,18 +14,21 @@
         'closed' => 'Ditutup',
         default => 'Dibuka',
     };
-    $disabledReason = ! $hasFaceEnrollment
+    $disabledReason = $isLegacyFaceEnrollment
+        ? 'Perbarui Face ID untuk mode Python face recognition.'
+        : (! $hasFaceEnrollment
         ? 'Daftarkan wajah terlebih dahulu.'
         : ($todayAttendance
             ? 'Absensi hari ini sudah tercatat.'
-            : ($windowState !== 'open' ? 'Absensi belum berada dalam jam aktif.' : ''));
+            : ($windowState !== 'open' ? 'Absensi belum berada dalam jam aktif.' : '')));
 @endphp
 
 @section('content')
     <div
         class="attendance-shell"
         data-attendance-page
-        data-face-threshold="{{ number_format((float) ($setting->floatAttendanceSettingFaceThreshold ?? 0.82), 2, '.', '') }}"
+        data-attendance-mode="python"
+        data-face-threshold="{{ number_format((float) ($setting->floatAttendanceSettingFaceThreshold ?? 0.38), 2, '.', '') }}"
     >
         <section class="attendance-hero">
             <div class="attendance-hero-main">
@@ -78,7 +82,7 @@
                 <div class="attendance-panel-head">
                     <div>
                         <h3>Face ID Absensi</h3>
-                        <p>Kamera native browser, tanpa model JavaScript besar.</p>
+                        <p>Kamera browser, verifikasi wajah oleh Python service lokal.</p>
                     </div>
                     <button class="attendance-icon-button" type="button" data-attendance-camera title="Aktifkan kamera">
                         <i class="fa-solid fa-camera"></i>
@@ -105,8 +109,8 @@
                 <div class="attendance-actions">
                     <form action="{{ route('attendance.face-enrollment.store') }}" method="POST" data-face-enrollment-form>
                         @csrf
-                        <input type="hidden" name="txtFaceEnrollmentDescriptor" data-face-enrollment-descriptor>
-                        <input type="hidden" name="intFaceEnrollmentSampleCount" data-face-enrollment-sample-count value="5">
+                        <input type="hidden" name="txtFaceEnrollmentImages" data-face-enrollment-images>
+                        <input type="hidden" name="intFaceEnrollmentSampleCount" data-face-enrollment-sample-count value="3">
                         <input type="hidden" name="floatFaceEnrollmentQuality" data-face-enrollment-quality>
                         <button class="btn btn-outline-primary attendance-action-button" type="button" data-face-enroll>
                             <i class="fa-solid fa-user-plus"></i>
@@ -114,7 +118,7 @@
                         </button>
                     </form>
 
-                    @if ($hasFaceEnrollment)
+                    @if ($enrollment)
                         <form action="{{ route('attendance.face-enrollment.destroy') }}" method="POST" onsubmit="return confirm('Reset Face ID absensi?')">
                             @csrf
                             @method('DELETE')
@@ -128,7 +132,7 @@
 
                 <form action="{{ route('attendance.check-in.store') }}" method="POST" data-attendance-form>
                     @csrf
-                    <input type="hidden" name="txtAttendanceCapturedDescriptor" data-attendance-captured-descriptor>
+                    <input type="hidden" name="txtAttendanceCapturedImage" data-attendance-captured-image>
                     <input type="hidden" name="floatAttendanceLatitude" data-attendance-latitude>
                     <input type="hidden" name="floatAttendanceLongitude" data-attendance-longitude>
                     <input type="hidden" name="floatAttendanceLocationAccuracy" data-attendance-accuracy>
@@ -229,7 +233,7 @@
                         </div>
                         <div>
                             <label class="form-label">Threshold Face</label>
-                            <input class="form-control" type="number" min="0.2" max="1.5" step="0.01" name="floatAttendanceSettingFaceThreshold" value="{{ old('floatAttendanceSettingFaceThreshold', number_format((float) ($setting->floatAttendanceSettingFaceThreshold ?? 0.82), 2, '.', '')) }}" required>
+                            <input class="form-control" type="number" min="0.1" max="1.5" step="0.01" name="floatAttendanceSettingFaceThreshold" value="{{ old('floatAttendanceSettingFaceThreshold', number_format((float) ($setting->floatAttendanceSettingFaceThreshold ?? 0.38), 2, '.', '')) }}" required>
                         </div>
                         <button class="btn btn-primary btn-save" type="submit">
                             <i class="fa-solid fa-floppy-disk"></i>
@@ -290,7 +294,5 @@
                 </section>
             </div>
         @endif
-
-        <script type="application/json" id="attendanceEnrollmentDescriptor">{!! json_encode($enrollment?->txtFaceEnrollmentDescriptor ?? []) !!}</script>
     </div>
 @endsection

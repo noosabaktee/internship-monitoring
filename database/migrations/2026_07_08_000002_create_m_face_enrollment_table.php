@@ -16,7 +16,7 @@ return new class extends Migration
                 $table->integer('intFaceEnrollment_ID')->primary();
                 $table->integer('intUser_ID')->unique();
                 $table->text('txtFaceEnrollmentDescriptor')->nullable();
-                $table->string('txtFaceEnrollmentAlgorithm')->nullable()->default('native-canvas-v1');
+                $table->string('txtFaceEnrollmentAlgorithm')->nullable()->default('insightface-buffalo_l-v1');
                 $table->integer('intFaceEnrollmentSampleCount')->nullable();
                 $table->float('floatFaceEnrollmentQuality')->nullable();
                 $table->timestamp('dtmFaceEnrollmentRegistered')->nullable();
@@ -40,7 +40,7 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('mFaceEnrollment', 'txtFaceEnrollmentAlgorithm')) {
-                $table->string('txtFaceEnrollmentAlgorithm')->nullable()->default('native-canvas-v1');
+                $table->string('txtFaceEnrollmentAlgorithm')->nullable()->default('insightface-buffalo_l-v1');
             }
 
             if (! Schema::hasColumn('mFaceEnrollment', 'intFaceEnrollmentSampleCount')) {
