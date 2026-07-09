@@ -18,7 +18,34 @@ it('renders attendance page for an authenticated user', function () {
     $this->withSession(['auth_user_id' => $user->intUser_ID])
         ->get(route('attendance.index'))
         ->assertOk()
-        ->assertSee('ABSENSI');
+        ->assertSee('ABSENSI')
+        ->assertSee('Belum Absensi')
+        ->assertDontSee('Menunggu');
+});
+
+it('shows face enrollment controls on profile instead of attendance page', function () {
+    $intern = createAttendanceUser('Intern');
+
+    $this->withSession(['auth_user_id' => $intern->intUser_ID])
+        ->get(route('attendance.index'))
+        ->assertOk()
+        ->assertDontSee('data-face-enroll', false);
+
+    $this->withSession(['auth_user_id' => $intern->intUser_ID])
+        ->get(route('profile.show'))
+        ->assertOk()
+        ->assertSee('data-face-enroll', false);
+});
+
+it('renders mentor attendance page without personal check in controls', function () {
+    $mentor = createAttendanceUser('Mentor');
+
+    $this->withSession(['auth_user_id' => $mentor->intUser_ID])
+        ->get(route('attendance.index'))
+        ->assertOk()
+        ->assertSee('Absensi Intern')
+        ->assertDontSee('Absen Sekarang')
+        ->assertDontSee('data-attendance-page', false);
 });
 
 it('allows mentor to update attendance settings', function () {
@@ -67,7 +94,7 @@ it('stores face enrollment from python face service embedding', function () {
     });
 
     $this->withSession(['auth_user_id' => $intern->intUser_ID])
-        ->post(route('attendance.face-enrollment.store'), [
+        ->post(route('profile.face-enrollment.store'), [
             'txtFaceEnrollmentImages' => json_encode([
                 attendanceImagePayload(),
                 attendanceImagePayload(),
@@ -76,7 +103,7 @@ it('stores face enrollment from python face service embedding', function () {
             'intFaceEnrollmentSampleCount' => '3',
             'floatFaceEnrollmentQuality' => '1',
         ])
-        ->assertRedirect(route('attendance.index'));
+        ->assertRedirect(route('profile.show'));
 
     $enrollment = MFaceEnrollment::where('intUser_ID', $intern->intUser_ID)->first();
 
@@ -84,6 +111,18 @@ it('stores face enrollment from python face service embedding', function () {
         ->and($enrollment->txtFaceEnrollmentAlgorithm)->toBe('insightface-buffalo_l-v1')
         ->and($enrollment->intFaceEnrollmentSampleCount)->toBe(3)
         ->and($enrollment->txtFaceEnrollmentDescriptor)->toHaveCount(512);
+});
+
+it('blocks mentor from checking in', function () {
+    $mentor = createAttendanceUser('Mentor');
+
+    $this->from(route('attendance.index'))
+        ->withSession(['auth_user_id' => $mentor->intUser_ID])
+        ->post(route('attendance.check-in.store'))
+        ->assertRedirect(route('attendance.index'))
+        ->assertSessionHasErrors('attendance');
+
+    expect(TrAttendance::count())->toBe(0);
 });
 
 it('checks in using python face service verification result', function () {
@@ -137,6 +176,24 @@ it('checks in using python face service verification result', function () {
         ->and($attendance->txtAttendanceStatus)->toBe('Hadir')
         ->and((float) $attendance->floatAttendanceFaceDistance)->toBe(0.22)
         ->and($attendance->txtAttendanceFaceAlgorithm)->toBe('insightface-buffalo_l-v1');
+});
+
+it('summarizes only the current Monday to Friday workweek', function () {
+    Carbon::setTestNow(Carbon::parse('2026-07-09 10:00:00', 'Asia/Jakarta'));
+
+    $intern = createAttendanceUser('Intern');
+
+    try {
+        $this->withSession(['auth_user_id' => $intern->intUser_ID])
+            ->get(route('attendance.index'))
+            ->assertOk()
+            ->assertSee('06 Jul 2026')
+            ->assertSee('10 Jul 2026')
+            ->assertDontSee('11 Jul 2026')
+            ->assertDontSee('12 Jul 2026');
+    } finally {
+        Carbon::setTestNow();
+    }
 });
 
 function createAttendanceUser(string $role): MUser

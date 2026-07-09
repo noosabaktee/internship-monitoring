@@ -1,9 +1,9 @@
-const initializeAttendanceFaceService = () => {
-    const page = document.querySelector('[data-attendance-page][data-attendance-mode="python"]');
-
-    if (!page) {
+const initializeFaceServicePage = (page) => {
+    if (page.dataset.faceServiceReady === 'ready') {
         return;
     }
+
+    page.dataset.faceServiceReady = 'ready';
 
     const video = page.querySelector('[data-attendance-video]');
     const canvas = page.querySelector('[data-attendance-canvas]');
@@ -23,6 +23,10 @@ const initializeAttendanceFaceService = () => {
     const longitudeInput = page.querySelector('[data-attendance-longitude]');
     const accuracyInput = page.querySelector('[data-attendance-accuracy]');
     const deviceInput = page.querySelector('[data-attendance-device]');
+    const detectionUrl = page.dataset.faceDetectionUrl || '';
+    const csrfToken = page.querySelector('input[name="_token"]')?.value
+        || document.querySelector('input[name="_token"]')?.value
+        || '';
     let stream = null;
 
     const wait = (duration) => new Promise((resolve) => {
@@ -75,6 +79,10 @@ const initializeAttendanceFaceService = () => {
     });
 
     const startCamera = async () => {
+        if (!video || !canvas) {
+            throw new Error('Komponen kamera belum tersedia.');
+        }
+
         if (stream) {
             await ensureVideoReady();
             return;
@@ -111,6 +119,45 @@ const initializeAttendanceFaceService = () => {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         return canvas.toDataURL('image/jpeg', 0.86);
+    };
+
+    const detectFace = async () => {
+        if (!detectionUrl) {
+            throw new Error('Endpoint deteksi wajah belum tersedia.');
+        }
+
+        await startCamera();
+        await wait(180);
+        setMessage('Mendeteksi wajah di kamera...');
+
+        const image = captureImage();
+        const response = await fetch(detectionUrl, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify({
+                txtFaceDetectionImage: image,
+            }),
+        });
+
+        let payload = {};
+
+        try {
+            payload = await response.json();
+        } catch (error) {
+            payload = {};
+        }
+
+        if (!response.ok || payload.detected === false) {
+            throw new Error(payload.message || 'Wajah tidak terdeteksi. Posisikan wajah di area kamera.');
+        }
+
+        setMessage('Wajah terdeteksi. Melanjutkan proses.');
+
+        return image;
     };
 
     const captureImages = async (sampleCount) => {
@@ -196,6 +243,12 @@ const initializeAttendanceFaceService = () => {
         setBusy(enrollButton, true, 'Memindai...');
 
         try {
+            if (!enrollForm || !enrollmentImagesInput || !enrollmentSampleInput || !enrollmentQualityInput) {
+                throw new Error('Form Face ID belum lengkap.');
+            }
+
+            await detectFace();
+
             const sampleCount = 3;
             const images = await captureImages(sampleCount);
 
@@ -220,7 +273,13 @@ const initializeAttendanceFaceService = () => {
         setBusy(attendanceButton, true, 'Memproses...');
 
         try {
+            if (!attendanceForm || !capturedImageInput || !latitudeInput || !longitudeInput || !accuracyInput || !deviceInput) {
+                throw new Error('Form absensi belum lengkap.');
+            }
+
+            await detectFace();
             setMessage('Meminta lokasi...');
+
             const position = await getLocation();
 
             latitudeInput.value = position.coords.latitude;
@@ -240,6 +299,12 @@ const initializeAttendanceFaceService = () => {
             setBusy(attendanceButton, false);
         }
     });
+};
+
+const initializeAttendanceFaceService = () => {
+    document
+        .querySelectorAll('[data-attendance-page][data-attendance-mode="python"]')
+        .forEach(initializeFaceServicePage);
 };
 
 document.addEventListener('DOMContentLoaded', initializeAttendanceFaceService);

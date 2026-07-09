@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\MAttendanceSetting;
-use App\Models\MFaceEnrollment;
 use App\Models\MUser;
 use App\Models\TrAttendance;
 use App\Services\FaceRecognitionService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -30,38 +30,38 @@ class AttendanceController extends Controller
     public function index(Request $request): View
     {
         $authUser = $this->currentUser($request);
+        $isMentor = $authUser->txtRole === 'Mentor';
         $setting = $this->attendanceSetting();
         $now = Carbon::now(self::TIMEZONE);
+        $isWorkday = $this->isWorkday($now);
         [$windowStart, $windowEnd] = $this->todayWindow($setting, $now);
-        $windowState = $this->windowState($now, $windowStart, $windowEnd);
-        $enrollment = $authUser->faceEnrollment()
-            ->where('bitActive', true)
-            ->first();
-        $todayAttendance = TrAttendance::where('intUser_ID', $authUser->intUser_ID)
-            ->whereDate('dtmAttendanceDate', $now->toDateString())
-            ->first();
-        $summaryRows = $this->summaryRows($authUser, $setting, $now, 14);
-        $isMentor = $authUser->txtRole === 'Mentor';
+        $windowState = $isWorkday ? $this->windowState($now, $windowStart, $windowEnd) : 'offday';
+        $enrollment = $isMentor
+            ? null
+            : $authUser->faceEnrollment()
+                ->where('bitActive', true)
+                ->first();
+        $todayAttendance = $isMentor
+            ? null
+            : TrAttendance::where('intUser_ID', $authUser->intUser_ID)
+                ->whereDate('dtmAttendanceDate', $now->toDateString())
+                ->first();
+        $summaryRows = $isMentor ? [] : $this->summaryRows($authUser, $setting, $now);
         $teamTodayRows = collect();
-        $teamAttendances = collect();
 
         if ($isMentor) {
-            $teamUsers = MUser::with(['intern', 'mentor', 'faceEnrollment'])
+            $teamUsers = MUser::with(['intern', 'faceEnrollment'])
                 ->where('bitActive', true)
-                ->orderBy('txtRole')
-                ->orderBy('intUser_ID')
-                ->get();
+                ->whereHas('intern', fn ($query) => $query->where('bitActive', true))
+                ->get()
+                ->sortBy(fn (MUser $user) => $this->displayName($user))
+                ->values();
             $todayAttendances = TrAttendance::with(['user.intern', 'user.mentor'])
                 ->whereDate('dtmAttendanceDate', $now->toDateString())
                 ->get()
                 ->keyBy('intUser_ID');
 
             $teamTodayRows = $this->teamTodayRows($teamUsers, $todayAttendances, $setting, $now);
-            $teamAttendances = TrAttendance::with(['user.intern', 'user.mentor'])
-                ->orderByDesc('dtmAttendanceClockIn')
-                ->orderByDesc('intAttendance_ID')
-                ->take(25)
-                ->get();
         }
 
         return view('dashboard.attendance', [
@@ -73,73 +73,55 @@ class AttendanceController extends Controller
             'summaryRows' => $summaryRows,
             'presentCount' => collect($summaryRows)->where('status', 'Hadir')->count(),
             'absentCount' => collect($summaryRows)->where('status', 'Tidak Masuk')->count(),
-            'pendingCount' => collect($summaryRows)->where('status', 'Menunggu')->count(),
+            'pendingCount' => collect($summaryRows)->where('status', 'Belum Absensi')->count(),
             'windowStart' => $windowStart,
             'windowEnd' => $windowEnd,
             'windowState' => $windowState,
+            'isWorkday' => $isWorkday,
             'isMentor' => $isMentor,
             'teamTodayRows' => $teamTodayRows,
-            'teamAttendances' => $teamAttendances,
         ]);
     }
 
-    public function storeEnrollment(Request $request): RedirectResponse
+    public function detectFace(Request $request): JsonResponse
     {
-        $authUser = $this->currentUser($request);
         $validated = $request->validate([
-            'txtFaceEnrollmentImages' => ['required', 'string'],
-            'intFaceEnrollmentSampleCount' => ['nullable', 'integer', 'min:1', 'max:12'],
-            'floatFaceEnrollmentQuality' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'txtFaceDetectionImage' => ['required', 'string'],
         ]);
-        $images = $this->decodeImageList($validated['txtFaceEnrollmentImages']);
-        $now = Carbon::now(self::TIMEZONE);
 
         try {
-            $facePayload = $this->faceRecognition->enroll($images);
+            $facePayload = $this->faceRecognition->detect($validated['txtFaceDetectionImage']);
         } catch (RuntimeException $exception) {
-            return back()->withErrors(['attendance' => $exception->getMessage()]);
+            return response()->json([
+                'detected' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
         }
 
-        $descriptor = $this->decodeDescriptor($facePayload['embedding'] ?? null, 'txtFaceEnrollmentImages');
-
-        MFaceEnrollment::updateOrCreate(
-            ['intUser_ID' => $authUser->intUser_ID],
-            [
-                'txtFaceEnrollmentDescriptor' => $descriptor,
-                'txtFaceEnrollmentAlgorithm' => $facePayload['algorithm'] ?? self::FACE_ALGORITHM,
-                'intFaceEnrollmentSampleCount' => (int) ($facePayload['sample_count'] ?? count($images)),
-                'floatFaceEnrollmentQuality' => round((float) ($facePayload['quality'] ?? 0), 4),
-                'dtmFaceEnrollmentRegistered' => $now,
-                'bitActive' => true,
-                'txtInsertedBy' => $authUser->txtEmail ?? 'system',
-                'dtmInserted' => $now,
-                'txtUpdatedBy' => $authUser->txtEmail ?? 'system',
-                'dtmUpdated' => $now,
-            ],
-        );
-
-        return redirect()->route('attendance.index')->with('success', 'Face ID absensi berhasil didaftarkan.');
-    }
-
-    public function destroyEnrollment(Request $request): RedirectResponse
-    {
-        $authUser = $this->currentUser($request);
-
-        $authUser->faceEnrollment()?->update([
-            'bitActive' => false,
-            'txtUpdatedBy' => $authUser->txtEmail ?? 'system',
-            'dtmUpdated' => Carbon::now(self::TIMEZONE),
+        return response()->json([
+            'detected' => true,
+            'quality' => round((float) ($facePayload['quality'] ?? 0), 4),
+            'algorithm' => $facePayload['algorithm'] ?? self::FACE_ALGORITHM,
         ]);
-
-        return redirect()->route('attendance.index')->with('success', 'Face ID absensi berhasil direset.');
     }
 
     public function checkIn(Request $request): RedirectResponse
     {
         $authUser = $this->currentUser($request);
+
+        if ($authUser->txtRole === 'Mentor' || ! $authUser->intern) {
+            return back()->withErrors(['attendance' => 'Absensi hanya untuk intern.']);
+        }
+
         $setting = $this->attendanceSetting();
         $now = Carbon::now(self::TIMEZONE);
         [$windowStart, $windowEnd] = $this->todayWindow($setting, $now);
+
+        if (! $this->isWorkday($now)) {
+            return back()->withErrors([
+                'attendance' => 'Absensi hanya tersedia pada hari kerja Senin-Jumat.',
+            ]);
+        }
 
         if ($now->lt($windowStart)) {
             return back()->withErrors([
@@ -355,23 +337,25 @@ class AttendanceController extends Controller
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function summaryRows(MUser $user, MAttendanceSetting $setting, Carbon $now, int $days): array
+    private function summaryRows(MUser $user, MAttendanceSetting $setting, Carbon $now): array
     {
-        $startDate = $now->copy()->subDays($days - 1)->toDateString();
+        $weekStart = $now->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
+        $weekEnd = $weekStart->copy()->addDays(4)->endOfDay();
         $records = TrAttendance::where('intUser_ID', $user->intUser_ID)
-            ->whereDate('dtmAttendanceDate', '>=', $startDate)
-            ->whereDate('dtmAttendanceDate', '<=', $now->toDateString())
-            ->orderByDesc('dtmAttendanceDate')
+            ->whereDate('dtmAttendanceDate', '>=', $weekStart->toDateString())
+            ->whereDate('dtmAttendanceDate', '<=', $weekEnd->toDateString())
+            ->orderBy('dtmAttendanceDate')
             ->get()
             ->keyBy(fn (TrAttendance $attendance) => $attendance->dtmAttendanceDate?->format('Y-m-d'));
         [, $windowEnd] = $this->todayWindow($setting, $now);
 
-        return collect(range(0, $days - 1))
-            ->map(function (int $offset) use ($records, $now, $windowEnd) {
-                $date = $now->copy()->subDays($offset)->startOfDay();
+        return collect(range(0, 4))
+            ->map(function (int $offset) use ($records, $now, $weekStart, $windowEnd) {
+                $date = $weekStart->copy()->addDays($offset);
                 $dateKey = $date->format('Y-m-d');
                 $attendance = $records->get($dateKey);
                 $isToday = $date->isSameDay($now);
+                $isFuture = $date->gt($now->copy()->startOfDay());
 
                 if ($attendance) {
                     return [
@@ -384,7 +368,7 @@ class AttendanceController extends Controller
                     ];
                 }
 
-                $status = (! $isToday || $now->gt($windowEnd)) ? 'Tidak Masuk' : 'Menunggu';
+                $status = ($isFuture || ($isToday && ! $now->gt($windowEnd))) ? 'Belum Absensi' : 'Tidak Masuk';
 
                 return [
                     'date' => $date,
@@ -406,15 +390,21 @@ class AttendanceController extends Controller
     private function teamTodayRows(Collection $teamUsers, Collection $todayAttendances, MAttendanceSetting $setting, Carbon $now): Collection
     {
         [, $windowEnd] = $this->todayWindow($setting, $now);
+        $isWorkday = $this->isWorkday($now);
 
         return $teamUsers
-            ->map(function (MUser $user) use ($todayAttendances, $now, $windowEnd) {
+            ->map(function (MUser $user) use ($todayAttendances, $now, $windowEnd, $isWorkday) {
                 $attendance = $todayAttendances->get($user->intUser_ID);
-                $status = $attendance ? 'Hadir' : ($now->gt($windowEnd) ? 'Tidak Masuk' : 'Menunggu');
+                $status = match (true) {
+                    (bool) $attendance => 'Hadir',
+                    ! $isWorkday => 'Tidak Ada Absensi',
+                    $now->gt($windowEnd) => 'Tidak Masuk',
+                    default => 'Belum Absensi',
+                };
 
                 return [
                     'name' => $this->displayName($user),
-                    'role' => $user->txtRole ?: '-',
+                    'role' => 'Intern',
                     'faceRegistered' => (bool) $user->faceEnrollment?->bitActive,
                     'status' => $status,
                     'clock' => $attendance?->dtmAttendanceClockIn?->format('H:i') ?? '-',
@@ -424,6 +414,11 @@ class AttendanceController extends Controller
             })
             ->sortBy('name')
             ->values();
+    }
+
+    private function isWorkday(Carbon $date): bool
+    {
+        return $date->isWeekday();
     }
 
     private function displayName(MUser $user): string
@@ -460,29 +455,6 @@ class AttendanceController extends Controller
         }
 
         return $descriptor;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function decodeImageList(string $value): array
-    {
-        $decoded = json_decode($value, true);
-
-        if (! is_array($decoded)) {
-            throw ValidationException::withMessages(['txtFaceEnrollmentImages' => 'Data gambar wajah tidak valid.']);
-        }
-
-        $images = collect($decoded)
-            ->filter(fn ($image) => is_string($image) && str_starts_with($image, 'data:image/'))
-            ->values()
-            ->all();
-
-        if (count($images) === 0 || count($images) > 5) {
-            throw ValidationException::withMessages(['txtFaceEnrollmentImages' => 'Jumlah sampel wajah tidak valid.']);
-        }
-
-        return $images;
     }
 
     private function coordinateLabel(float $latitude, float $longitude, mixed $accuracy): string

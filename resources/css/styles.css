@@ -3101,6 +3101,18 @@ a.btn-icon {
     font-weight: 800;
 }
 
+.attendance-profile-link {
+    width: 100%;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 800;
+    margin-bottom: 12px;
+    text-decoration: none;
+}
+
 .attendance-submit:disabled {
     opacity: 0.58;
     cursor: not-allowed;
@@ -4910,6 +4922,30 @@ body.profile-page {
     color: var(--text-gray);
     font-size: 12px;
     line-height: 1.5;
+}
+
+.profile-face-card {
+    display: grid;
+    gap: 12px;
+}
+
+.profile-face-card .profile-card-header {
+    margin-bottom: 4px;
+}
+
+.profile-face-camera {
+    min-height: 220px;
+}
+
+.profile-face-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.profile-face-actions form,
+.profile-face-actions button {
+    width: 100%;
 }
 
 .profile-metrics {

@@ -15,6 +15,13 @@ class FaceRecognitionService
         ]);
     }
 
+    public function detect(string $image): array
+    {
+        return $this->post('/detect', [
+            'image' => $image,
+        ]);
+    }
+
     public function verify(string $image, array $enrolledEmbedding, float $threshold): array
     {
         return $this->post('/verify', [

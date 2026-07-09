@@ -46,8 +46,7 @@ Route::middleware('kmi.auth')->group(function () {
     Route::resource('calendar-sharing', CalendarSharingController::class);
     Route::get('exposure', [ExposureController::class, 'index'])->name('exposure.index');
     Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
-    Route::post('attendance/face-enrollment', [AttendanceController::class, 'storeEnrollment'])->name('attendance.face-enrollment.store');
-    Route::delete('attendance/face-enrollment', [AttendanceController::class, 'destroyEnrollment'])->name('attendance.face-enrollment.destroy');
+    Route::post('face-detection', [AttendanceController::class, 'detectFace'])->name('face.detection.store');
     Route::post('attendance/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in.store');
 
     Route::resource('leaderboard', LeaderboardController::class)->only(['index', 'show']);
@@ -78,6 +77,8 @@ Route::middleware('kmi.auth')->group(function () {
     Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/photo', [ProfileController::class, 'updatePhoto'])->name('profile.photo.update');
+    Route::post('/profile/face-enrollment', [ProfileController::class, 'storeFaceEnrollment'])->name('profile.face-enrollment.store');
+    Route::delete('/profile/face-enrollment', [ProfileController::class, 'destroyFaceEnrollment'])->name('profile.face-enrollment.destroy');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/profile/intern/{intern}', [ProfileController::class, 'showIntern'])->name('profile.intern.show');
     Route::get('/profile/mentor/{mentor}', [ProfileController::class, 'showMentor'])->name('profile.mentor.show');

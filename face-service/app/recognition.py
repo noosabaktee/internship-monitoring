@@ -94,6 +94,15 @@ class FaceEngine:
             "quality": round(quality, 4),
         }
 
+    def detect(self, image: str) -> dict:
+        sample = self.extract(image)
+
+        return {
+            "detected": True,
+            "algorithm": ALGORITHM,
+            "quality": round(sample.quality, 4),
+        }
+
     def verify(self, image: str, enrolled_embedding: List[float], threshold: float) -> dict:
         sample = self.extract(image)
         enrolled = self._normalize(np.asarray(enrolled_embedding, dtype=np.float32))

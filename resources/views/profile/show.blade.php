@@ -26,7 +26,11 @@
     $profilePhotoUrl = $intern?->user?->txtProfilePhoto
         ? asset('storage/' . $intern->user->txtProfilePhoto)
         : 'https://ui-avatars.com/api/?name=' . urlencode($intern?->txtInternName ?? 'Intern') . '&background=8CC63F&color=fff&size=160';
-    $canUpdatePhoto = $intern && session('auth_user_id') === $intern->intUser_ID;
+    $canUpdatePhoto = $intern && session('auth_user_id') === $intern?->user?->intUser_ID;
+    $faceEnrollment = $intern?->user?->faceEnrollment?->bitActive ? $intern->user->faceEnrollment : null;
+    $isLegacyFaceEnrollment = (bool) $faceEnrollment && ! str_starts_with((string) $faceEnrollment->txtFaceEnrollmentAlgorithm, 'insightface');
+    $hasFaceEnrollment = (bool) $faceEnrollment && ! $isLegacyFaceEnrollment;
+    $canManageFaceId = $canUpdatePhoto && ($intern?->user?->txtRole ?? 'Intern') === 'Intern';
 @endphp
 
 @section('content')
@@ -130,6 +134,69 @@
                 </section>
 
                 <aside>
+                    @if ($canManageFaceId)
+                        <section
+                            class="profile-card profile-face-card"
+                            data-attendance-page
+                            data-attendance-mode="python"
+                            data-face-detection-url="{{ route('face.detection.store') }}"
+                        >
+                            <div class="profile-card-header">
+                                <div class="profile-card-title">
+                                    <h2>Face ID Absensi</h2>
+                                    <p>{{ $isLegacyFaceEnrollment ? 'Face ID perlu diperbarui.' : ($hasFaceEnrollment ? 'Face ID sudah aktif.' : 'Face ID belum aktif.') }}</p>
+                                </div>
+                                <span class="status-badge {{ $hasFaceEnrollment ? 'status-active' : 'status-inactive' }}">{{ $hasFaceEnrollment ? 'Aktif' : 'Belum' }}</span>
+                            </div>
+
+                            <div class="attendance-camera-frame profile-face-camera">
+                                <video data-attendance-video autoplay playsinline muted></video>
+                                <canvas data-attendance-canvas hidden></canvas>
+                                <div class="attendance-camera-overlay">
+                                    <div class="attendance-scan-ring"></div>
+                                </div>
+                            </div>
+
+                            <div class="attendance-status-line" data-attendance-message>
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span>Siap memulai kamera.</span>
+                            </div>
+
+                            <div class="attendance-progress" aria-hidden="true">
+                                <span data-attendance-progress></span>
+                            </div>
+
+                            <div class="profile-face-actions">
+                                <button class="btn btn-outline-primary attendance-action-button" type="button" data-attendance-camera title="Aktifkan kamera">
+                                    <i class="fa-solid fa-camera"></i>
+                                    <span>Kamera</span>
+                                </button>
+
+                                <form action="{{ route('profile.face-enrollment.store') }}" method="POST" data-face-enrollment-form>
+                                    @csrf
+                                    <input type="hidden" name="txtFaceEnrollmentImages" data-face-enrollment-images>
+                                    <input type="hidden" name="intFaceEnrollmentSampleCount" data-face-enrollment-sample-count value="3">
+                                    <input type="hidden" name="floatFaceEnrollmentQuality" data-face-enrollment-quality>
+                                    <button class="btn btn-primary attendance-action-button" type="button" data-face-enroll>
+                                        <i class="fa-solid fa-user-plus"></i>
+                                        <span>{{ $hasFaceEnrollment ? 'Perbarui Face ID' : 'Daftar Face ID' }}</span>
+                                    </button>
+                                </form>
+
+                                @if ($faceEnrollment)
+                                    <form action="{{ route('profile.face-enrollment.destroy') }}" method="POST" onsubmit="return confirm('Reset Face ID absensi?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="btn btn-outline-danger attendance-action-button" type="submit">
+                                            <i class="fa-solid fa-rotate-left"></i>
+                                            <span>Reset</span>
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                        </section>
+                    @endif
+
                     <section class="profile-card">
                         <div class="profile-card-header">
                             <div class="profile-card-title">

@@ -14,6 +14,16 @@ class EnrollResponse(BaseModel):
     quality: float
 
 
+class DetectRequest(BaseModel):
+    image: str
+
+
+class DetectResponse(BaseModel):
+    detected: bool
+    algorithm: str
+    quality: float
+
+
 class VerifyRequest(BaseModel):
     image: str
     enrolled_embedding: List[float] = Field(min_length=64)
