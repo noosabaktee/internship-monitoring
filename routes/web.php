@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AchievementController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthPageController;
 use App\Http\Controllers\CalendarSharingController;
 use App\Http\Controllers\DashboardController;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::pattern('achievement', '[0-9]+');
 Route::pattern('analytic', '[0-9]+');
+Route::pattern('attendance', '[0-9]+');
 Route::pattern('calendar_sharing', '[0-9]+');
 Route::pattern('intern', '[0-9]+');
 Route::pattern('leaderboard', '[0-9]+');
@@ -43,6 +45,10 @@ Route::middleware('kmi.auth')->group(function () {
     Route::resource('projects', ProjectController::class);
     Route::resource('calendar-sharing', CalendarSharingController::class);
     Route::get('exposure', [ExposureController::class, 'index'])->name('exposure.index');
+    Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('face-detection', [AttendanceController::class, 'detectFace'])->name('face.detection.store');
+    Route::post('attendance/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in.store');
+    Route::post('attendance/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out.store');
 
     Route::resource('leaderboard', LeaderboardController::class)->only(['index', 'show']);
     Route::resource('interns', InternController::class)->only(['index', 'show']);
@@ -65,12 +71,15 @@ Route::middleware('kmi.auth')->group(function () {
         Route::resource('achievements', AchievementController::class)->except(['index', 'show']);
         Route::resource('reports', ReportController::class)->except(['index', 'show']);
         Route::resource('settings', SettingController::class)->except(['index', 'show']);
+        Route::put('attendance/settings', [AttendanceController::class, 'updateSettings'])->name('attendance.settings.update');
     });
 
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/photo', [ProfileController::class, 'updatePhoto'])->name('profile.photo.update');
+    Route::post('/profile/face-enrollment', [ProfileController::class, 'storeFaceEnrollment'])->name('profile.face-enrollment.store');
+    Route::delete('/profile/face-enrollment', [ProfileController::class, 'destroyFaceEnrollment'])->name('profile.face-enrollment.destroy');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/profile/intern/{intern}', [ProfileController::class, 'showIntern'])->name('profile.intern.show');
     Route::get('/profile/mentor/{mentor}', [ProfileController::class, 'showMentor'])->name('profile.mentor.show');

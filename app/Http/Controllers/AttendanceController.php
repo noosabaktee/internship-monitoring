@@ -1,0 +1,986 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\MAttendanceSetting;
+use App\Models\MUser;
+use App\Models\TrAttendance;
+use App\Services\FaceRecognitionService;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
+
+class AttendanceController extends Controller
+{
+    private const TIMEZONE = 'Asia/Jakarta';
+    private const DEFAULT_CLOCK_IN_START = '06:30';
+    private const DEFAULT_CLOCK_IN_END = '09:00';
+    private const DEFAULT_CLOCK_OUT_START = '16:00';
+    private const DEFAULT_CLOCK_OUT_END = '18:30';
+    private const FACE_ALGORITHM = 'insightface-buffalo_l-v1';
+
+    public function __construct(private readonly FaceRecognitionService $faceRecognition)
+    {
+    }
+
+    public function index(Request $request): View
+    {
+        $authUser = $this->currentUser($request);
+        $isMentor = $authUser->txtRole === 'Mentor';
+        $setting = $this->attendanceSetting();
+        $now = Carbon::now(self::TIMEZONE);
+        $isWorkday = $this->isWorkday($now);
+        $windows = $this->attendanceWindows($setting, $now);
+        $windowState = $isWorkday ? $this->attendanceWindowState($now, $windows) : 'offday';
+        $enrollment = $isMentor
+            ? null
+            : $authUser->faceEnrollment()
+                ->where('bitActive', true)
+                ->first();
+        $todayAttendance = $isMentor
+            ? null
+            : TrAttendance::where('intUser_ID', $authUser->intUser_ID)
+                ->whereDate('dtmAttendanceDate', $now->toDateString())
+                ->first();
+        $todayClockInAt = $todayAttendance ? $this->attendanceClockInAt($todayAttendance) : null;
+        $todayClockOutAt = $todayAttendance ? $this->attendanceClockOutAt($todayAttendance) : null;
+        $summaryRows = $isMentor ? [] : $this->summaryRows($authUser, $setting, $now);
+        $summary = collect($summaryRows);
+        $teamTodayRows = collect();
+        $attendanceDetail = [
+            'filters' => [],
+            'interns' => collect(),
+            'rows' => collect(),
+            'summary' => [
+                'total' => 0,
+                'present' => 0,
+                'late' => 0,
+                'absent' => 0,
+                'pending' => 0,
+                'clockOutWarnings' => 0,
+            ],
+        ];
+
+        if ($isMentor) {
+            $teamUsers = MUser::with(['intern', 'faceEnrollment'])
+                ->where('bitActive', true)
+                ->whereHas('intern', fn ($query) => $query->where('bitActive', true))
+                ->get()
+                ->sortBy(fn (MUser $user) => $this->displayName($user))
+                ->values();
+            $todayAttendances = TrAttendance::with(['user.intern', 'user.mentor'])
+                ->whereDate('dtmAttendanceDate', $now->toDateString())
+                ->get()
+                ->keyBy('intUser_ID');
+
+            $teamTodayRows = $this->teamTodayRows($teamUsers, $todayAttendances, $setting, $now);
+            $attendanceDetail = $this->mentorAttendanceDetail($request, $teamUsers, $setting, $now);
+        }
+
+        return view('dashboard.attendance', [
+            'authUser' => $authUser,
+            'displayName' => $this->displayName($authUser),
+            'setting' => $setting,
+            'enrollment' => $enrollment,
+            'todayAttendance' => $todayAttendance,
+            'todayClockInAt' => $todayClockInAt,
+            'todayClockOutAt' => $todayClockOutAt,
+            'todayClockInStatus' => $todayAttendance ? $this->attendanceClockInStatus($todayAttendance, $windows) : null,
+            'summaryRows' => $summaryRows,
+            'presentCount' => $summary->where('status', 'Hadir')->count(),
+            'lateCount' => $summary->where('status', 'Terlambat')->count(),
+            'absentCount' => $summary->where('status', 'Tidak Masuk')->count(),
+            'pendingCount' => $summary->where('status', 'Belum Clock In')->count(),
+            'clockInStart' => $windows['clockInStart'],
+            'clockInEnd' => $windows['clockInEnd'],
+            'clockInLateEnd' => $windows['clockInLateEnd'],
+            'clockOutStart' => $windows['clockOutStart'],
+            'clockOutEnd' => $windows['clockOutEnd'],
+            'clockOutLateEnd' => $windows['clockOutLateEnd'],
+            'windowState' => $windowState,
+            'isWorkday' => $isWorkday,
+            'isMentor' => $isMentor,
+            'teamTodayRows' => $teamTodayRows,
+            'attendanceDetailFilters' => $attendanceDetail['filters'],
+            'attendanceDetailInterns' => $attendanceDetail['interns'],
+            'attendanceDetailRows' => $attendanceDetail['rows'],
+            'attendanceDetailSummary' => $attendanceDetail['summary'],
+        ]);
+    }
+
+    public function detectFace(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'txtFaceDetectionImage' => ['required', 'string'],
+        ]);
+
+        try {
+            $facePayload = $this->faceRecognition->detect($validated['txtFaceDetectionImage']);
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'detected' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'detected' => true,
+            'quality' => round((float) ($facePayload['quality'] ?? 0), 4),
+            'algorithm' => $facePayload['algorithm'] ?? self::FACE_ALGORITHM,
+        ]);
+    }
+
+    public function checkIn(Request $request): RedirectResponse
+    {
+        $authUser = $this->currentUser($request);
+        $this->ensureInternCanAttend($authUser);
+
+        $setting = $this->attendanceSetting();
+        $now = Carbon::now(self::TIMEZONE);
+        $windows = $this->attendanceWindows($setting, $now);
+
+        if (! $this->isWorkday($now)) {
+            return back()->withErrors([
+                'attendance' => 'Clock In hanya tersedia pada hari kerja Senin-Jumat.',
+            ]);
+        }
+
+        if ($now->lt($windows['clockInStart'])) {
+            return back()->withErrors([
+                'attendance' => 'Clock In baru bisa dilakukan mulai ' . $windows['clockInStart']->format('H:i') . ' WIB.',
+            ]);
+        }
+
+        $alreadyCheckedIn = TrAttendance::where('intUser_ID', $authUser->intUser_ID)
+            ->whereDate('dtmAttendanceDate', $now->toDateString())
+            ->whereNotNull('dtmAttendanceClockIn')
+            ->exists();
+
+        if ($alreadyCheckedIn) {
+            return back()->withErrors(['attendance' => 'Clock In hari ini sudah tercatat.']);
+        }
+
+        $verification = $this->verifiedFaceAndLocation($request, $authUser, $setting);
+        $clockInStatus = $now->gt($windows['clockInEnd']) ? 'Terlambat' : 'Tepat Waktu';
+        $shouldAutoClockOut = $now->gt($windows['clockOutEnd']);
+        $clockOutStatus = $shouldAutoClockOut ? 'Terlambat' : null;
+        $status = $clockInStatus === 'Terlambat' ? 'Terlambat' : 'Hadir';
+
+        $attendanceData = [
+            'intUser_ID' => $authUser->intUser_ID,
+            'dtmAttendanceDate' => $now->toDateString(),
+            'dtmAttendanceClockIn' => $now,
+            'txtAttendanceStatus' => $status,
+            'floatAttendanceLatitude' => $verification['latitude'],
+            'floatAttendanceLongitude' => $verification['longitude'],
+            'floatAttendanceLocationAccuracy' => $verification['accuracy'],
+            'txtAttendanceAddress' => $verification['locationLabel'],
+            'txtAttendanceLocationUrl' => $verification['locationUrl'],
+            'txtAttendanceClockInStatus' => $clockInStatus,
+            'floatAttendanceFaceDistance' => $verification['faceDistance'],
+            'txtAttendanceFaceAlgorithm' => $verification['algorithm'],
+            'txtAttendanceDevice' => $verification['device'],
+            'txtAttendanceNote' => match (true) {
+                $shouldAutoClockOut => 'Clock In terlambat, Clock Out otomatis',
+                $status === 'Terlambat' => 'Clock In terlambat',
+                default => 'Clock In tepat waktu',
+            },
+            'txtInsertedBy' => $authUser->txtEmail ?? 'system',
+            'dtmInserted' => $now,
+        ];
+
+        if ($shouldAutoClockOut) {
+            $attendanceData = array_merge($attendanceData, [
+                'dtmAttendanceClockOut' => $now,
+                'floatAttendanceClockOutLatitude' => $verification['latitude'],
+                'floatAttendanceClockOutLongitude' => $verification['longitude'],
+                'floatAttendanceClockOutLocationAccuracy' => $verification['accuracy'],
+                'txtAttendanceClockOutAddress' => $verification['locationLabel'],
+                'txtAttendanceClockOutLocationUrl' => $verification['locationUrl'],
+                'txtAttendanceClockOutStatus' => $clockOutStatus,
+                'floatAttendanceClockOutFaceDistance' => $verification['faceDistance'],
+                'txtAttendanceClockOutFaceAlgorithm' => $verification['algorithm'],
+                'txtAttendanceClockOutDevice' => $verification['device'],
+                'txtAttendanceClockOutNote' => 'Clock Out otomatis karena Clock In melewati batas Clock Out',
+            ]);
+        }
+
+        if (Schema::hasColumn('trAttendance', 'intIntern_ID')) {
+            $attendanceData['intIntern_ID'] = $authUser->intern?->intIntern_ID;
+        }
+
+        if (Schema::hasColumn('trAttendance', 'dtmCheckIn')) {
+            $attendanceData['dtmCheckIn'] = $now;
+        }
+
+        if ($shouldAutoClockOut && Schema::hasColumn('trAttendance', 'dtmCheckOut')) {
+            $attendanceData['dtmCheckOut'] = $now;
+        }
+
+        if (Schema::hasColumn('trAttendance', 'txtFaceDescriptorMatch')) {
+            $attendanceData['txtFaceDescriptorMatch'] = $verification['faceMatchPayload'];
+        }
+
+        if (Schema::hasColumn('trAttendance', 'floatLatitude')) {
+            $attendanceData['floatLatitude'] = $verification['latitude'];
+        }
+
+        if (Schema::hasColumn('trAttendance', 'floatLongitude')) {
+            $attendanceData['floatLongitude'] = $verification['longitude'];
+        }
+
+        if (Schema::hasColumn('trAttendance', 'txtLocationName')) {
+            $attendanceData['txtLocationName'] = $verification['locationLabel'];
+        }
+
+        if (Schema::hasColumn('trAttendance', 'txtStatus')) {
+            $attendanceData['txtStatus'] = $status === 'Terlambat' ? 'Late' : 'Present';
+        }
+
+        if (Schema::hasColumn('trAttendance', 'txtNotes')) {
+            $attendanceData['txtNotes'] = 'Face ID clock in';
+        }
+
+        TrAttendance::create($attendanceData);
+
+        $message = match (true) {
+            $shouldAutoClockOut => 'Clock In terlambat berhasil dicatat dan Clock Out otomatis tersimpan.',
+            $status === 'Terlambat' => 'Clock In berhasil dicatat dengan status Terlambat.',
+            default => 'Clock In berhasil dicatat.',
+        };
+
+        return redirect()->route('attendance.index')->with('success', $message);
+    }
+
+    public function checkOut(Request $request): RedirectResponse
+    {
+        $authUser = $this->currentUser($request);
+        $this->ensureInternCanAttend($authUser);
+
+        $setting = $this->attendanceSetting();
+        $now = Carbon::now(self::TIMEZONE);
+        $windows = $this->attendanceWindows($setting, $now);
+
+        if (! $this->isWorkday($now)) {
+            return back()->withErrors([
+                'attendance' => 'Clock Out hanya tersedia pada hari kerja Senin-Jumat.',
+            ]);
+        }
+
+        $attendance = TrAttendance::where('intUser_ID', $authUser->intUser_ID)
+            ->whereDate('dtmAttendanceDate', $now->toDateString())
+            ->first();
+
+        if (! $attendance?->dtmAttendanceClockIn) {
+            return back()->withErrors(['attendance' => 'Clock In terlebih dahulu sebelum Clock Out.']);
+        }
+
+        if ($attendance->dtmAttendanceClockOut) {
+            return back()->withErrors(['attendance' => 'Clock Out hari ini sudah tercatat.']);
+        }
+
+        if ($now->lt($windows['clockOutStart'])) {
+            return back()->withErrors([
+                'attendance' => 'Clock Out baru bisa dilakukan mulai ' . $windows['clockOutStart']->format('H:i') . ' WIB.',
+            ]);
+        }
+
+        $clockInAt = $this->attendanceClockInAt($attendance);
+
+        if ($clockInAt?->gt($windows['clockOutEnd'])) {
+            return back()->withErrors([
+                'attendance' => 'Clock In tercatat setelah batas Clock Out, jadi Clock Out hari ini tidak tersedia.',
+            ]);
+        }
+
+        if ($now->gt($windows['clockOutLateEnd'])) {
+            return back()->withErrors([
+                'attendance' => 'Batas Clock Out terlambat hari ini sudah lewat pada 23:59 WIB.',
+            ]);
+        }
+
+        $verification = $this->verifiedFaceAndLocation($request, $authUser, $setting);
+        $clockOutStatus = $now->gt($windows['clockOutEnd']) ? 'Terlambat' : 'Tepat Waktu';
+
+        $attendanceData = [
+            'dtmAttendanceClockOut' => $now,
+            'floatAttendanceClockOutLatitude' => $verification['latitude'],
+            'floatAttendanceClockOutLongitude' => $verification['longitude'],
+            'floatAttendanceClockOutLocationAccuracy' => $verification['accuracy'],
+            'txtAttendanceClockOutAddress' => $verification['locationLabel'],
+            'txtAttendanceClockOutLocationUrl' => $verification['locationUrl'],
+            'txtAttendanceClockOutStatus' => $clockOutStatus,
+            'floatAttendanceClockOutFaceDistance' => $verification['faceDistance'],
+            'txtAttendanceClockOutFaceAlgorithm' => $verification['algorithm'],
+            'txtAttendanceClockOutDevice' => $verification['device'],
+            'txtAttendanceClockOutNote' => $clockOutStatus === 'Terlambat' ? 'Clock Out terlambat' : 'Face ID clock out',
+        ];
+
+        if (Schema::hasColumn('trAttendance', 'dtmCheckOut')) {
+            $attendanceData['dtmCheckOut'] = $now;
+        }
+
+        $attendance->update($attendanceData);
+
+        $message = $clockOutStatus === 'Terlambat'
+            ? 'Clock Out berhasil dicatat dengan status Terlambat.'
+            : 'Clock Out berhasil dicatat.';
+
+        return redirect()->route('attendance.index')->with('success', $message);
+    }
+
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $authUser = $this->currentUser($request);
+        $validated = $request->validate([
+            'txtAttendanceSettingClockInStartTime' => ['required', 'date_format:H:i'],
+            'txtAttendanceSettingClockInEndTime' => ['required', 'date_format:H:i'],
+            'txtAttendanceSettingClockOutStartTime' => ['required', 'date_format:H:i'],
+            'txtAttendanceSettingClockOutEndTime' => ['required', 'date_format:H:i'],
+            'floatAttendanceSettingFaceThreshold' => ['required', 'numeric', 'min:0.1', 'max:1.5'],
+        ]);
+
+        if ($validated['txtAttendanceSettingClockInEndTime'] <= $validated['txtAttendanceSettingClockInStartTime']) {
+            return back()->withErrors([
+                'txtAttendanceSettingClockInEndTime' => 'Batas Clock In harus lebih besar dari mulai Clock In.',
+            ]);
+        }
+
+        if ($validated['txtAttendanceSettingClockOutStartTime'] <= $validated['txtAttendanceSettingClockInEndTime']) {
+            return back()->withErrors([
+                'txtAttendanceSettingClockOutStartTime' => 'Mulai Clock Out harus lebih besar dari batas Clock In.',
+            ]);
+        }
+
+        if ($validated['txtAttendanceSettingClockOutEndTime'] <= $validated['txtAttendanceSettingClockOutStartTime']) {
+            return back()->withErrors([
+                'txtAttendanceSettingClockOutEndTime' => 'Batas Clock Out harus lebih besar dari mulai Clock Out.',
+            ]);
+        }
+
+        $this->attendanceSetting()->update([
+            'txtAttendanceSettingStartTime' => $validated['txtAttendanceSettingClockInStartTime'],
+            'txtAttendanceSettingEndTime' => $validated['txtAttendanceSettingClockOutEndTime'],
+            'txtAttendanceSettingClockInStartTime' => $validated['txtAttendanceSettingClockInStartTime'],
+            'txtAttendanceSettingClockInEndTime' => $validated['txtAttendanceSettingClockInEndTime'],
+            'txtAttendanceSettingClockOutStartTime' => $validated['txtAttendanceSettingClockOutStartTime'],
+            'txtAttendanceSettingClockOutEndTime' => $validated['txtAttendanceSettingClockOutEndTime'],
+            'floatAttendanceSettingFaceThreshold' => round((float) $validated['floatAttendanceSettingFaceThreshold'], 2),
+            'bitAttendanceSettingLocationRequired' => true,
+            'bitActive' => true,
+            'txtUpdatedBy' => $authUser->txtEmail ?? 'system',
+            'dtmUpdated' => Carbon::now(self::TIMEZONE),
+        ]);
+
+        return redirect()->route('attendance.index')->with('success', 'Setting absensi berhasil diperbarui.');
+    }
+
+    private function currentUser(Request $request): MUser
+    {
+        return MUser::with(['intern', 'mentor'])->findOrFail($request->session()->get('auth_user_id'));
+    }
+
+    private function ensureInternCanAttend(MUser $authUser): void
+    {
+        if ($authUser->txtRole === 'Mentor' || ! $authUser->intern) {
+            throw ValidationException::withMessages(['attendance' => 'Absensi hanya untuk intern.']);
+        }
+    }
+
+    private function attendanceSetting(): MAttendanceSetting
+    {
+        $setting = MAttendanceSetting::firstOrCreate(
+            ['intAttendanceSetting_ID' => 1],
+            [
+                'txtAttendanceSettingStartTime' => self::DEFAULT_CLOCK_IN_START,
+                'txtAttendanceSettingEndTime' => self::DEFAULT_CLOCK_OUT_END,
+                'txtAttendanceSettingClockInStartTime' => self::DEFAULT_CLOCK_IN_START,
+                'txtAttendanceSettingClockInEndTime' => self::DEFAULT_CLOCK_IN_END,
+                'txtAttendanceSettingClockOutStartTime' => self::DEFAULT_CLOCK_OUT_START,
+                'txtAttendanceSettingClockOutEndTime' => self::DEFAULT_CLOCK_OUT_END,
+                'floatAttendanceSettingFaceThreshold' => 0.38,
+                'bitAttendanceSettingLocationRequired' => true,
+                'bitActive' => true,
+                'txtInsertedBy' => 'system',
+                'dtmInserted' => Carbon::now(self::TIMEZONE),
+            ],
+        );
+
+        $defaults = [
+            'txtAttendanceSettingStartTime' => self::DEFAULT_CLOCK_IN_START,
+            'txtAttendanceSettingEndTime' => self::DEFAULT_CLOCK_OUT_END,
+            'txtAttendanceSettingClockInStartTime' => self::DEFAULT_CLOCK_IN_START,
+            'txtAttendanceSettingClockInEndTime' => self::DEFAULT_CLOCK_IN_END,
+            'txtAttendanceSettingClockOutStartTime' => self::DEFAULT_CLOCK_OUT_START,
+            'txtAttendanceSettingClockOutEndTime' => self::DEFAULT_CLOCK_OUT_END,
+            'floatAttendanceSettingFaceThreshold' => 0.38,
+            'bitAttendanceSettingLocationRequired' => true,
+            'bitActive' => true,
+        ];
+        $dirty = false;
+
+        foreach ($defaults as $field => $value) {
+            if ($setting->{$field} === null || $setting->{$field} === '') {
+                $setting->{$field} = $value;
+                $dirty = true;
+            }
+        }
+
+        if ($dirty) {
+            $setting->save();
+        }
+
+        return $setting;
+    }
+
+    /**
+     * @return array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon}
+     */
+    private function attendanceWindows(MAttendanceSetting $setting, Carbon $now): array
+    {
+        $clockInStart = $this->settingTime(
+            $setting->txtAttendanceSettingClockInStartTime,
+            $setting->txtAttendanceSettingStartTime ?: self::DEFAULT_CLOCK_IN_START,
+            self::DEFAULT_CLOCK_IN_START,
+        );
+        $clockInEnd = $this->settingTime(
+            $setting->txtAttendanceSettingClockInEndTime,
+            null,
+            self::DEFAULT_CLOCK_IN_END,
+        );
+        $clockOutStart = $this->settingTime(
+            $setting->txtAttendanceSettingClockOutStartTime,
+            null,
+            self::DEFAULT_CLOCK_OUT_START,
+        );
+        $clockOutEnd = $this->settingTime(
+            $setting->txtAttendanceSettingClockOutEndTime,
+            $setting->txtAttendanceSettingEndTime ?: self::DEFAULT_CLOCK_OUT_END,
+            self::DEFAULT_CLOCK_OUT_END,
+        );
+
+        return [
+            'clockInStart' => Carbon::parse($now->toDateString() . ' ' . $clockInStart, self::TIMEZONE),
+            'clockInEnd' => Carbon::parse($now->toDateString() . ' ' . $clockInEnd, self::TIMEZONE),
+            'clockInLateEnd' => $now->copy()->endOfDay(),
+            'clockOutStart' => Carbon::parse($now->toDateString() . ' ' . $clockOutStart, self::TIMEZONE),
+            'clockOutEnd' => Carbon::parse($now->toDateString() . ' ' . $clockOutEnd, self::TIMEZONE),
+            'clockOutLateEnd' => $now->copy()->endOfDay(),
+        ];
+    }
+
+    private function settingTime(mixed $primary, mixed $fallback, string $default): string
+    {
+        foreach ([$primary, $fallback, $default] as $value) {
+            if (is_string($value) && preg_match('/^\d{2}:\d{2}$/', $value)) {
+                return $value;
+            }
+        }
+
+        return $default;
+    }
+
+    /**
+     * @param array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon} $windows
+     */
+    private function attendanceWindowState(Carbon $now, array $windows): string
+    {
+        if ($now->lt($windows['clockInStart'])) {
+            return 'before';
+        }
+
+        if ($now->lte($windows['clockInEnd'])) {
+            return 'clock-in';
+        }
+
+        if ($now->lt($windows['clockOutStart'])) {
+            return 'between';
+        }
+
+        if ($now->lte($windows['clockOutEnd'])) {
+            return 'clock-out';
+        }
+
+        if ($now->lte($windows['clockOutLateEnd'])) {
+            return 'clock-out-late';
+        }
+
+        return 'after-clock-out';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function verifiedFaceAndLocation(Request $request, MUser $authUser, MAttendanceSetting $setting): array
+    {
+        $enrollment = $authUser->faceEnrollment()
+            ->where('bitActive', true)
+            ->first();
+
+        if (! $enrollment) {
+            throw ValidationException::withMessages(['attendance' => 'Daftarkan wajah terlebih dahulu sebelum absen.']);
+        }
+
+        $validated = $request->validate([
+            'txtAttendanceCapturedImage' => ['required', 'string'],
+            'floatAttendanceLatitude' => ['required', 'numeric', 'between:-90,90'],
+            'floatAttendanceLongitude' => ['required', 'numeric', 'between:-180,180'],
+            'floatAttendanceLocationAccuracy' => ['nullable', 'numeric', 'min:0', 'max:50000'],
+            'txtAttendanceDevice' => ['nullable', 'string', 'max:500'],
+        ]);
+        $enrolledDescriptor = $this->decodeDescriptor($enrollment->txtFaceEnrollmentDescriptor, 'txtFaceEnrollmentDescriptor');
+
+        if (($enrollment->txtFaceEnrollmentAlgorithm !== self::FACE_ALGORITHM) || count($enrolledDescriptor) !== 512) {
+            throw ValidationException::withMessages([
+                'attendance' => 'Face ID lama perlu diperbarui untuk mode Python face recognition.',
+            ]);
+        }
+
+        $threshold = (float) ($setting->floatAttendanceSettingFaceThreshold ?: 0.38);
+
+        try {
+            $facePayload = $this->faceRecognition->verify(
+                $validated['txtAttendanceCapturedImage'],
+                $enrolledDescriptor,
+                $threshold,
+            );
+        } catch (RuntimeException $exception) {
+            throw ValidationException::withMessages(['attendance' => $exception->getMessage()]);
+        }
+
+        $faceDistance = (float) ($facePayload['distance'] ?? 1.0);
+
+        if (! (bool) ($facePayload['match'] ?? false)) {
+            throw ValidationException::withMessages([
+                'attendance' => 'Wajah tidak cocok dengan Face ID terdaftar. Coba ulang dengan pencahayaan yang lebih stabil.',
+            ]);
+        }
+
+        $latitude = round((float) $validated['floatAttendanceLatitude'], 7);
+        $longitude = round((float) $validated['floatAttendanceLongitude'], 7);
+        $accuracy = isset($validated['floatAttendanceLocationAccuracy'])
+            ? round((float) $validated['floatAttendanceLocationAccuracy'], 2)
+            : null;
+        $locationLabel = $this->coordinateLabel($latitude, $longitude, $accuracy);
+
+        return [
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'accuracy' => $accuracy,
+            'locationLabel' => $locationLabel,
+            'locationUrl' => 'https://www.google.com/maps?q=' . $latitude . ',' . $longitude,
+            'faceDistance' => round($faceDistance, 4),
+            'algorithm' => $facePayload['algorithm'] ?? self::FACE_ALGORITHM,
+            'device' => Str::limit($validated['txtAttendanceDevice'] ?? $request->userAgent() ?? 'Browser', 255, ''),
+            'faceMatchPayload' => [
+                'distance' => round($faceDistance, 4),
+                'threshold' => $threshold,
+                'similarity' => $facePayload['similarity'] ?? null,
+                'quality' => $facePayload['quality'] ?? null,
+                'algorithm' => $facePayload['algorithm'] ?? self::FACE_ALGORITHM,
+            ],
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function summaryRows(MUser $user, MAttendanceSetting $setting, Carbon $now): array
+    {
+        $weekStart = $now->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
+        $weekEnd = $weekStart->copy()->addDays(4)->endOfDay();
+        $records = TrAttendance::where('intUser_ID', $user->intUser_ID)
+            ->whereDate('dtmAttendanceDate', '>=', $weekStart->toDateString())
+            ->whereDate('dtmAttendanceDate', '<=', $weekEnd->toDateString())
+            ->orderBy('dtmAttendanceDate')
+            ->get()
+            ->keyBy(fn (TrAttendance $attendance) => $attendance->dtmAttendanceDate?->format('Y-m-d'));
+        return collect(range(0, 4))
+            ->map(function (int $offset) use ($records, $now, $weekStart, $setting) {
+                $date = $weekStart->copy()->addDays($offset);
+                $dateWindows = $this->attendanceWindows($setting, $date);
+                $dateKey = $date->format('Y-m-d');
+                $attendance = $records->get($dateKey);
+                $isToday = $date->isSameDay($now);
+                $isFuture = $date->gt($now->copy()->startOfDay());
+
+                if ($attendance) {
+                    $clockInStatus = $this->attendanceClockInStatus($attendance, $dateWindows);
+                    $clockOutMissing = ! $attendance->dtmAttendanceClockOut;
+                    $clockOutWarning = $clockOutMissing
+                        && (! $isToday || $now->gt($dateWindows['clockOutEnd']));
+
+                    return [
+                        'date' => $date,
+                        'status' => $this->attendanceStatus($attendance, $dateWindows),
+                        'clockIn' => $this->attendanceTimeLabel($this->attendanceClockInAt($attendance)),
+                        'clockInStatus' => $clockInStatus,
+                        'clockInWarning' => false,
+                        'clockOut' => $this->attendanceTimeLabel($this->attendanceClockOutAt($attendance)),
+                        'clockOutStatus' => $attendance->txtAttendanceClockOutStatus,
+                        'clockOutWarning' => $clockOutWarning,
+                        'locationIn' => $attendance->txtAttendanceAddress ?: '-',
+                        'locationInUrl' => $attendance->txtAttendanceLocationUrl,
+                        'locationOut' => $attendance->txtAttendanceClockOutAddress ?: '-',
+                        'locationOutUrl' => $attendance->txtAttendanceClockOutLocationUrl,
+                        'faceDistance' => $attendance->floatAttendanceFaceDistance,
+                        'clockOutFaceDistance' => $attendance->floatAttendanceClockOutFaceDistance,
+                    ];
+                }
+
+                $status = ($isFuture || ($isToday && ! $now->gt($dateWindows['clockInLateEnd']))) ? 'Belum Clock In' : 'Tidak Masuk';
+                $clockInWarning = $isToday
+                    && $now->gt($dateWindows['clockInEnd'])
+                    && ! $now->gt($dateWindows['clockInLateEnd']);
+
+                return [
+                    'date' => $date,
+                    'status' => $status,
+                    'clockIn' => '-',
+                    'clockInStatus' => null,
+                    'clockInWarning' => $clockInWarning,
+                    'clockOut' => '-',
+                    'clockOutStatus' => null,
+                    'clockOutWarning' => false,
+                    'locationIn' => '-',
+                    'locationInUrl' => null,
+                    'locationOut' => '-',
+                    'locationOutUrl' => null,
+                    'faceDistance' => null,
+                    'clockOutFaceDistance' => null,
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * @param Collection<int, MUser> $teamUsers
+     * @param Collection<int, TrAttendance> $todayAttendances
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function teamTodayRows(Collection $teamUsers, Collection $todayAttendances, MAttendanceSetting $setting, Carbon $now): Collection
+    {
+        $windows = $this->attendanceWindows($setting, $now);
+        $isWorkday = $this->isWorkday($now);
+
+        return $teamUsers
+            ->map(function (MUser $user) use ($todayAttendances, $now, $windows, $isWorkday) {
+                $attendance = $todayAttendances->get($user->intUser_ID);
+                $clockInAt = $attendance ? $this->attendanceClockInAt($attendance) : null;
+                $clockOutAt = $attendance ? $this->attendanceClockOutAt($attendance) : null;
+                $clockInStatus = $attendance ? $this->attendanceClockInStatus($attendance, $windows) : null;
+                $status = match (true) {
+                    (bool) $attendance => $this->attendanceStatus($attendance, $windows),
+                    ! $isWorkday => 'Tidak Ada Absensi',
+                    $now->gt($windows['clockInLateEnd']) => 'Tidak Masuk',
+                    default => 'Belum Clock In',
+                };
+                $clockInWarning = ! $attendance
+                    && $isWorkday
+                    && $now->gt($windows['clockInEnd'])
+                    && ! $now->gt($windows['clockInLateEnd']);
+                $clockOutWarning = (bool) $clockInAt
+                    && ! $clockOutAt
+                    && $now->gt($windows['clockOutEnd']);
+
+                return [
+                    'name' => $this->displayName($user),
+                    'role' => 'Intern',
+                    'faceRegistered' => (bool) $user->faceEnrollment?->bitActive,
+                    'status' => $status,
+                    'clockIn' => $this->attendanceTimeLabel($clockInAt),
+                    'clockInStatus' => $clockInStatus,
+                    'clockInWarning' => $clockInWarning,
+                    'clockOut' => $this->attendanceTimeLabel($clockOutAt),
+                    'clockOutStatus' => $attendance?->txtAttendanceClockOutStatus,
+                    'clockOutWarning' => $clockOutWarning,
+                    'locationIn' => $attendance?->txtAttendanceAddress ?: '-',
+                    'locationInUrl' => $attendance?->txtAttendanceLocationUrl,
+                    'locationOut' => $attendance?->txtAttendanceClockOutAddress ?: '-',
+                    'locationOutUrl' => $attendance?->txtAttendanceClockOutLocationUrl,
+                ];
+            })
+            ->sortBy('name')
+            ->values();
+    }
+
+    /**
+     * @param Collection<int, MUser> $teamUsers
+     * @return array{filters: array<string, string>, interns: Collection<int, MUser>, rows: Collection<int, array<string, mixed>>, summary: array<string, int>}
+     */
+    private function mentorAttendanceDetail(Request $request, Collection $teamUsers, MAttendanceSetting $setting, Carbon $now): array
+    {
+        [$fromDate, $toDate] = $this->detailDateRange($request, $now);
+        $selectedUserId = (int) $request->query('intUser_ID', 0);
+        $filteredUsers = $selectedUserId > 0
+            ? $teamUsers->where('intUser_ID', $selectedUserId)->values()
+            : $teamUsers;
+
+        if ($filteredUsers->isEmpty()) {
+            $selectedUserId = 0;
+            $filteredUsers = $teamUsers;
+        }
+
+        $records = TrAttendance::with(['user.intern'])
+            ->whereDate('dtmAttendanceDate', '>=', $fromDate->toDateString())
+            ->whereDate('dtmAttendanceDate', '<=', $toDate->toDateString())
+            ->when($selectedUserId > 0, fn ($query) => $query->where('intUser_ID', $selectedUserId))
+            ->get()
+            ->keyBy(fn (TrAttendance $attendance) => $attendance->intUser_ID . '|' . $attendance->dtmAttendanceDate?->format('Y-m-d'));
+        $rows = collect();
+        $summary = $this->emptyDetailSummary();
+
+        for ($date = $fromDate->copy(); $date->lte($toDate); $date->addDay()) {
+            if (! $this->isWorkday($date)) {
+                continue;
+            }
+
+            $dateWindows = $this->attendanceWindows($setting, $date);
+
+            foreach ($filteredUsers as $user) {
+                $attendance = $records->get($user->intUser_ID . '|' . $date->format('Y-m-d'));
+                $clockInAt = $attendance ? $this->attendanceClockInAt($attendance) : null;
+                $clockOutAt = $attendance ? $this->attendanceClockOutAt($attendance) : null;
+                $clockInStatus = $attendance ? $this->attendanceClockInStatus($attendance, $dateWindows) : null;
+                $isToday = $date->isSameDay($now);
+                $status = $attendance
+                    ? $this->attendanceStatus($attendance, $dateWindows)
+                    : $this->missingAttendanceStatus($date, $now, $dateWindows);
+                $clockInWarning = ! $attendance
+                    && $isToday
+                    && $now->gt($dateWindows['clockInEnd'])
+                    && ! $now->gt($dateWindows['clockInLateEnd']);
+                $clockOutWarning = (bool) $clockInAt
+                    && ! $clockOutAt
+                    && (! $isToday || $now->gt($dateWindows['clockOutEnd']));
+
+                $summary['total'] += 1;
+
+                match ($status) {
+                    'Hadir' => $summary['present'] += 1,
+                    'Terlambat' => $summary['late'] += 1,
+                    'Tidak Masuk' => $summary['absent'] += 1,
+                    default => $summary['pending'] += 1,
+                };
+
+                if ($clockOutWarning) {
+                    $summary['clockOutWarnings'] += 1;
+                }
+
+                $rows->push([
+                    'date' => $date->copy(),
+                    'intUser_ID' => $user->intUser_ID,
+                    'name' => $this->displayName($user),
+                    'status' => $status,
+                    'clockIn' => $this->attendanceTimeLabel($clockInAt),
+                    'clockInStatus' => $clockInStatus,
+                    'clockInWarning' => $clockInWarning,
+                    'clockOut' => $this->attendanceTimeLabel($clockOutAt),
+                    'clockOutStatus' => $attendance?->txtAttendanceClockOutStatus,
+                    'clockOutWarning' => $clockOutWarning,
+                    'locationIn' => $attendance?->txtAttendanceAddress ?: '-',
+                    'locationInUrl' => $attendance?->txtAttendanceLocationUrl,
+                    'locationOut' => $attendance?->txtAttendanceClockOutAddress ?: '-',
+                    'locationOutUrl' => $attendance?->txtAttendanceClockOutLocationUrl,
+                    'faceDistance' => $attendance?->floatAttendanceFaceDistance,
+                    'clockOutFaceDistance' => $attendance?->floatAttendanceClockOutFaceDistance,
+                ]);
+            }
+        }
+
+        return [
+            'filters' => [
+                'from' => $fromDate->toDateString(),
+                'to' => $toDate->toDateString(),
+                'intUser_ID' => (string) $selectedUserId,
+            ],
+            'interns' => $teamUsers,
+            'rows' => $rows,
+            'summary' => $summary,
+        ];
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function detailDateRange(Request $request, Carbon $now): array
+    {
+        $from = $this->dateFromQuery($request->query('from'), $now->copy()->startOfMonth());
+        $to = $this->dateFromQuery($request->query('to'), $now);
+
+        if ($to->lt($from)) {
+            $to = $from->copy();
+        }
+
+        return [$from->startOfDay(), $to->startOfDay()];
+    }
+
+    private function dateFromQuery(mixed $value, Carbon $fallback): Carbon
+    {
+        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return $fallback->copy()->timezone(self::TIMEZONE);
+        }
+
+        try {
+            return Carbon::parse($value, self::TIMEZONE);
+        } catch (\Throwable) {
+            return $fallback->copy()->timezone(self::TIMEZONE);
+        }
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function emptyDetailSummary(): array
+    {
+        return [
+            'total' => 0,
+            'present' => 0,
+            'late' => 0,
+            'absent' => 0,
+            'pending' => 0,
+            'clockOutWarnings' => 0,
+        ];
+    }
+
+    /**
+     * @param array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon} $windows
+     */
+    private function missingAttendanceStatus(Carbon $date, Carbon $now, array $windows): string
+    {
+        if ($date->gt($now->copy()->startOfDay())) {
+            return 'Belum Clock In';
+        }
+
+        if ($date->isSameDay($now) && ! $now->gt($windows['clockInLateEnd'])) {
+            return 'Belum Clock In';
+        }
+
+        return 'Tidak Masuk';
+    }
+
+    /**
+     * @param array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon} $windows
+     */
+    private function attendanceStatus(TrAttendance $attendance, array $windows): string
+    {
+        $clockInStatus = $this->attendanceClockInStatus($attendance, $windows);
+
+        if ($clockInStatus === 'Terlambat') {
+            return 'Terlambat';
+        }
+
+        if ($clockInStatus === 'Tepat Waktu') {
+            return 'Hadir';
+        }
+
+        return $attendance->txtAttendanceStatus ?: 'Hadir';
+    }
+
+    /**
+     * @param array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon} $windows
+     */
+    private function attendanceClockInStatus(TrAttendance $attendance, array $windows): ?string
+    {
+        if ($attendance->txtAttendanceClockInStatus) {
+            return $attendance->txtAttendanceClockInStatus;
+        }
+
+        $clockInAt = $this->attendanceClockInAt($attendance);
+
+        if (! $clockInAt) {
+            return null;
+        }
+
+        return $clockInAt->gt($windows['clockInEnd']) ? 'Terlambat' : 'Tepat Waktu';
+    }
+
+    private function attendanceClockInAt(TrAttendance $attendance): ?Carbon
+    {
+        return $this->attendanceDateTime($attendance, $attendance->dtmAttendanceClockIn);
+    }
+
+    private function attendanceClockOutAt(TrAttendance $attendance): ?Carbon
+    {
+        return $this->attendanceDateTime($attendance, $attendance->dtmAttendanceClockOut);
+    }
+
+    private function attendanceDateTime(TrAttendance $attendance, mixed $value): ?Carbon
+    {
+        if (! $value) {
+            return null;
+        }
+
+        $time = $value instanceof Carbon
+            ? $value->format('H:i:s')
+            : Carbon::parse((string) $value)->format('H:i:s');
+        $date = $attendance->dtmAttendanceDate?->format('Y-m-d')
+            ?: Carbon::now(self::TIMEZONE)->toDateString();
+
+        return Carbon::parse($date . ' ' . $time, self::TIMEZONE);
+    }
+
+    private function attendanceTimeLabel(?Carbon $value): string
+    {
+        return $value?->format('H:i') ?? '-';
+    }
+
+    private function isWorkday(Carbon $date): bool
+    {
+        return $date->isWeekday();
+    }
+
+    private function displayName(MUser $user): string
+    {
+        return $user->intern?->txtInternName
+            ?? $user->mentor?->txtMentorName
+            ?? $user->txtEmail
+            ?? 'User';
+    }
+
+    /**
+     * @return array<int, float>
+     */
+    private function decodeDescriptor(mixed $value, string $field): array
+    {
+        $decoded = is_string($value) ? json_decode($value, true) : $value;
+
+        if (! is_array($decoded)) {
+            throw ValidationException::withMessages([$field => 'Descriptor wajah tidak valid.']);
+        }
+
+        $descriptor = [];
+
+        foreach ($decoded as $entry) {
+            if (! is_numeric($entry)) {
+                throw ValidationException::withMessages([$field => 'Descriptor wajah berisi nilai yang tidak valid.']);
+            }
+
+            $descriptor[] = round((float) $entry, 6);
+        }
+
+        if (count($descriptor) < 64 || count($descriptor) > 1024) {
+            throw ValidationException::withMessages([$field => 'Descriptor wajah tidak lengkap.']);
+        }
+
+        return $descriptor;
+    }
+
+    private function coordinateLabel(float $latitude, float $longitude, mixed $accuracy): string
+    {
+        $label = 'Lat ' . number_format($latitude, 6) . ', Lng ' . number_format($longitude, 6);
+
+        if (is_numeric($accuracy)) {
+            $label .= ' +/- ' . number_format((float) $accuracy, 0) . ' m';
+        }
+
+        return $label;
+    }
+}

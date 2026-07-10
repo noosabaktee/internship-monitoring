@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\MIntern;
+use App\Models\MAttendanceSetting;
+use App\Models\MFaceEnrollment;
 use App\Models\MMentor;
 use App\Models\MProject;
 use App\Models\MProjectHandle;
@@ -10,6 +12,7 @@ use App\Models\MProjectWeight;
 use App\Models\MSkillSet;
 use App\Models\MUser;
 use App\Models\TrAchievement;
+use App\Models\TrAttendance;
 use App\Models\TrCalendarSharing;
 use App\Models\TrEvaluation;
 use App\Models\TrInternProject;
@@ -40,6 +43,7 @@ class DatabaseSeeder extends Seeder
                 100 => 'Completed',
             ];
             $skillSetIds = $this->seedSkillSets();
+            $this->seedAttendanceSetting();
             $this->seedProjectHandles();
             $this->seedProjectWeight();
             $mentorNames = collect($internRows)->pluck('mentor')->unique()->values();
@@ -214,6 +218,8 @@ class DatabaseSeeder extends Seeder
 
     private function clearCustomTables(): void
     {
+        TrAttendance::query()->delete();
+        MFaceEnrollment::query()->delete();
         TrCalendarSharing::query()->delete();
         TrAchievement::query()->delete();
         TrEvaluation::query()->delete();
@@ -224,9 +230,28 @@ class DatabaseSeeder extends Seeder
         MSkillSet::query()->delete();
         MProjectHandle::query()->delete();
         MProjectWeight::query()->delete();
+        MAttendanceSetting::query()->delete();
         MIntern::query()->delete();
         MMentor::query()->delete();
         MUser::query()->delete();
+    }
+
+    private function seedAttendanceSetting(): void
+    {
+        MAttendanceSetting::create([
+            'intAttendanceSetting_ID' => 1,
+            'txtAttendanceSettingStartTime' => '06:30',
+            'txtAttendanceSettingEndTime' => '18:30',
+            'txtAttendanceSettingClockInStartTime' => '06:30',
+            'txtAttendanceSettingClockInEndTime' => '09:00',
+            'txtAttendanceSettingClockOutStartTime' => '16:00',
+            'txtAttendanceSettingClockOutEndTime' => '18:30',
+            'floatAttendanceSettingFaceThreshold' => 0.38,
+            'bitAttendanceSettingLocationRequired' => true,
+            'bitActive' => true,
+            'txtInsertedBy' => 'seeder',
+            'dtmInserted' => now(),
+        ]);
     }
 
     /**

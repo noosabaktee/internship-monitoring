@@ -2,17 +2,29 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MFaceEnrollment;
 use App\Models\MIntern;
 use App\Models\MMentor;
 use App\Models\MUser;
+use App\Services\FaceRecognitionService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class ProfileController extends Controller
 {
+    private const TIMEZONE = 'Asia/Jakarta';
+    private const FACE_ALGORITHM = 'insightface-buffalo_l-v1';
+
+    public function __construct(private readonly FaceRecognitionService $faceRecognition)
+    {
+    }
+
     public function index(): View
     {
         return view('profile.show');
@@ -46,7 +58,7 @@ class ProfileController extends Controller
         $intern = $user?->intern ?? $this->currentIntern();
 
         if ($intern) {
-            $intern->load(['user', 'projects.project.projectMentors.mentor', 'projects.mentor', 'achievements', 'evaluations']);
+            $intern->load(['user.faceEnrollment', 'projects.project.projectMentors.mentor', 'projects.mentor', 'achievements', 'evaluations']);
         }
 
         return view('profile.show', compact('intern'));
@@ -108,9 +120,69 @@ class ProfileController extends Controller
         return redirect()->route('profile.show')->with('success', 'Profile photo has been updated.');
     }
 
+    public function storeFaceEnrollment(Request $request): RedirectResponse
+    {
+        $user = $this->currentUser();
+
+        if (! $user || $user->txtRole === 'Mentor' || ! $user->intern) {
+            return redirect()->route('profile.show')->withErrors(['profile' => 'Face ID hanya dapat didaftarkan oleh intern.']);
+        }
+
+        $validated = $request->validate([
+            'txtFaceEnrollmentImages' => ['required', 'string'],
+            'intFaceEnrollmentSampleCount' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'floatFaceEnrollmentQuality' => ['nullable', 'numeric', 'min:0', 'max:1'],
+        ]);
+        $images = $this->decodeImageList($validated['txtFaceEnrollmentImages']);
+        $now = Carbon::now(self::TIMEZONE);
+
+        try {
+            $facePayload = $this->faceRecognition->enroll($images);
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['profile' => $exception->getMessage()]);
+        }
+
+        $descriptor = $this->decodeDescriptor($facePayload['embedding'] ?? null, 'txtFaceEnrollmentImages');
+
+        MFaceEnrollment::updateOrCreate(
+            ['intUser_ID' => $user->intUser_ID],
+            [
+                'txtFaceEnrollmentDescriptor' => $descriptor,
+                'txtFaceEnrollmentAlgorithm' => $facePayload['algorithm'] ?? self::FACE_ALGORITHM,
+                'intFaceEnrollmentSampleCount' => (int) ($facePayload['sample_count'] ?? count($images)),
+                'floatFaceEnrollmentQuality' => round((float) ($facePayload['quality'] ?? 0), 4),
+                'dtmFaceEnrollmentRegistered' => $now,
+                'bitActive' => true,
+                'txtInsertedBy' => $user->txtEmail ?? 'system',
+                'dtmInserted' => $now,
+                'txtUpdatedBy' => $user->txtEmail ?? 'system',
+                'dtmUpdated' => $now,
+            ],
+        );
+
+        return redirect()->route('profile.show')->with('success', 'Face ID absensi berhasil didaftarkan.');
+    }
+
+    public function destroyFaceEnrollment(): RedirectResponse
+    {
+        $user = $this->currentUser();
+
+        if (! $user || $user->txtRole === 'Mentor' || ! $user->intern) {
+            return redirect()->route('profile.show')->withErrors(['profile' => 'Face ID hanya dapat direset oleh intern.']);
+        }
+
+        $user->faceEnrollment()->update([
+            'bitActive' => false,
+            'txtUpdatedBy' => $user->txtEmail ?? 'system',
+            'dtmUpdated' => Carbon::now(self::TIMEZONE),
+        ]);
+
+        return redirect()->route('profile.show')->with('success', 'Face ID absensi berhasil direset.');
+    }
+
     public function showIntern(MIntern $intern): View
     {
-        $intern->load(['user', 'projects.project.projectMentors.mentor', 'projects.mentor', 'achievements', 'evaluations']);
+        $intern->load(['user.faceEnrollment', 'projects.project.projectMentors.mentor', 'projects.mentor', 'achievements', 'evaluations']);
 
         return view('profile.show', compact('intern'));
     }
@@ -214,19 +286,70 @@ class ProfileController extends Controller
         return redirect()->route('profile.show')->with('success', 'Profile has been updated.');
     }
 
+    /**
+     * @return array<int, float>
+     */
+    private function decodeDescriptor(mixed $value, string $field): array
+    {
+        $decoded = is_string($value) ? json_decode($value, true) : $value;
+
+        if (! is_array($decoded)) {
+            throw ValidationException::withMessages([$field => 'Descriptor wajah tidak valid.']);
+        }
+
+        $descriptor = [];
+
+        foreach ($decoded as $entry) {
+            if (! is_numeric($entry)) {
+                throw ValidationException::withMessages([$field => 'Descriptor wajah berisi nilai yang tidak valid.']);
+            }
+
+            $descriptor[] = round((float) $entry, 6);
+        }
+
+        if (count($descriptor) < 64 || count($descriptor) > 1024) {
+            throw ValidationException::withMessages([$field => 'Descriptor wajah tidak lengkap.']);
+        }
+
+        return $descriptor;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function decodeImageList(string $value): array
+    {
+        $decoded = json_decode($value, true);
+
+        if (! is_array($decoded)) {
+            throw ValidationException::withMessages(['txtFaceEnrollmentImages' => 'Data gambar wajah tidak valid.']);
+        }
+
+        $images = collect($decoded)
+            ->filter(fn ($image) => is_string($image) && str_starts_with($image, 'data:image/'))
+            ->values()
+            ->all();
+
+        if (count($images) === 0 || count($images) > 5) {
+            throw ValidationException::withMessages(['txtFaceEnrollmentImages' => 'Jumlah sampel wajah tidak valid.']);
+        }
+
+        return $images;
+    }
+
     private function currentIntern(): ?MIntern
     {
         $userId = session('auth_user_id');
 
         if ($userId) {
-            $user = MUser::with('intern')->find($userId);
+            $user = MUser::with('intern.user.faceEnrollment')->find($userId);
 
             if ($user?->intern) {
                 return $user->intern;
             }
         }
 
-        return MIntern::with('user')->orderBy('intIntern_ID')->first();
+        return MIntern::with('user.faceEnrollment')->orderBy('intIntern_ID')->first();
     }
 
     private function currentUser(): ?MUser
@@ -237,6 +360,6 @@ class ProfileController extends Controller
             return null;
         }
 
-        return MUser::with(['intern', 'mentor'])->find($userId);
+        return MUser::with(['intern', 'mentor', 'faceEnrollment'])->find($userId);
     }
 }

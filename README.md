@@ -1,3 +1,23 @@
+# KMI Internship Monitoring
+
+## Development
+
+Install PHP and Node dependencies as usual, then install the local Python face service dependencies once:
+
+```bash
+npm run face:install
+```
+
+Run Laravel, Vite, and the local Python Face Recognition service together:
+
+```bash
+npm run dev:all
+```
+
+The face service runs locally at `http://127.0.0.1:9000` and is used by Laravel for attendance face enrollment and verification. The first face scan may download the InsightFace model.
+
+---
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">
