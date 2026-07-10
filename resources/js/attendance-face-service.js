@@ -16,13 +16,7 @@ const initializeFaceServicePage = (page) => {
     const enrollmentImagesInput = page.querySelector('[data-face-enrollment-images]');
     const enrollmentSampleInput = page.querySelector('[data-face-enrollment-sample-count]');
     const enrollmentQualityInput = page.querySelector('[data-face-enrollment-quality]');
-    const attendanceForm = page.querySelector('[data-attendance-form]');
-    const attendanceButton = page.querySelector('[data-attendance-submit]');
-    const capturedImageInput = page.querySelector('[data-attendance-captured-image]');
-    const latitudeInput = page.querySelector('[data-attendance-latitude]');
-    const longitudeInput = page.querySelector('[data-attendance-longitude]');
-    const accuracyInput = page.querySelector('[data-attendance-accuracy]');
-    const deviceInput = page.querySelector('[data-attendance-device]');
+    const attendanceButtons = page.querySelectorAll('[data-attendance-submit]');
     const detectionUrl = page.dataset.faceDetectionUrl || '';
     const csrfToken = page.querySelector('input[name="_token"]')?.value
         || document.querySelector('input[name="_token"]')?.value
@@ -227,6 +221,23 @@ const initializeFaceServicePage = (page) => {
         });
     };
 
+    const attendanceFieldsFor = (button) => {
+        const form = button.closest('[data-attendance-form]');
+
+        if (!form) {
+            throw new Error('Form absensi belum tersedia.');
+        }
+
+        return {
+            form,
+            capturedImageInput: form.querySelector('[data-attendance-captured-image]'),
+            latitudeInput: form.querySelector('[data-attendance-latitude]'),
+            longitudeInput: form.querySelector('[data-attendance-longitude]'),
+            accuracyInput: form.querySelector('[data-attendance-accuracy]'),
+            deviceInput: form.querySelector('[data-attendance-device]'),
+        };
+    };
+
     cameraButton?.addEventListener('click', async () => {
         setBusy(cameraButton, true, '');
 
@@ -264,40 +275,53 @@ const initializeFaceServicePage = (page) => {
         }
     });
 
-    attendanceButton?.addEventListener('click', async () => {
-        if (attendanceButton.disabled) {
-            setMessage(attendanceButton.dataset.disabledReason || 'Absensi belum bisa dilakukan.', true);
-            return;
-        }
+    attendanceButtons.forEach((attendanceButton) => {
+        attendanceButton.addEventListener('click', async () => {
+            const actionName = attendanceButton.dataset.attendanceActionName || 'Absensi';
 
-        setBusy(attendanceButton, true, 'Memproses...');
-
-        try {
-            if (!attendanceForm || !capturedImageInput || !latitudeInput || !longitudeInput || !accuracyInput || !deviceInput) {
-                throw new Error('Form absensi belum lengkap.');
+            if (attendanceButton.disabled) {
+                setMessage(attendanceButton.dataset.disabledReason || `${actionName} belum bisa dilakukan.`, true);
+                return;
             }
 
-            await detectFace();
-            setMessage('Meminta lokasi...');
+            setBusy(attendanceButton, true, 'Memproses...');
 
-            const position = await getLocation();
+            try {
+                const {
+                    form,
+                    capturedImageInput,
+                    latitudeInput,
+                    longitudeInput,
+                    accuracyInput,
+                    deviceInput,
+                } = attendanceFieldsFor(attendanceButton);
 
-            latitudeInput.value = position.coords.latitude;
-            longitudeInput.value = position.coords.longitude;
-            accuracyInput.value = position.coords.accuracy || '';
-            deviceInput.value = `${navigator.platform || 'Device'} | ${navigator.userAgent || 'Browser'}`.slice(0, 500);
-            setMessage('Mengambil foto wajah...');
+                if (!capturedImageInput || !latitudeInput || !longitudeInput || !accuracyInput || !deviceInput) {
+                    throw new Error('Form absensi belum lengkap.');
+                }
 
-            const images = await captureImages(1);
+                await detectFace();
+                setMessage('Meminta lokasi...');
 
-            capturedImageInput.value = images[0];
-            setMessage('Foto dan lokasi dikirim untuk verifikasi.');
-            attendanceForm.requestSubmit();
-        } catch (error) {
-            setMessage(error.readableMessage || error.message, true);
-            setProgress(0);
-            setBusy(attendanceButton, false);
-        }
+                const position = await getLocation();
+
+                latitudeInput.value = position.coords.latitude;
+                longitudeInput.value = position.coords.longitude;
+                accuracyInput.value = position.coords.accuracy || '';
+                deviceInput.value = `${navigator.platform || 'Device'} | ${navigator.userAgent || 'Browser'}`.slice(0, 500);
+                setMessage('Mengambil foto wajah...');
+
+                const images = await captureImages(1);
+
+                capturedImageInput.value = images[0];
+                setMessage(`${actionName} dikirim untuk verifikasi.`);
+                form.requestSubmit();
+            } catch (error) {
+                setMessage(error.readableMessage || error.message, true);
+                setProgress(0);
+                setBusy(attendanceButton, false);
+            }
+        });
     });
 };
 

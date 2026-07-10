@@ -48,6 +48,7 @@ Route::middleware('kmi.auth')->group(function () {
     Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
     Route::post('face-detection', [AttendanceController::class, 'detectFace'])->name('face.detection.store');
     Route::post('attendance/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in.store');
+    Route::post('attendance/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out.store');
 
     Route::resource('leaderboard', LeaderboardController::class)->only(['index', 'show']);
     Route::resource('interns', InternController::class)->only(['index', 'show']);

@@ -240,8 +240,12 @@ class DatabaseSeeder extends Seeder
     {
         MAttendanceSetting::create([
             'intAttendanceSetting_ID' => 1,
-            'txtAttendanceSettingStartTime' => '06:00',
-            'txtAttendanceSettingEndTime' => '23:59',
+            'txtAttendanceSettingStartTime' => '06:30',
+            'txtAttendanceSettingEndTime' => '18:30',
+            'txtAttendanceSettingClockInStartTime' => '06:30',
+            'txtAttendanceSettingClockInEndTime' => '09:00',
+            'txtAttendanceSettingClockOutStartTime' => '16:00',
+            'txtAttendanceSettingClockOutEndTime' => '18:30',
             'floatAttendanceSettingFaceThreshold' => 0.38,
             'bitAttendanceSettingLocationRequired' => true,
             'bitActive' => true,

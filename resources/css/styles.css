@@ -2938,6 +2938,19 @@ a.btn-icon {
     margin-top: 4px;
 }
 
+.attendance-warning-box {
+    border: 1px solid rgba(245, 158, 11, 0.34);
+    background: rgba(245, 158, 11, 0.1);
+    color: #92400E;
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
 .attendance-main-grid {
     display: grid;
     grid-template-columns: minmax(320px, 0.82fr) minmax(0, 1.18fr);
@@ -3140,6 +3153,7 @@ a.btn-icon {
     padding: 5px 10px;
     font-size: 11px;
     font-weight: 800;
+    white-space: nowrap;
 }
 
 .attendance-status-present {
@@ -3157,11 +3171,41 @@ a.btn-icon {
     color: #B45309;
 }
 
+.attendance-status-late {
+    background: rgba(245, 158, 11, 0.16);
+    color: #92400E;
+}
+
+.attendance-status-warning {
+    background: rgba(245, 158, 11, 0.18);
+    color: #92400E;
+}
+
+.attendance-kpi .attendance-kpi-status {
+    display: inline-flex;
+    width: fit-content;
+    min-width: auto;
+    margin-top: 7px;
+    padding: 4px 9px;
+    font-size: 10px;
+    text-transform: none;
+}
+
+.attendance-location-stack,
+.attendance-match-stack {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-gray);
+}
+
 .attendance-location-link {
     color: var(--primary);
     font-weight: 800;
     text-decoration: none;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 6px;
     max-width: 310px;
@@ -3176,17 +3220,61 @@ a.btn-icon {
 
 .attendance-setting-form {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
     align-items: end;
 }
 
 .attendance-setting-form .btn-save {
+    grid-column: 1 / -1;
     min-height: 41px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
+}
+
+.attendance-detail-panel {
+    display: grid;
+    gap: 16px;
+}
+
+.attendance-detail-filter {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    align-items: end;
+}
+
+.attendance-detail-filter .btn-save {
+    min-height: 41px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.attendance-detail-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.attendance-detail-stats span {
+    border: 1px solid var(--border);
+    background: var(--bg-body);
+    border-radius: 999px;
+    color: var(--text-gray);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 11px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.attendance-detail-stats strong {
+    color: var(--primary);
 }
 
 body.dark-mode .attendance-camera-frame {
@@ -3196,6 +3284,12 @@ body.dark-mode .attendance-camera-frame {
 }
 
 body.dark-mode .attendance-status-waiting {
+    color: #FBBF24;
+}
+
+body.dark-mode .attendance-warning-box,
+body.dark-mode .attendance-status-late,
+body.dark-mode .attendance-status-warning {
     color: #FBBF24;
 }
 
@@ -3420,11 +3514,39 @@ body.dark-mode .attendance-status-waiting {
         flex-direction: column;
     }
 
+    [data-attendance-page].attendance-shell .attendance-main-grid {
+        display: contents;
+    }
+
+    [data-attendance-page].attendance-shell .attendance-camera-panel {
+        order: -3;
+    }
+
+    [data-attendance-page].attendance-shell .attendance-hero {
+        order: -2;
+    }
+
+    [data-attendance-page].attendance-shell .attendance-kpi-grid {
+        order: -1;
+    }
+
+    [data-attendance-page].attendance-shell .attendance-warning-box {
+        order: 0;
+    }
+
+    [data-attendance-page].attendance-shell .attendance-main-grid > .attendance-panel:not(.attendance-camera-panel) {
+        order: 1;
+    }
+
     .attendance-camera-frame {
         min-height: 220px;
     }
 
     .attendance-setting-form {
+        grid-template-columns: 1fr;
+    }
+
+    .attendance-detail-filter {
         grid-template-columns: 1fr;
     }
 
