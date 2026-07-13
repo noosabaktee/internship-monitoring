@@ -59,6 +59,25 @@ it('recovers latest inactive assignment when saving an already emptied project e
         ->and($projectMentor->intMentor_ID)->toBe($mentor->intMentor_ID);
 });
 
+it('rejects project creation without stages', function () {
+    [$user, $intern, $mentor, $project] = createProjectAssignmentFixture();
+
+    $this->withSession(['auth_user_id' => $user->intUser_ID])
+        ->from(route('projects.create'))
+        ->post(route('projects.store'), [
+            'txtProjectName' => 'Project Without Stages',
+            'txtProjectType' => 'Main',
+            'intSkillSet_ID' => $project->intSkillSet_ID,
+            'dtmProjectStartDate' => '2026-07-01',
+            'dtmProjectEndDate' => '2026-07-31',
+            'txtDescription' => 'Missing stages',
+            'bitActive' => '1',
+            'floatProgress' => '0',
+        ])
+        ->assertRedirect(route('projects.create'))
+        ->assertSessionHasErrors(['stages' => 'Isi tahap project terlebih dahulu.']);
+});
+
 function createProjectAssignmentFixture(bool $active = true): array
 {
     $now = now();
@@ -149,5 +168,15 @@ function projectUpdatePayload(MProject $project, array $overrides = []): array
         'txtDescription' => 'Updated project',
         'bitActive' => '1',
         'floatProgress' => '25',
+        'stages_present' => '1',
+        'stages' => [
+            [
+                'txtProjectStageStep' => 'Planning',
+                'dtmProjectStageStartDate' => '2026-07-01',
+                'dtmProjectStageEndDate' => '2026-07-31',
+                'floatProjectStagePlan' => '100',
+                'floatProjectStageActual' => '25',
+            ],
+        ],
     ], $overrides);
 }

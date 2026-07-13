@@ -25,17 +25,74 @@
         @endif
     </div>
 
-    @if ($isFormOpen)
-        <section class="profile-card mb-4">
-            <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
-                <div class="profile-card-title">
-                    <h2>{{ isset($editingIntern) ? 'Edit Intern' : 'Add New Intern' }}</h2>
-                    <p>Email and password are stored in mUser. Intern profiles are stored in mIntern.</p>
-                </div>
-                <a href="{{ route('interns.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Close</a>
-            </div>
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table data-table align-middle mb-0">
+                <thead>
+                    <tr><th>ID</th><th>Full Name</th><th>Gender</th><th>Email</th><th>University</th><th>Dept</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    @forelse ($interns as $intern)
+                        @php
+                            $internName = $intern->txtInternName ?: 'Intern';
+                            $internPhotoUrl = $intern->user?->txtProfilePhoto
+                                ? asset('storage/' . $intern->user->txtProfilePhoto)
+                                : 'https://ui-avatars.com/api/?name=' . urlencode($internName) . '&background=8CC63F&color=fff&bold=true';
+                        @endphp
+                        <tr>
+                            <td>{{ $intern->txtInternNo ?: 'INT-' . str_pad((string) $intern->intIntern_ID, 3, '0', STR_PAD_LEFT) }}</td>
+                            <td>
+                                <a class="table-person table-person-link" href="{{ route('profile.intern.show', $intern->intIntern_ID) }}">
+                                    <img class="table-person-avatar" src="{{ $internPhotoUrl }}" alt="{{ $internName }}" loading="lazy">
+                                    <span class="table-person-name">{{ $intern->txtInternName ?: '-' }}</span>
+                                </a>
+                            </td>
+                            <td>{{ $intern->txtInternGender ?: '-' }}</td>
+                            <td>{{ $intern->user->txtEmail ?? '-' }}</td>
+                            <td>{{ $intern->txtUniversity ?: '-' }}</td>
+                            <td>{{ $intern->txtDept ?: '-' }}</td>
+                            <td>{{ $intern->dtmInserted?->format('d M Y') ?? '-' }}</td>
+                            <td>{{ $intern->dtmEndDate?->format('d M Y') ?? '-' }}</td>
+                            <td><span class="status-badge {{ $intern->bitActive ? 'status-active' : 'status-inactive' }}">{{ $intern->bitActive ? 'Active' : 'Inactive' }}</span></td>
+                            <td>
+                                @if ($isMentor)
+                                    <div class="action-btns">
+                                        <a class="btn-icon btn-edit" href="{{ route('interns.edit', $intern->intIntern_ID) }}"><i class="fa-solid fa-pen"></i></a>
+                                        <button
+                                            class="btn-icon btn-delete"
+                                            type="button"
+                                            data-delete-modal-trigger
+                                            data-delete-action="{{ route('interns.destroy', $intern->intIntern_ID) }}"
+                                            data-delete-title="Deactivate Intern?"
+                                            data-delete-message="{{ $intern->txtInternName ?: 'This intern' }} will be marked inactive along with the linked user account."
+                                            data-delete-submit="Deactivate"
+                                        ><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                @else
+                                    <a class="auth-link" href="{{ route('profile.intern.show', $intern->intIntern_ID) }}">View</a>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="10" class="center">No intern data yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+@endsection
 
-            <form class="row g-3" action="{{ $formAction }}" method="POST">
+@if ($isFormOpen)
+    @push('modals')
+        <x-crud-modal
+            id="internFormModal"
+            :active="$isFormOpen"
+            :title="isset($editingIntern) ? 'Edit Intern' : 'Add New Intern'"
+            subtitle="Email and password are stored in mUser. Intern profiles are stored in mIntern."
+            :close-url="route('interns.index')"
+            size="lg"
+        >
+            <form id="internForm" class="row g-3" action="{{ $formAction }}" method="POST">
                 @csrf
                 @isset($editingIntern)
                     @method('PUT')
@@ -99,62 +156,12 @@
                     </button>
                     <p class="intern-extend-note" id="internExtendNote">Extend can be added when the latest end date is within 14 days.</p>
                 </div>
-                <div class="col-12">
-                    <button class="btn btn-primary btn-save" type="submit">{{ isset($editingIntern) ? 'Save Changes' : 'Save Intern' }}</button>
-                </div>
             </form>
-        </section>
-    @endif
 
-    <div class="card">
-        <div class="table-responsive">
-            <table class="table data-table align-middle mb-0">
-                <thead>
-                    <tr><th>ID</th><th>Full Name</th><th>Gender</th><th>Email</th><th>University</th><th>Dept</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
-                </thead>
-                <tbody>
-                    @forelse ($interns as $intern)
-                        @php
-                            $internName = $intern->txtInternName ?: 'Intern';
-                            $internPhotoUrl = $intern->user?->txtProfilePhoto
-                                ? asset('storage/' . $intern->user->txtProfilePhoto)
-                                : 'https://ui-avatars.com/api/?name=' . urlencode($internName) . '&background=8CC63F&color=fff&bold=true';
-                        @endphp
-                        <tr>
-                            <td>{{ $intern->txtInternNo ?: 'INT-' . str_pad((string) $intern->intIntern_ID, 3, '0', STR_PAD_LEFT) }}</td>
-                            <td>
-                                <a class="table-person table-person-link" href="{{ route('profile.intern.show', $intern->intIntern_ID) }}">
-                                    <img class="table-person-avatar" src="{{ $internPhotoUrl }}" alt="{{ $internName }}" loading="lazy">
-                                    <span class="table-person-name">{{ $intern->txtInternName ?: '-' }}</span>
-                                </a>
-                            </td>
-                            <td>{{ $intern->txtInternGender ?: '-' }}</td>
-                            <td>{{ $intern->user->txtEmail ?? '-' }}</td>
-                            <td>{{ $intern->txtUniversity ?: '-' }}</td>
-                            <td>{{ $intern->txtDept ?: '-' }}</td>
-                            <td>{{ $intern->dtmInserted?->format('d M Y') ?? '-' }}</td>
-                            <td>{{ $intern->dtmEndDate?->format('d M Y') ?? '-' }}</td>
-                            <td><span class="status-badge {{ $intern->bitActive ? 'status-active' : 'status-inactive' }}">{{ $intern->bitActive ? 'Active' : 'Inactive' }}</span></td>
-                            <td>
-                                @if ($isMentor)
-                                    <div class="action-btns">
-                                        <a class="btn-icon btn-edit" href="{{ route('interns.edit', $intern->intIntern_ID) }}"><i class="fa-solid fa-pen"></i></a>
-                                        <form action="{{ route('interns.destroy', $intern->intIntern_ID) }}" method="POST" onsubmit="return confirm('Deactivate this intern?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="btn-icon btn-delete" type="submit"><i class="fa-solid fa-trash"></i></button>
-                                        </form>
-                                    </div>
-                                @else
-                                    <a class="auth-link" href="{{ route('profile.intern.show', $intern->intIntern_ID) }}">View</a>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="10" class="center">No intern data yet.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
-@endsection
+            <x-slot:footer>
+                <a href="{{ route('interns.index') }}" class="btn-cancel" style="text-decoration:none;">Cancel</a>
+                <button class="btn-save" type="submit" form="internForm">{{ isset($editingIntern) ? 'Save Changes' : 'Save Intern' }}</button>
+            </x-slot:footer>
+        </x-crud-modal>
+    @endpush
+@endif

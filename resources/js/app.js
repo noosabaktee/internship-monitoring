@@ -51,108 +51,13 @@ window.toggleNavDropdown = function (dropdownId) {
     toggle.setAttribute('aria-expanded', dropdown.classList.contains('open') ? 'true' : 'false');
 };
 
-const modalTemplates = {
-    intern: `
-        <div class="form-group">
-            <label>ID</label>
-            <input type="text" class="form-control" placeholder="Example: INT-002">
-        </div>
-        <div class="form-group">
-            <label>Full Name</label>
-            <input type="text" class="form-control" placeholder="Enter full name">
-        </div>
-        <div class="form-group">
-            <label>Gender</label>
-            <select class="form-control">
-                <option>Male</option>
-                <option>Female</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>University</label>
-            <input type="text" class="form-control" placeholder="Enter university name">
-        </div>
-        <div class="form-group">
-            <label>Status</label>
-            <select class="form-control">
-                <option>Active</option>
-                <option>Inactive</option>
-            </select>
-        </div>
-    `,
-    project: `
-        <div class="form-group">
-            <label>Project Name</label>
-            <input type="text" class="form-control" placeholder="Enter project name">
-        </div>
-        <div class="form-group">
-            <label>Type</label>
-            <select class="form-control">
-                <option>Collaboration</option>
-                <option>Main</option>
-                <option>Satellite</option>
-                <option>Sharing</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>PIC / Mentor</label>
-            <input type="text" class="form-control" placeholder="Enter PIC or mentor name">
-        </div>
-        <div class="form-group">
-            <label>Progress (%)</label>
-            <select class="form-control">
-                <option>Open - 0%</option>
-                <option>Inprogress - 25%</option>
-                <option>Project Review - 50%</option>
-                <option>Trial/testing - 75%</option>
-                <option>Completed - 100%</option>
-            </select>
-        </div>
-    `,
-    mentor: `
-        <div class="form-group">
-            <label>ID</label>
-            <input type="text" class="form-control" placeholder="Example: MTR-003">
-        </div>
-        <div class="form-group">
-            <label>Full Name</label>
-            <input type="text" class="form-control" placeholder="Enter mentor full name">
-        </div>
-        <div class="form-group">
-            <label>Gender</label>
-            <select class="form-control">
-                <option>Male</option>
-                <option>Female</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Department</label>
-            <input type="text" class="form-control" placeholder="Enter department">
-        </div>
-        <div class="form-group">
-            <label>Status</label>
-            <select class="form-control">
-                <option>Active</option>
-                <option>Inactive</option>
-            </select>
-        </div>
-    `,
-};
-
-window.openCrudModal = function (type, titleText) {
-    const modalFields = document.getElementById('modalFields');
-
-    if (!modalFields) {
-        return;
-    }
-
-    modalFields.innerHTML = modalTemplates[type] || modalTemplates.intern;
-    window.openModal('crudModal', titleText);
+const refreshModalScrollLock = () => {
+    document.body.style.overflow = document.querySelector('.modal-overlay.active') ? 'hidden' : '';
 };
 
 window.openModal = function (modalId, titleText) {
     const modal = document.getElementById(modalId);
-    const modalTitle = document.getElementById('modalTitle');
+    const modalTitle = modal ? modal.querySelector('.modal-header h3') : null;
 
     if (!modal) {
         return;
@@ -163,7 +68,7 @@ window.openModal = function (modalId, titleText) {
     }
 
     modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
+    refreshModalScrollLock();
 };
 
 window.closeModal = function (modalId) {
@@ -174,12 +79,7 @@ window.closeModal = function (modalId) {
     }
 
     modal.classList.remove('active');
-    document.body.style.overflow = '';
-};
-
-window.saveData = function () {
-    alert('Data has been saved!');
-    window.closeModal('crudModal');
+    refreshModalScrollLock();
 };
 
 const initializeTableControls = () => {
@@ -565,6 +465,429 @@ const initializeLiveMultiselect = () => {
 
         render();
     });
+};
+
+const initializeInternExtendControls = (root = document) => {
+    const internExtendButton = root.querySelector('#internExtendButton');
+    const internExtendFields = root.querySelector('#internExtendFields');
+    const internExtendNote = root.querySelector('#internExtendNote');
+    let internExtendAddedThisEdit = false;
+
+    if (!internExtendButton || !internExtendFields || internExtendButton.dataset.internExtendReady === 'ready') {
+        return;
+    }
+
+    internExtendButton.dataset.internExtendReady = 'ready';
+
+    const latestInternEndDateInput = () => {
+        const extensionInputs = Array.from(root.querySelectorAll('.intern-extend-date'));
+
+        return extensionInputs.at(-1) || root.querySelector('input[name="dtmEndDate"]');
+    };
+
+    const canExtendIntern = () => {
+        const latestInput = latestInternEndDateInput();
+
+        if (!latestInput || !latestInput.value) {
+            return false;
+        }
+
+        const todayDate = new Date();
+        todayDate.setHours(0, 0, 0, 0);
+
+        const latestDate = new Date(`${latestInput.value}T00:00:00`);
+        const diffDays = Math.ceil((latestDate - todayDate) / 86400000);
+
+        return diffDays <= 14;
+    };
+
+    const refreshInternExtendButton = () => {
+        if (internExtendAddedThisEdit) {
+            internExtendButton.hidden = true;
+
+            if (internExtendNote) {
+                internExtendNote.textContent = 'Save changes dulu untuk menambahkan extend berikutnya.';
+            }
+
+            return;
+        }
+
+        internExtendButton.hidden = false;
+        internExtendButton.disabled = !canExtendIntern();
+
+        if (internExtendNote) {
+            internExtendNote.textContent = internExtendButton.disabled
+                ? 'Extend can be added when the latest end date is within 14 days.'
+                : 'Latest end date is eligible for extension.';
+        }
+    };
+
+    const bindInternExtendInputs = () => {
+        root.querySelectorAll('.intern-extend-date, input[name="dtmEndDate"]').forEach((input) => {
+            input.removeEventListener('change', refreshInternExtendButton);
+            input.addEventListener('change', refreshInternExtendButton);
+        });
+    };
+
+    bindInternExtendInputs();
+    refreshInternExtendButton();
+
+    internExtendButton.addEventListener('click', () => {
+        if (!canExtendIntern()) {
+            return;
+        }
+
+        const nextIndex = internExtendFields.querySelectorAll('.intern-extend-field').length + 1;
+        const field = document.createElement('div');
+
+        field.className = 'intern-extend-field';
+        field.innerHTML = `
+            <label class="form-label">Extend ${nextIndex} End Date</label>
+            <input class="form-control intern-extend-date" type="date" name="txtInternExtendEndDates[]">
+        `;
+        internExtendFields.appendChild(field);
+        field.querySelector('input')?.focus();
+        bindInternExtendInputs();
+        internExtendAddedThisEdit = true;
+        refreshInternExtendButton();
+    });
+};
+
+const initializeProjectStageControls = (root = document) => {
+    const addProjectStageButton = root.querySelector('#addProjectStageButton');
+    const projectStageList = root.querySelector('#projectStageList');
+    const projectStageTotal = root.querySelector('#projectStageTotal');
+    const projectStageWarning = root.querySelector('#projectStageWarning');
+
+    if (!addProjectStageButton || !projectStageList || addProjectStageButton.dataset.projectStageReady === 'ready') {
+        return;
+    }
+
+    addProjectStageButton.dataset.projectStageReady = 'ready';
+
+    const refreshProjectStageNumbers = () => {
+        projectStageList.querySelectorAll('.project-stage-row').forEach((row, index) => {
+            const number = index + 1;
+            const label = row.querySelector('.project-stage-number');
+            const stepInput = row.querySelector('.project-stage-step');
+            const startInput = row.querySelector('.project-stage-start');
+            const endInput = row.querySelector('.project-stage-end');
+            const planInput = row.querySelector('.project-stage-plan');
+            const actualInput = row.querySelector('.project-stage-actual');
+
+            if (label) {
+                label.textContent = `Tahap ${number}`;
+            }
+
+            if (stepInput) {
+                stepInput.name = `stages[${index}][txtProjectStageStep]`;
+            }
+
+            if (startInput) {
+                startInput.name = `stages[${index}][dtmProjectStageStartDate]`;
+            }
+
+            if (endInput) {
+                endInput.name = `stages[${index}][dtmProjectStageEndDate]`;
+            }
+
+            if (planInput) {
+                planInput.name = `stages[${index}][floatProjectStagePlan]`;
+            }
+
+            if (actualInput) {
+                actualInput.name = `stages[${index}][floatProjectStageActual]`;
+            }
+        });
+    };
+
+    const refreshProjectStageTotal = () => {
+        if (!projectStageTotal) {
+            return;
+        }
+
+        const total = Array.from(projectStageList.querySelectorAll('.project-stage-plan'))
+            .reduce((sum, input) => sum + Number(input.value || 0), 0);
+        const roundedTotal = Math.round(total * 100) / 100;
+        const overLimit = roundedTotal > 100;
+        const isComplete = Math.abs(roundedTotal - 100) < 0.001;
+
+        projectStageTotal.classList.toggle('is-valid', isComplete);
+        projectStageTotal.classList.toggle('is-invalid', overLimit || (roundedTotal > 0 && roundedTotal < 100));
+        projectStageTotal.textContent = overLimit
+            ? `Total Plan: ${roundedTotal}% - melebihi 100%`
+            : `Total Plan: ${roundedTotal}%`;
+
+        projectStageList.querySelectorAll('.project-stage-plan').forEach((input) => {
+            input.classList.toggle('is-invalid', overLimit);
+        });
+
+        let actualOverPlanCount = 0;
+
+        projectStageList.querySelectorAll('.project-stage-row').forEach((row) => {
+            const planInput = row.querySelector('.project-stage-plan');
+            const actualInput = row.querySelector('.project-stage-actual');
+            const actualOverPlan = Number(actualInput?.value || 0) > Number(planInput?.value || 0);
+
+            if (actualOverPlan) {
+                actualOverPlanCount += 1;
+            }
+
+            actualInput?.classList.toggle('is-invalid', actualOverPlan);
+        });
+
+        if (projectStageWarning) {
+            projectStageWarning.hidden = !overLimit && actualOverPlanCount === 0;
+            projectStageWarning.textContent = overLimit
+                ? `Warning: total plan tahap sudah ${roundedTotal}%, kurangi ${Math.round((roundedTotal - 100) * 100) / 100}%.`
+                : actualOverPlanCount > 0
+                    ? 'Warning: actual tahap tidak boleh lebih besar dari plan.'
+                    : '';
+        }
+    };
+
+    const projectStageRows = () => Array.from(projectStageList.querySelectorAll('.project-stage-row'));
+    const requiredStageInputs = (row) => [
+        row.querySelector('.project-stage-step'),
+        row.querySelector('.project-stage-start'),
+        row.querySelector('.project-stage-end'),
+        row.querySelector('.project-stage-plan'),
+    ];
+    const hasMeaningfulStageData = (row) => requiredStageInputs(row).some((input) => String(input?.value || '').trim() !== '');
+    const stageRowIsComplete = (row) => requiredStageInputs(row).every((input) => String(input?.value || '').trim() !== '');
+
+    const showProjectStageWarning = (text, focusTarget = addProjectStageButton) => {
+        if (projectStageWarning) {
+            projectStageWarning.hidden = false;
+            projectStageWarning.textContent = text;
+        }
+
+        focusTarget?.focus();
+    };
+
+    const bindProjectStageRows = () => {
+        projectStageList.querySelectorAll('.project-stage-plan, .project-stage-actual').forEach((input) => {
+            input.removeEventListener('input', refreshProjectStageTotal);
+            input.addEventListener('input', refreshProjectStageTotal);
+        });
+
+        projectStageList.querySelectorAll('.project-stage-remove').forEach((button) => {
+            if (button.dataset.projectStageRemoveReady === 'ready') {
+                return;
+            }
+
+            button.dataset.projectStageRemoveReady = 'ready';
+            button.addEventListener('click', () => {
+                button.closest('.project-stage-row')?.remove();
+                refreshProjectStageNumbers();
+                refreshProjectStageTotal();
+            });
+        });
+    };
+
+    const form = projectStageList.closest('form');
+
+    if (form && form.dataset.projectStageSubmitReady !== 'ready') {
+        form.dataset.projectStageSubmitReady = 'ready';
+        form.addEventListener('submit', (event) => {
+            const rows = projectStageRows();
+            const meaningfulRows = rows.filter(hasMeaningfulStageData);
+
+            if (meaningfulRows.length === 0) {
+                event.preventDefault();
+                showProjectStageWarning('Isi tahap project terlebih dahulu.');
+                return;
+            }
+
+            const incompleteRow = meaningfulRows.find((row) => !stageRowIsComplete(row));
+
+            if (incompleteRow) {
+                event.preventDefault();
+                const emptyInput = requiredStageInputs(incompleteRow).find((input) => String(input?.value || '').trim() === '');
+
+                showProjectStageWarning('Setiap tahap yang diisi harus memiliki step, start date, end date, dan plan.', emptyInput);
+                return;
+            }
+
+            const totalPlan = meaningfulRows.reduce((sum, row) => {
+                const planInput = row.querySelector('.project-stage-plan');
+
+                return sum + Number(planInput?.value || 0);
+            }, 0);
+
+            if (Math.abs(totalPlan - 100) >= 0.001) {
+                event.preventDefault();
+                refreshProjectStageTotal();
+                showProjectStageWarning('Total plan tahap project harus tepat 100%.', projectStageTotal || addProjectStageButton);
+                return;
+            }
+
+            const invalidActualRow = meaningfulRows.find((row) => {
+                const planInput = row.querySelector('.project-stage-plan');
+                const actualInput = row.querySelector('.project-stage-actual');
+
+                return Number(actualInput?.value || 0) > Number(planInput?.value || 0);
+            });
+
+            if (invalidActualRow) {
+                event.preventDefault();
+                const actualInput = invalidActualRow.querySelector('.project-stage-actual');
+
+                showProjectStageWarning('Actual tahap project tidak boleh lebih besar dari plan.', actualInput);
+            }
+        });
+    }
+
+    bindProjectStageRows();
+    refreshProjectStageNumbers();
+    refreshProjectStageTotal();
+
+    addProjectStageButton.addEventListener('click', () => {
+        const index = projectStageList.querySelectorAll('.project-stage-row').length;
+        const row = document.createElement('div');
+
+        row.className = 'project-stage-row';
+        row.innerHTML = `
+            <div class="project-stage-number">Tahap ${index + 1}</div>
+            <div>
+                <label class="form-label">Step</label>
+                <input class="form-control project-stage-step" name="stages[${index}][txtProjectStageStep]">
+            </div>
+            <div>
+                <label class="form-label">Start</label>
+                <input class="form-control project-stage-start" type="date" name="stages[${index}][dtmProjectStageStartDate]">
+            </div>
+            <div>
+                <label class="form-label">End</label>
+                <input class="form-control project-stage-end" type="date" name="stages[${index}][dtmProjectStageEndDate]">
+            </div>
+            <div>
+                <label class="form-label">Plan (%)</label>
+                <input class="form-control project-stage-plan" type="number" min="0" max="100" step="0.01" name="stages[${index}][floatProjectStagePlan]">
+            </div>
+            <div>
+                <label class="form-label">Actual (%)</label>
+                <input class="form-control project-stage-actual" type="number" min="0" max="100" step="0.01" name="stages[${index}][floatProjectStageActual]" value="0">
+            </div>
+            <button class="btn-icon btn-delete project-stage-remove" type="button" title="Remove stage"><i class="fa-solid fa-trash"></i></button>
+        `;
+        projectStageList.appendChild(row);
+        bindProjectStageRows();
+        refreshProjectStageNumbers();
+        refreshProjectStageTotal();
+        row.querySelector('.project-stage-step')?.focus();
+    });
+};
+
+const initializeIconChoiceControls = (root = document) => {
+    root.querySelectorAll('.icon-choice input[type="radio"]').forEach((input) => {
+        if (input.dataset.iconChoiceReady === 'ready') {
+            return;
+        }
+
+        input.dataset.iconChoiceReady = 'ready';
+        input.addEventListener('change', () => {
+            const scope = input.closest('form') || root;
+
+            scope.querySelectorAll(`.icon-choice input[name="${input.name}"]`).forEach((radio) => {
+                radio.closest('.icon-choice')?.classList.toggle('selected', radio.checked);
+            });
+        });
+    });
+};
+
+const initializeCrudModalControls = (root = document) => {
+    initializeLiveMultiselect();
+    initializeInternExtendControls(root);
+    initializeProjectStageControls(root);
+    initializeIconChoiceControls(root);
+};
+
+const crudModalRoutePatterns = [
+    /^\/projects\/create$/,
+    /^\/projects\/\d+\/edit$/,
+    /^\/interns\/create$/,
+    /^\/interns\/\d+\/edit$/,
+    /^\/mentors\/create$/,
+    /^\/mentors\/\d+\/edit$/,
+    /^\/skill-sets\/create$/,
+    /^\/skill-sets\/\d+\/edit$/,
+    /^\/project-handles\/create$/,
+    /^\/project-handles\/\d+\/edit$/,
+    /^\/calendar-sharing\/create$/,
+    /^\/calendar-sharing\/\d+\/edit$/,
+    /^\/analytics\/create$/,
+    /^\/analytics\/\d+\/edit$/,
+    /^\/achievements\/create$/,
+    /^\/achievements\/\d+\/edit$/,
+];
+
+const shouldLoadCrudModal = (link) => {
+    if (!link.href || link.target || link.hasAttribute('download')) {
+        return false;
+    }
+
+    const url = new URL(link.href, window.location.href);
+
+    return url.origin === window.location.origin
+        && crudModalRoutePatterns.some((pattern) => pattern.test(url.pathname.replace(/\/+$/, '')));
+};
+
+const removeRemoteModal = (modal) => {
+    modal?.remove();
+    refreshModalScrollLock();
+};
+
+const loadCrudModal = async (url, trigger = null) => {
+    const previousHtml = trigger?.innerHTML;
+
+    try {
+        trigger?.setAttribute('aria-busy', 'true');
+        trigger?.classList.add('is-loading');
+
+        const response = await fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                Accept: 'text/html',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to load modal: ${response.status}`);
+        }
+
+        const html = await response.text();
+        const documentFromResponse = new DOMParser().parseFromString(html, 'text/html');
+        const modal = documentFromResponse.querySelector('.crud-modal-overlay.active, .crud-modal-overlay');
+
+        if (!modal) {
+            window.location.href = url;
+            return;
+        }
+
+        const existingModal = document.getElementById(modal.id);
+
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        modal.dataset.remoteModal = 'true';
+        document.body.appendChild(modal);
+        initializeCrudModalControls(modal);
+        window.openModal(modal.id);
+        modal.querySelector('input:not([type="hidden"]), select, textarea, button')?.focus();
+    } catch (error) {
+        window.location.href = url;
+    } finally {
+        if (trigger) {
+            trigger.removeAttribute('aria-busy');
+            trigger.classList.remove('is-loading');
+
+            if (previousHtml !== undefined) {
+                trigger.innerHTML = previousHtml;
+            }
+        }
+    }
 };
 
 const initializeAuthPage = () => {
@@ -1087,7 +1410,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const profileDropdown = document.getElementById('profileDropdown');
     const topbarDate = document.getElementById('topbarDate');
     const today = new Date();
-    const modal = document.getElementById('crudModal');
     const internExtendButton = document.getElementById('internExtendButton');
     const internExtendFields = document.getElementById('internExtendFields');
     const internExtendNote = document.getElementById('internExtendNote');
@@ -1135,13 +1457,78 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (modal) {
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) {
-                window.closeModal('crudModal');
+    document.addEventListener('click', (event) => {
+        const dismissButton = event.target.closest('[data-modal-dismiss]');
+
+        if (dismissButton) {
+            window.closeModal(dismissButton.dataset.modalDismiss);
+            return;
+        }
+
+        const remoteCancel = event.target.closest('.modal-overlay[data-remote-modal="true"] .btn-close[href], .modal-overlay[data-remote-modal="true"] .btn-cancel[href]');
+
+        if (remoteCancel) {
+            event.preventDefault();
+            removeRemoteModal(remoteCancel.closest('.modal-overlay'));
+            return;
+        }
+
+        if (event.target.classList.contains('modal-overlay')) {
+            const modal = event.target;
+
+            if (modal.dataset.remoteModal === 'true') {
+                removeRemoteModal(modal);
+                return;
             }
-        });
-    }
+
+            if (modal.dataset.closeUrl) {
+                window.location.href = modal.dataset.closeUrl;
+                return;
+            }
+
+            window.closeModal(modal.id);
+            return;
+        }
+
+        const deleteButton = event.target.closest('[data-delete-modal-trigger]');
+
+        if (deleteButton) {
+            const form = document.getElementById('deleteConfirmForm');
+            const title = document.getElementById('deleteConfirmTitle');
+            const message = document.getElementById('deleteConfirmMessage');
+            const submit = document.getElementById('deleteConfirmSubmit');
+
+            if (!form) {
+                return;
+            }
+
+            form.action = deleteButton.dataset.deleteAction || '';
+
+            if (title && deleteButton.dataset.deleteTitle) {
+                title.textContent = deleteButton.dataset.deleteTitle;
+            }
+
+            if (message && deleteButton.dataset.deleteMessage) {
+                message.textContent = deleteButton.dataset.deleteMessage;
+            }
+
+            if (submit && deleteButton.dataset.deleteSubmit) {
+                submit.textContent = deleteButton.dataset.deleteSubmit;
+            }
+
+            window.openModal('deleteConfirmModal');
+            return;
+        }
+
+        const modalLink = event.target.closest('a');
+
+        if (modalLink && shouldLoadCrudModal(modalLink)) {
+            event.preventDefault();
+            loadCrudModal(modalLink.href, modalLink);
+        }
+    });
+
+    refreshModalScrollLock();
 
     initializeLiveMultiselect();
 

@@ -2548,7 +2548,7 @@ a.btn-icon {
 .modal-container {
     background: var(--white);
     width: 100%;
-    max-width: 500px;
+    max-width: 640px;
     border-radius: var(--radius);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     transform: translateY(-20px);
@@ -2557,6 +2557,22 @@ a.btn-icon {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+.modal-container-sm {
+    max-width: 460px;
+}
+
+.modal-container-md {
+    max-width: 640px;
+}
+
+.modal-container-lg {
+    max-width: 860px;
+}
+
+.modal-container-xl {
+    max-width: min(1120px, calc(100vw - 30px));
 }
 
 .modal-overlay.active .modal-container {
@@ -2572,11 +2588,26 @@ a.btn-icon {
     background: var(--primary);
 }
 
+.modal-title-copy {
+    min-width: 0;
+}
+
 .modal-header h3 {
     font-size: 16px;
     font-weight: 700;
     color: #fff;
     margin: 0;
+}
+
+.modal-title-copy p {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 4px 0 0;
+}
+
+.modal-header-danger {
+    background: var(--danger);
 }
 
 .btn-close {
@@ -2586,12 +2617,27 @@ a.btn-icon {
     color: #fff;
     cursor: pointer;
     opacity: 0.8;
+    text-decoration: none;
+    flex-shrink: 0;
 }
 
 .modal-body {
     padding: 20px;
     overflow-y: auto;
     flex: 1;
+    overscroll-behavior: contain;
+}
+
+.modal-body>.row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.modal-confirm-copy {
+    color: var(--text-gray);
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0;
 }
 
 .form-group {
@@ -2799,6 +2845,9 @@ a.btn-icon {
     font-weight: 600;
     cursor: pointer;
     font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-save {
@@ -2810,6 +2859,18 @@ a.btn-icon {
     font-weight: 600;
     cursor: pointer;
     font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-danger-action {
+    background: var(--danger);
+}
+
+.btn-danger-action:hover,
+.btn-danger-action:focus {
+    background: var(--danger-hover);
 }
 
 /* --- ATTENDANCE PAGE --- */
@@ -3552,6 +3613,33 @@ body.dark-mode .attendance-status-warning {
 
     .btn-add {
         width: 100%;
+    }
+
+    .modal-overlay {
+        align-items: stretch;
+        padding: 10px;
+    }
+
+    .modal-container {
+        max-height: calc(100vh - 20px);
+    }
+
+    .modal-header,
+    .modal-footer {
+        padding: 14px 16px;
+    }
+
+    .modal-body {
+        padding: 16px;
+    }
+
+    .modal-footer {
+        flex-wrap: wrap;
+    }
+
+    .modal-footer .btn-cancel,
+    .modal-footer .btn-save {
+        flex: 1 1 140px;
     }
 
     /* Gap Risk Mobile */
