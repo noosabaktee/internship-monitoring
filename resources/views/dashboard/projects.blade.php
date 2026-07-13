@@ -63,16 +63,15 @@
     </div>
 
     @if ($isFormOpen)
-        <section class="profile-card mb-4">
-            <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
-                <div class="profile-card-title">
-                    <h2>{{ isset($editingProject) ? 'Edit Project' : 'Add New Project' }}</h2>
-                    <p>Project master data is stored in mProject. Intern/progress assignments use trInternProject, while mentor assignments use trProjectMentor.</p>
-                </div>
-                <a href="{{ route('projects.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Close</a>
-            </div>
-
-            <form class="row g-3" action="{{ $formAction }}" method="POST">
+        <x-crud-modal
+            id="projectFormModal"
+            :active="$isFormOpen"
+            :title="isset($editingProject) ? 'Edit Project' : 'Add New Project'"
+            subtitle="Project master data is stored in mProject. Intern/progress assignments use trInternProject, while mentor assignments use trProjectMentor."
+            :close-url="route('projects.index')"
+            size="xl"
+        >
+            <form id="projectForm" class="row g-3" action="{{ $formAction }}" method="POST">
                 @csrf
                 @isset($editingProject)
                     @method('PUT')
@@ -155,7 +154,7 @@
                         </div>
                         <button class="btn btn-outline-primary btn-sm" id="addProjectStageButton" type="button"><i class="fa-solid fa-plus"></i> Add Tahap</button>
                     </div>
-                    <p class="project-stage-warning" id="projectStageWarning" hidden></p>
+                    <p class="project-stage-warning" id="projectStageWarning" @if (! $errors->has('stages')) hidden @endif>{{ $errors->first('stages') }}</p>
                     <div class="project-stage-list" id="projectStageList">
                         @foreach ($projectStageRows as $stageIndex => $stage)
                             <div class="project-stage-row">
@@ -185,11 +184,13 @@
                         @endforeach
                     </div>
                 </div>
-                <div class="col-12">
-                    <button class="btn btn-primary btn-save" type="submit">{{ isset($editingProject) ? 'Save Changes' : 'Save Project' }}</button>
-                </div>
             </form>
-        </section>
+
+            <x-slot:footer>
+                <a href="{{ route('projects.index') }}" class="btn-cancel" style="text-decoration:none;">Cancel</a>
+                <button class="btn-save" type="submit" form="projectForm">{{ isset($editingProject) ? 'Save Changes' : 'Save Project' }}</button>
+            </x-slot:footer>
+        </x-crud-modal>
     @endif
 
     <div class="card">
@@ -244,11 +245,15 @@
                             <td>
                                 <div class="action-btns">
                                     <a class="btn-icon btn-edit" href="{{ route('projects.edit', $project->intProject_ID) }}"><i class="fa-solid fa-pen"></i></a>
-                                    <form action="{{ route('projects.destroy', $project->intProject_ID) }}" method="POST" onsubmit="return confirm('Deactivate this project?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="btn-icon btn-delete" type="submit"><i class="fa-solid fa-trash"></i></button>
-                                    </form>
+                                    <button
+                                        class="btn-icon btn-delete"
+                                        type="button"
+                                        data-delete-modal-trigger
+                                        data-delete-action="{{ route('projects.destroy', $project->intProject_ID) }}"
+                                        data-delete-title="Deactivate Project?"
+                                        data-delete-message="{{ $project->txtProjectName }} and its active assignments, mentors, and stages will be marked inactive."
+                                        data-delete-submit="Deactivate"
+                                    ><i class="fa-solid fa-trash"></i></button>
                                 </div>
                             </td>
                         </tr>

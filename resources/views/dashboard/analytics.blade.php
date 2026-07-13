@@ -29,40 +29,6 @@
         <div class="kpi-card"><div class="kpi-icon"><i class="fa-solid fa-book-open"></i></div><div class="kpi-data"><h4>Sharing Avg</h4><h2>{{ $averageSharing }}</h2><p>Knowledge activity</p></div></div>
     </div>
 
-    @if ($isFormOpen)
-        <section class="profile-card mb-4">
-            <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
-                <div class="profile-card-title">
-                    <h2>{{ isset($editingEvaluation) ? 'Edit Evaluation' : 'Add Evaluation' }}</h2>
-                    <p>Exposure score is calculated automatically from the average of four evaluation scores.</p>
-                </div>
-                <a href="{{ route('analytics.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Close</a>
-            </div>
-
-            <form class="row g-3" action="{{ $formAction }}" method="POST">
-                @csrf
-                @isset($editingEvaluation)
-                    @method('PUT')
-                @endisset
-
-                <div class="col-md-6">
-                    <label class="form-label">Intern</label>
-                    <select class="form-control" name="intIntern_ID" required>
-                        <option value="">Select intern</option>
-                        @foreach ($interns as $intern)
-                            <option value="{{ $intern->intIntern_ID }}" @selected((string) old('intIntern_ID', $editingEvaluation->intIntern_ID ?? '') === (string) $intern->intIntern_ID)>{{ $intern->txtInternName }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-6"><label class="form-label">Period</label><input class="form-control" type="month" name="dtmPeriod" value="{{ old('dtmPeriod', isset($editingEvaluation) && $editingEvaluation->dtmPeriod ? $editingEvaluation->dtmPeriod->format('Y-m') : now()->format('Y-m')) }}" required></div>
-                <div class="col-md-3"><label class="form-label">Hard Skill</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatHardSkill" value="{{ old('floatHardSkill', $editingEvaluation->floatHardSkill ?? 0) }}" required></div>
-                <div class="col-md-3"><label class="form-label">Collaboration</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatCollaboration" value="{{ old('floatCollaboration', $editingEvaluation->floatCollaboration ?? 0) }}" required></div>
-                <div class="col-md-3"><label class="form-label">Ownership</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatOwnership" value="{{ old('floatOwnership', $editingEvaluation->floatOwnership ?? 0) }}" required></div>
-                <div class="col-md-3"><label class="form-label">Sharing</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatSharing" value="{{ old('floatSharing', $editingEvaluation->floatSharing ?? 0) }}" required></div>
-                <div class="col-12"><button class="btn btn-primary btn-save" type="submit">{{ isset($editingEvaluation) ? 'Save Changes' : 'Save Evaluation' }}</button></div>
-            </form>
-        </section>
-    @endif
 <!-- 
     <div class="card" style="margin-bottom: 20px;">
         <div class="card-title" style="margin-bottom: 10px;">EXPOSURE PROGRESSION</div>
@@ -91,11 +57,15 @@
                                 @if ($isMentor)
                                     <div class="action-btns">
                                         <a class="btn-icon btn-edit" href="{{ route('analytics.edit', $evaluation->intEvaluation_ID) }}"><i class="fa-solid fa-pen"></i></a>
-                                        <form action="{{ route('analytics.destroy', $evaluation->intEvaluation_ID) }}" method="POST" onsubmit="return confirm('Deactivate this evaluation?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="btn-icon btn-delete" type="submit"><i class="fa-solid fa-trash"></i></button>
-                                        </form>
+                                        <button
+                                            class="btn-icon btn-delete"
+                                            type="button"
+                                            data-delete-modal-trigger
+                                            data-delete-action="{{ route('analytics.destroy', $evaluation->intEvaluation_ID) }}"
+                                            data-delete-title="Deactivate Evaluation?"
+                                            data-delete-message="Evaluation for {{ $evaluation->intern->txtInternName ?? 'this intern' }} in {{ $evaluation->dtmPeriod?->format('M Y') ?? 'this period' }} will be marked inactive."
+                                            data-delete-submit="Deactivate"
+                                        ><i class="fa-solid fa-trash"></i></button>
                                     </div>
                                 @else
                                     -
@@ -110,3 +80,43 @@
         </div>
     </div>
 @endsection
+
+@if ($isFormOpen)
+    @push('modals')
+        <x-crud-modal
+            id="evaluationFormModal"
+            :active="$isFormOpen"
+            :title="isset($editingEvaluation) ? 'Edit Evaluation' : 'Add Evaluation'"
+            subtitle="Exposure score is calculated automatically from the average of four evaluation scores."
+            :close-url="route('analytics.index')"
+            size="lg"
+        >
+            <form id="evaluationForm" class="row g-3" action="{{ $formAction }}" method="POST">
+                @csrf
+                @isset($editingEvaluation)
+                    @method('PUT')
+                @endisset
+
+                <div class="col-md-6">
+                    <label class="form-label">Intern</label>
+                    <select class="form-control" name="intIntern_ID" required>
+                        <option value="">Select intern</option>
+                        @foreach ($interns as $intern)
+                            <option value="{{ $intern->intIntern_ID }}" @selected((string) old('intIntern_ID', $editingEvaluation->intIntern_ID ?? '') === (string) $intern->intIntern_ID)>{{ $intern->txtInternName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-6"><label class="form-label">Period</label><input class="form-control" type="month" name="dtmPeriod" value="{{ old('dtmPeriod', isset($editingEvaluation) && $editingEvaluation->dtmPeriod ? $editingEvaluation->dtmPeriod->format('Y-m') : now()->format('Y-m')) }}" required></div>
+                <div class="col-md-3"><label class="form-label">Hard Skill</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatHardSkill" value="{{ old('floatHardSkill', $editingEvaluation->floatHardSkill ?? 0) }}" required></div>
+                <div class="col-md-3"><label class="form-label">Collaboration</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatCollaboration" value="{{ old('floatCollaboration', $editingEvaluation->floatCollaboration ?? 0) }}" required></div>
+                <div class="col-md-3"><label class="form-label">Ownership</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatOwnership" value="{{ old('floatOwnership', $editingEvaluation->floatOwnership ?? 0) }}" required></div>
+                <div class="col-md-3"><label class="form-label">Sharing</label><input class="form-control" type="number" min="0" max="100" step="0.01" name="floatSharing" value="{{ old('floatSharing', $editingEvaluation->floatSharing ?? 0) }}" required></div>
+            </form>
+
+            <x-slot:footer>
+                <a href="{{ route('analytics.index') }}" class="btn-cancel" style="text-decoration:none;">Cancel</a>
+                <button class="btn-save" type="submit" form="evaluationForm">{{ isset($editingEvaluation) ? 'Save Changes' : 'Save Evaluation' }}</button>
+            </x-slot:footer>
+        </x-crud-modal>
+    @endpush
+@endif

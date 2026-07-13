@@ -81,6 +81,12 @@ class ProjectController extends Controller
         $mentorIds = $this->mentorIds($validated['intMentor_ID'] ?? []);
         $progress = (int) ($validated['floatProgress'] ?? 0);
 
+        if (! $this->projectStageRowsArePresent($stageRows)) {
+            return back()
+                ->withInput()
+                ->withErrors(['stages' => 'Isi tahap project terlebih dahulu.']);
+        }
+
         if ($internIds !== [] && $mentorIds === []) {
             return back()
                 ->withInput()
@@ -199,6 +205,12 @@ class ProjectController extends Controller
         $progress = $request->has('floatProgress')
             ? (int) ($validated['floatProgress'] ?? 0)
             : $this->activeProjectProgress($projectModel);
+
+        if (! $this->projectStageRowsArePresent($stageRows)) {
+            return back()
+                ->withInput()
+                ->withErrors(['stages' => 'Isi tahap project terlebih dahulu.']);
+        }
 
         if ($internIds !== [] && $mentorIds === []) {
             return back()
@@ -527,6 +539,25 @@ class ProjectController extends Controller
                 'dtmInserted' => $now,
             ]);
         }
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $stageRows
+     */
+    private function projectStageRowsArePresent(array $stageRows): bool
+    {
+        foreach ($stageRows as $stage) {
+            $hasStep = trim((string) ($stage['txtProjectStageStep'] ?? '')) !== '';
+            $hasStartDate = ($stage['dtmProjectStageStartDate'] ?? '') !== '';
+            $hasEndDate = ($stage['dtmProjectStageEndDate'] ?? '') !== '';
+            $hasPlan = ($stage['floatProjectStagePlan'] ?? '') !== '';
+
+            if ($hasStep || $hasStartDate || $hasEndDate || $hasPlan) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

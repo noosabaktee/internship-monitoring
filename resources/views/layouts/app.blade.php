@@ -45,5 +45,6 @@
     </main>
 
     @stack('modals')
+    @include('components.delete-modal')
 </body>
 </html>

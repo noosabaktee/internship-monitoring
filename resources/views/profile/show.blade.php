@@ -184,14 +184,18 @@
                                 </form>
 
                                 @if ($faceEnrollment)
-                                    <form action="{{ route('profile.face-enrollment.destroy') }}" method="POST" onsubmit="return confirm('Reset Face ID absensi?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="btn btn-outline-danger attendance-action-button" type="submit">
-                                            <i class="fa-solid fa-rotate-left"></i>
-                                            <span>Reset</span>
-                                        </button>
-                                    </form>
+                                    <button
+                                        class="btn btn-outline-danger attendance-action-button"
+                                        type="button"
+                                        data-delete-modal-trigger
+                                        data-delete-action="{{ route('profile.face-enrollment.destroy') }}"
+                                        data-delete-title="Reset Face ID?"
+                                        data-delete-message="Face ID absensi yang tersimpan akan dihapus. Kamu bisa mendaftarkan ulang setelah reset."
+                                        data-delete-submit="Reset"
+                                    >
+                                        <i class="fa-solid fa-rotate-left"></i>
+                                        <span>Reset</span>
+                                    </button>
                                 @endif
                             </div>
                         </section>

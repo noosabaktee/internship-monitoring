@@ -36,52 +36,6 @@
         <a class="btn btn-primary btn-add" href="{{ route('calendar-sharing.create', ['month' => $calendarMonth->format('Y-m')]) }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Sharing</a>
     </div>
 
-    @if ($isFormOpen)
-        <section class="profile-card mb-4">
-            <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
-                <div class="profile-card-title">
-                    <h2>{{ isset($editingCalendarSharing) ? 'Edit Sharing Activity' : 'Add Sharing Activity' }}</h2>
-                    <p>Calendar sharing data is stored in trCalendarSharing.</p>
-                </div>
-                <a href="{{ route('calendar-sharing.index', ['month' => $calendarMonth->format('Y-m')]) }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Close</a>
-            </div>
-
-            <form class="row g-3" action="{{ $formAction }}" method="POST">
-                @csrf
-                @isset($editingCalendarSharing)
-                    @method('PUT')
-                @endisset
-
-                <div class="col-md-6"><label class="form-label">Theme</label><input class="form-control" name="txtCalendarSharingTheme" value="{{ old('txtCalendarSharingTheme', $editingCalendarSharing->txtCalendarSharingTheme ?? '') }}" required></div>
-                <div class="col-md-3"><label class="form-label">Date</label><input class="form-control" type="date" name="dtmCalendarSharingDate" value="{{ old('dtmCalendarSharingDate', isset($editingCalendarSharing) && $editingCalendarSharing->dtmCalendarSharingDate ? $editingCalendarSharing->dtmCalendarSharingDate->format('Y-m-d') : now()->format('Y-m-d')) }}" required></div>
-                <div class="col-md-3">
-                    <label class="form-label">Status</label>
-                    <select class="form-control" name="txtCalendarSharingStatus">
-                        @foreach (['Open', 'Complete', 'Cancel', 'Reschedule'] as $status)
-                            <option value="{{ $status }}" @selected(old('txtCalendarSharingStatus', $editingCalendarSharing->txtCalendarSharingStatus ?? 'Open') === $status)>{{ $status }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-6"><label class="form-label">Objective</label><input class="form-control" name="txtCalendarSharingObjective" value="{{ old('txtCalendarSharingObjective', $editingCalendarSharing->txtCalendarSharingObjective ?? '') }}"></div>
-                <div class="col-md-6"><label class="form-label">Target Audience</label><input class="form-control" name="txtCalendarSharingTargetAudience" value="{{ old('txtCalendarSharingTargetAudience', $editingCalendarSharing->txtCalendarSharingTargetAudience ?? '') }}"></div>
-                <div class="col-12">
-                    <label class="form-label">Activity Icon</label>
-                    <div class="icon-choice-grid">
-                        @foreach ($sharingIcons as $icon)
-                            <label class="icon-choice {{ $selectedIcon === $icon['value'] ? 'selected' : '' }}" title="{{ $icon['label'] }}">
-                                <input type="radio" name="txtCalendarSharingIcon" value="{{ $icon['value'] }}" @checked($selectedIcon === $icon['value'])>
-                                <i class="{{ $icon['value'] }}"></i>
-                                <span>{{ $icon['label'] }}</span>
-                            </label>
-                        @endforeach
-                    </div>
-                </div>
-                <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="txtCalendarSharingDescription" rows="3">{{ old('txtCalendarSharingDescription', $editingCalendarSharing->txtCalendarSharingDescription ?? '') }}</textarea></div>
-                <div class="col-12"><button class="btn btn-primary btn-save" type="submit">{{ isset($editingCalendarSharing) ? 'Save Changes' : 'Save Sharing' }}</button></div>
-            </form>
-        </section>
-    @endif
-
     <div class="calendar-sharing-grid">
         <section class="profile-card">
             <div class="profile-card-header">
@@ -108,11 +62,15 @@
                                 <td>
                                     <div class="action-btns">
                                         <a class="btn-icon btn-edit" href="{{ route('calendar-sharing.edit', [$sharing->intCalendarSharing_ID, 'month' => $calendarMonth->format('Y-m')]) }}"><i class="fa-solid fa-pen"></i></a>
-                                        <form action="{{ route('calendar-sharing.destroy', $sharing->intCalendarSharing_ID) }}" method="POST" onsubmit="return confirm('Deactivate this sharing activity?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="btn-icon btn-delete" type="submit"><i class="fa-solid fa-trash"></i></button>
-                                        </form>
+                                        <button
+                                            class="btn-icon btn-delete"
+                                            type="button"
+                                            data-delete-modal-trigger
+                                            data-delete-action="{{ route('calendar-sharing.destroy', $sharing->intCalendarSharing_ID) }}"
+                                            data-delete-title="Deactivate Sharing Activity?"
+                                            data-delete-message="{{ $sharing->txtCalendarSharingTheme }} will be marked inactive and removed from the active calendar."
+                                            data-delete-submit="Deactivate"
+                                        ><i class="fa-solid fa-trash"></i></button>
                                     </div>
                                 </td>
                             </tr>
@@ -159,3 +117,54 @@
         </section>
     </div>
 @endsection
+
+@if ($isFormOpen)
+    @push('modals')
+        <x-crud-modal
+            id="calendarSharingFormModal"
+            :active="$isFormOpen"
+            :title="isset($editingCalendarSharing) ? 'Edit Sharing Activity' : 'Add Sharing Activity'"
+            subtitle="Calendar sharing data is stored in trCalendarSharing."
+            :close-url="route('calendar-sharing.index', ['month' => $calendarMonth->format('Y-m')])"
+            size="lg"
+        >
+            <form id="calendarSharingForm" class="row g-3" action="{{ $formAction }}" method="POST">
+                @csrf
+                @isset($editingCalendarSharing)
+                    @method('PUT')
+                @endisset
+
+                <div class="col-md-6"><label class="form-label">Theme</label><input class="form-control" name="txtCalendarSharingTheme" value="{{ old('txtCalendarSharingTheme', $editingCalendarSharing->txtCalendarSharingTheme ?? '') }}" required></div>
+                <div class="col-md-3"><label class="form-label">Date</label><input class="form-control" type="date" name="dtmCalendarSharingDate" value="{{ old('dtmCalendarSharingDate', isset($editingCalendarSharing) && $editingCalendarSharing->dtmCalendarSharingDate ? $editingCalendarSharing->dtmCalendarSharingDate->format('Y-m-d') : now()->format('Y-m-d')) }}" required></div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-control" name="txtCalendarSharingStatus">
+                        @foreach (['Open', 'Complete', 'Cancel', 'Reschedule'] as $status)
+                            <option value="{{ $status }}" @selected(old('txtCalendarSharingStatus', $editingCalendarSharing->txtCalendarSharingStatus ?? 'Open') === $status)>{{ $status }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-6"><label class="form-label">Objective</label><input class="form-control" name="txtCalendarSharingObjective" value="{{ old('txtCalendarSharingObjective', $editingCalendarSharing->txtCalendarSharingObjective ?? '') }}"></div>
+                <div class="col-md-6"><label class="form-label">Target Audience</label><input class="form-control" name="txtCalendarSharingTargetAudience" value="{{ old('txtCalendarSharingTargetAudience', $editingCalendarSharing->txtCalendarSharingTargetAudience ?? '') }}"></div>
+                <div class="col-12">
+                    <label class="form-label">Activity Icon</label>
+                    <div class="icon-choice-grid">
+                        @foreach ($sharingIcons as $icon)
+                            <label class="icon-choice {{ $selectedIcon === $icon['value'] ? 'selected' : '' }}" title="{{ $icon['label'] }}">
+                                <input type="radio" name="txtCalendarSharingIcon" value="{{ $icon['value'] }}" @checked($selectedIcon === $icon['value'])>
+                                <i class="{{ $icon['value'] }}"></i>
+                                <span>{{ $icon['label'] }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+                <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="txtCalendarSharingDescription" rows="3">{{ old('txtCalendarSharingDescription', $editingCalendarSharing->txtCalendarSharingDescription ?? '') }}</textarea></div>
+            </form>
+
+            <x-slot:footer>
+                <a href="{{ route('calendar-sharing.index', ['month' => $calendarMonth->format('Y-m')]) }}" class="btn-cancel" style="text-decoration:none;">Cancel</a>
+                <button class="btn-save" type="submit" form="calendarSharingForm">{{ isset($editingCalendarSharing) ? 'Save Changes' : 'Save Sharing' }}</button>
+            </x-slot:footer>
+        </x-crud-modal>
+    @endpush
+@endif

@@ -46,17 +46,67 @@
         @endif
     </div>
 
-    @if ($isFormOpen)
-        <section class="profile-card mb-4">
-            <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
+    <div class="profile-section-grid">
+        <section class="profile-card">
+            <div class="profile-card-header">
                 <div class="profile-card-title">
-                    <h2>{{ isset($editingAchievement) ? 'Edit Achievement' : 'Add Achievement' }}</h2>
-                    <p>Achievement data is stored in trAchievement and connected to interns.</p>
+                    <h2>Achievement List</h2>
+                    <p>Internship program achievement records.</p>
                 </div>
-                <a href="{{ route('achievements.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Close</a>
             </div>
+            <ul class="achievement-list">
+                @forelse ($achievements as $achievement)
+                    <li>
+                        <div class="achievement-icon"><i class="{{ $achievement->txtIcon ?: 'fa-solid fa-award' }}"></i></div>
+                        <div style="flex:1;">
+                            <h4>{{ $achievement->txtAchievementTitle }}</h4>
+                            <p>{{ $achievement->intern->txtInternName ?? '-' }} &bull; {{ $achievement->dtmAwarded?->format('d M Y') ?? '-' }}</p>
+                            <p>{{ $achievement->txtDescription }}</p>
+                        </div>
+                        @if ($isMentor)
+                            <div class="action-btns">
+                                <a class="btn-icon btn-edit" href="{{ route('achievements.edit', $achievement->intAchievement_ID) }}"><i class="fa-solid fa-pen"></i></a>
+                                <button
+                                    class="btn-icon btn-delete"
+                                    type="button"
+                                    data-delete-modal-trigger
+                                    data-delete-action="{{ route('achievements.destroy', $achievement->intAchievement_ID) }}"
+                                    data-delete-title="Deactivate Achievement?"
+                                    data-delete-message="{{ $achievement->txtAchievementTitle }} will be marked inactive."
+                                    data-delete-submit="Deactivate"
+                                ><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        @endif
+                    </li>
+                @empty
+                    <li><div class="achievement-icon"><i class="fa-solid fa-award"></i></div><div><h4>No data yet</h4><p>Add the first achievement for an intern.</p></div></li>
+                @endforelse
+            </ul>
+        </section>
+        <aside class="profile-card">
+            <div class="profile-card-title">
+                <h2>Summary</h2>
+                <p>Total active awards this month.</p>
+            </div>
+            <div class="kpi-card" style="margin-top: 18px;">
+                <div class="kpi-icon"><i class="fa-solid fa-trophy"></i></div>
+                <div class="kpi-data"><h4>Total Awards</h4><h2>{{ $achievements->where('bitActive', true)->count() }}</h2><p>Across all interns</p></div>
+            </div>
+        </aside>
+    </div>
+@endsection
 
-            <form class="row g-3" action="{{ $formAction }}" method="POST">
+@if ($isFormOpen)
+    @push('modals')
+        <x-crud-modal
+            id="achievementFormModal"
+            :active="$isFormOpen"
+            :title="isset($editingAchievement) ? 'Edit Achievement' : 'Add Achievement'"
+            subtitle="Achievement data is stored in trAchievement and connected to interns."
+            :close-url="route('achievements.index')"
+            size="lg"
+        >
+            <form id="achievementForm" class="row g-3" action="{{ $formAction }}" method="POST">
                 @csrf
                 @isset($editingAchievement)
                     @method('PUT')
@@ -102,55 +152,12 @@
                     <label class="form-label">Description</label>
                     <textarea class="form-control" name="txtDescription" rows="3">{{ old('txtDescription', $editingAchievement->txtDescription ?? '') }}</textarea>
                 </div>
-                <div class="col-12">
-                    <button class="btn btn-primary btn-save" type="submit">{{ isset($editingAchievement) ? 'Save Changes' : 'Save Achievement' }}</button>
-                </div>
             </form>
-        </section>
-    @endif
 
-    <div class="profile-section-grid">
-        <section class="profile-card">
-            <div class="profile-card-header">
-                <div class="profile-card-title">
-                    <h2>Achievement List</h2>
-                    <p>Internship program achievement records.</p>
-                </div>
-            </div>
-            <ul class="achievement-list">
-                @forelse ($achievements as $achievement)
-                    <li>
-                        <div class="achievement-icon"><i class="{{ $achievement->txtIcon ?: 'fa-solid fa-award' }}"></i></div>
-                        <div style="flex:1;">
-                            <h4>{{ $achievement->txtAchievementTitle }}</h4>
-                            <p>{{ $achievement->intern->txtInternName ?? '-' }} &bull; {{ $achievement->dtmAwarded?->format('d M Y') ?? '-' }}</p>
-                            <p>{{ $achievement->txtDescription }}</p>
-                        </div>
-                        @if ($isMentor)
-                            <div class="action-btns">
-                                <a class="btn-icon btn-edit" href="{{ route('achievements.edit', $achievement->intAchievement_ID) }}"><i class="fa-solid fa-pen"></i></a>
-                                <form action="{{ route('achievements.destroy', $achievement->intAchievement_ID) }}" method="POST" onsubmit="return confirm('Deactivate this achievement?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="btn-icon btn-delete" type="submit"><i class="fa-solid fa-trash"></i></button>
-                                </form>
-                            </div>
-                        @endif
-                    </li>
-                @empty
-                    <li><div class="achievement-icon"><i class="fa-solid fa-award"></i></div><div><h4>No data yet</h4><p>Add the first achievement for an intern.</p></div></li>
-                @endforelse
-            </ul>
-        </section>
-        <aside class="profile-card">
-            <div class="profile-card-title">
-                <h2>Summary</h2>
-                <p>Total active awards this month.</p>
-            </div>
-            <div class="kpi-card" style="margin-top: 18px;">
-                <div class="kpi-icon"><i class="fa-solid fa-trophy"></i></div>
-                <div class="kpi-data"><h4>Total Awards</h4><h2>{{ $achievements->where('bitActive', true)->count() }}</h2><p>Across all interns</p></div>
-            </div>
-        </aside>
-    </div>
-@endsection
+            <x-slot:footer>
+                <a href="{{ route('achievements.index') }}" class="btn-cancel" style="text-decoration:none;">Cancel</a>
+                <button class="btn-save" type="submit" form="achievementForm">{{ isset($editingAchievement) ? 'Save Changes' : 'Save Achievement' }}</button>
+            </x-slot:footer>
+        </x-crud-modal>
+    @endpush
+@endif

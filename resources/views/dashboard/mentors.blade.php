@@ -23,17 +23,72 @@
         @endif
     </div>
 
-    @if ($isFormOpen)
-        <section class="profile-card mb-4">
-            <div class="profile-card-header d-flex align-items-start justify-content-between gap-3">
-                <div class="profile-card-title">
-                    <h2>{{ isset($editingMentor) ? 'Edit Mentor' : 'Add New Mentor' }}</h2>
-                    <p>Email and password are stored in mUser. Mentor profiles are stored in mMentor.</p>
-                </div>
-                <a href="{{ route('mentors.index') }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-xmark"></i> Close</a>
-            </div>
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table data-table align-middle mb-0">
+                <thead>
+                    <tr><th>ID</th><th>Full Name</th><th>Gender</th><th>Email</th><th>Department</th><th>Role</th><th>Status</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    @forelse ($mentors as $mentor)
+                        @php
+                            $mentorName = $mentor->txtMentorName ?: 'Mentor';
+                            $mentorPhotoUrl = $mentor->user?->txtProfilePhoto
+                                ? asset('storage/' . $mentor->user->txtProfilePhoto)
+                                : 'https://ui-avatars.com/api/?name=' . urlencode($mentorName) . '&background=006838&color=fff&bold=true';
+                        @endphp
+                        <tr>
+                            <td>MTR-{{ str_pad((string) $mentor->intMentor_ID, 3, '0', STR_PAD_LEFT) }}</td>
+                            <td>
+                                <a class="table-person table-person-link" href="{{ route('profile.mentor.show', $mentor->intMentor_ID) }}">
+                                    <img class="table-person-avatar" src="{{ $mentorPhotoUrl }}" alt="{{ $mentorName }}" loading="lazy">
+                                    <span class="table-person-name">{{ $mentor->txtMentorName ?: '-' }}</span>
+                                </a>
+                            </td>
+                            <td>{{ $mentor->txtMentorGender ?: '-' }}</td>
+                            <td>{{ $mentor->user->txtEmail ?? '-' }}</td>
+                            <td>{{ $mentor->txtDepartment ?: '-' }}</td>
+                            <td>{{ $mentor->txtRole ?: '-' }}</td>
+                            <td><span class="status-badge {{ $mentor->bitActive ? 'status-active' : 'status-inactive' }}">{{ $mentor->bitActive ? 'Active' : 'Inactive' }}</span></td>
+                            <td>
+                                @if ($isMentorUser)
+                                    <div class="action-btns">
+                                        <a class="btn-icon btn-edit" href="{{ route('mentors.edit', $mentor->intMentor_ID) }}"><i class="fa-solid fa-pen"></i></a>
+                                        <button
+                                            class="btn-icon btn-delete"
+                                            type="button"
+                                            data-delete-modal-trigger
+                                            data-delete-action="{{ route('mentors.destroy', $mentor->intMentor_ID) }}"
+                                            data-delete-title="Deactivate Mentor?"
+                                            data-delete-message="{{ $mentor->txtMentorName ?: 'This mentor' }} will be marked inactive along with the linked user account."
+                                            data-delete-submit="Deactivate"
+                                        ><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                @else
+                                    <a class="auth-link" href="{{ route('profile.mentor.show', $mentor->intMentor_ID) }}">View</a>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="8" class="center">No mentor data yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+@endsection
 
-            <form class="row g-3" action="{{ $formAction }}" method="POST">
+@if ($isFormOpen)
+    @push('modals')
+        <x-crud-modal
+            id="mentorFormModal"
+            :active="$isFormOpen"
+            :title="isset($editingMentor) ? 'Edit Mentor' : 'Add New Mentor'"
+            subtitle="Email and password are stored in mUser. Mentor profiles are stored in mMentor."
+            :close-url="route('mentors.index')"
+            size="lg"
+        >
+            <form id="mentorForm" class="row g-3" action="{{ $formAction }}" method="POST">
                 @csrf
                 @isset($editingMentor)
                     @method('PUT')
@@ -75,60 +130,12 @@
                     <label class="form-label">Role / Position</label>
                     <input class="form-control" name="txtRole" value="{{ old('txtRole', $editingMentor->txtRole ?? 'Mentor') }}">
                 </div>
-                <div class="col-12">
-                    <button class="btn btn-primary btn-save" type="submit">{{ isset($editingMentor) ? 'Save Changes' : 'Save Mentor' }}</button>
-                </div>
             </form>
-        </section>
-    @endif
 
-    <div class="card">
-        <div class="table-responsive">
-            <table class="table data-table align-middle mb-0">
-                <thead>
-                    <tr><th>ID</th><th>Full Name</th><th>Gender</th><th>Email</th><th>Department</th><th>Role</th><th>Status</th><th>Action</th></tr>
-                </thead>
-                <tbody>
-                    @forelse ($mentors as $mentor)
-                        @php
-                            $mentorName = $mentor->txtMentorName ?: 'Mentor';
-                            $mentorPhotoUrl = $mentor->user?->txtProfilePhoto
-                                ? asset('storage/' . $mentor->user->txtProfilePhoto)
-                                : 'https://ui-avatars.com/api/?name=' . urlencode($mentorName) . '&background=006838&color=fff&bold=true';
-                        @endphp
-                        <tr>
-                            <td>MTR-{{ str_pad((string) $mentor->intMentor_ID, 3, '0', STR_PAD_LEFT) }}</td>
-                            <td>
-                                <a class="table-person table-person-link" href="{{ route('profile.mentor.show', $mentor->intMentor_ID) }}">
-                                    <img class="table-person-avatar" src="{{ $mentorPhotoUrl }}" alt="{{ $mentorName }}" loading="lazy">
-                                    <span class="table-person-name">{{ $mentor->txtMentorName ?: '-' }}</span>
-                                </a>
-                            </td>
-                            <td>{{ $mentor->txtMentorGender ?: '-' }}</td>
-                            <td>{{ $mentor->user->txtEmail ?? '-' }}</td>
-                            <td>{{ $mentor->txtDepartment ?: '-' }}</td>
-                            <td>{{ $mentor->txtRole ?: '-' }}</td>
-                            <td><span class="status-badge {{ $mentor->bitActive ? 'status-active' : 'status-inactive' }}">{{ $mentor->bitActive ? 'Active' : 'Inactive' }}</span></td>
-                            <td>
-                                @if ($isMentorUser)
-                                    <div class="action-btns">
-                                        <a class="btn-icon btn-edit" href="{{ route('mentors.edit', $mentor->intMentor_ID) }}"><i class="fa-solid fa-pen"></i></a>
-                                        <form action="{{ route('mentors.destroy', $mentor->intMentor_ID) }}" method="POST" onsubmit="return confirm('Deactivate this mentor?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="btn-icon btn-delete" type="submit"><i class="fa-solid fa-trash"></i></button>
-                                        </form>
-                                    </div>
-                                @else
-                                    <a class="auth-link" href="{{ route('profile.mentor.show', $mentor->intMentor_ID) }}">View</a>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="8" class="center">No mentor data yet.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
-@endsection
+            <x-slot:footer>
+                <a href="{{ route('mentors.index') }}" class="btn-cancel" style="text-decoration:none;">Cancel</a>
+                <button class="btn-save" type="submit" form="mentorForm">{{ isset($editingMentor) ? 'Save Changes' : 'Save Mentor' }}</button>
+            </x-slot:footer>
+        </x-crud-modal>
+    @endpush
+@endif
