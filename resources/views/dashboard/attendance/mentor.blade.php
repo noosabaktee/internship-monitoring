@@ -1,7 +1,20 @@
+@php
+    $attendanceExportQuery = [
+        'from' => $attendanceDetailFilters['from'] ?? now('Asia/Jakarta')->startOfMonth()->toDateString(),
+        'to' => $attendanceDetailFilters['to'] ?? now('Asia/Jakarta')->toDateString(),
+    ];
+
+    if (($attendanceDetailFilters['intUser_ID'] ?? '0') !== '0') {
+        $attendanceExportQuery['intUser_ID'] = $attendanceDetailFilters['intUser_ID'];
+    }
+
+    $hasSelectedIntern = (bool) $attendancePayrollSummary;
+@endphp
+
 <div class="attendance-shell">
     <section class="attendance-hero">
         <div class="attendance-hero-main">
-            <span class="attendance-eyebrow"><i class="fa-solid fa-user-tie"></i> Mentor</span>
+            <span class="attendance-eyebrow"><i class="fa-solid fa-user-shield"></i> Headmaster / HRD</span>
             <h2>Absensi Intern</h2>
             <div class="attendance-hero-meta">
                 <span><i class="fa-solid fa-right-to-bracket"></i> In {{ $clockInStart->format('H:i') }} - {{ $clockInEnd->format('H:i') }} WIB</span>
@@ -23,7 +36,7 @@
                     <h3>Setting Absensi</h3>
                     <p>Rentang Clock In, Clock Out, dan threshold face recognition.</p>
                 </div>
-                <span class="attendance-map-chip"><i class="fa-solid fa-lock"></i> Mentor</span>
+                <span class="attendance-map-chip"><i class="fa-solid fa-lock"></i> Admin</span>
             </div>
 
             <form class="attendance-setting-form" action="{{ route('attendance.settings.update') }}" method="POST">
@@ -143,7 +156,22 @@
                 <h3>Detail Absensi</h3>
                 <p>Summary absensi berdasarkan tanggal dan intern.</p>
             </div>
-            <span class="attendance-map-chip"><i class="fa-solid fa-filter"></i> Filter</span>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-outline-primary btn-sm" href="{{ route('attendance.export.excel', $attendanceExportQuery) }}">
+                    <i class="fa-solid fa-file-excel"></i>
+                    Export Excel
+                </a>
+                <a class="btn btn-outline-primary btn-sm" href="{{ route('attendance.report.pdf', $attendanceExportQuery) }}">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    Report PDF
+                </a>
+                @if ($hasSelectedIntern)
+                    <a class="btn btn-primary btn-sm" href="{{ route('attendance.salary-slip.pdf', $attendanceExportQuery) }}">
+                        <i class="fa-solid fa-receipt"></i>
+                        Slip Gaji
+                    </a>
+                @endif
+            </div>
         </div>
 
         <form class="attendance-detail-filter" action="{{ route('attendance.index') }}" method="GET">
@@ -181,12 +209,25 @@
             <span><strong>{{ $attendanceDetailSummary['clockOutWarnings'] ?? 0 }}</strong> Warning Clock Out</span>
         </div>
 
+        @if ($attendancePayrollSummary)
+            <div class="attendance-detail-stats">
+                <span><strong>Rp {{ number_format((float) $attendancePayrollSummary['dailySalary'], 0, ',', '.') }}</strong> Salary / Hari</span>
+                <span><strong>{{ $attendancePayrollSummary['workdays'] }}</strong> Hari Kerja</span>
+                <span><strong>{{ $attendancePayrollSummary['absentDays'] }}</strong> Hari Dipotong</span>
+                <span><strong>Rp {{ number_format((float) $attendancePayrollSummary['grossSalary'], 0, ',', '.') }}</strong> Gross</span>
+                <span><strong>Rp {{ number_format((float) $attendancePayrollSummary['deduction'], 0, ',', '.') }}</strong> Potongan</span>
+                <span><strong>Rp {{ number_format((float) $attendancePayrollSummary['netSalary'], 0, ',', '.') }}</strong> Net Salary</span>
+            </div>
+        @endif
+
         <div class="table-responsive">
             <table class="data-table attendance-table">
                 <thead>
                     <tr>
                         <th>Tanggal</th>
                         <th>Intern</th>
+                        <th>Type</th>
+                        <th>Salary / Day</th>
                         <th>Status</th>
                         <th>Clock In</th>
                         <th>Clock Out</th>
@@ -208,6 +249,8 @@
                         <tr data-attendance-detail-intern="{{ $row['intUser_ID'] }}">
                             <td>{{ $row['date']->format('d M Y') }}</td>
                             <td>{{ $row['name'] }}</td>
+                            <td>{{ $row['internTypeLabel'] ?? 'Digitalisasi' }}</td>
+                            <td>Rp {{ number_format((float) ($row['dailySalary'] ?? 0), 0, ',', '.') }}</td>
                             <td><span class="attendance-status {{ $detailStatusClass }}">{{ $row['status'] }}</span></td>
                             <td>
                                 @if ($row['clockInWarning'] ?? false)
@@ -253,7 +296,7 @@
                             </td> -->
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="center">Tidak ada data pada filter ini.</td></tr>
+                        <tr><td colspan="8" class="center">Tidak ada data pada filter ini.</td></tr>
                     @endforelse
                 </tbody>
             </table>

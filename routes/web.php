@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthPageController;
 use App\Http\Controllers\CalendarSharingController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExposureController;
+use App\Http\Controllers\HrdController;
 use App\Http\Controllers\InternController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\MentorController;
@@ -23,6 +24,7 @@ Route::pattern('analytic', '[0-9]+');
 Route::pattern('attendance', '[0-9]+');
 Route::pattern('calendar_sharing', '[0-9]+');
 Route::pattern('intern', '[0-9]+');
+Route::pattern('hrd', '[0-9]+');
 Route::pattern('leaderboard', '[0-9]+');
 Route::pattern('mentor', '[0-9]+');
 Route::pattern('project', '[0-9]+');
@@ -39,40 +41,47 @@ Route::middleware('kmi.guest')->group(function () {
 });
 
 Route::middleware('kmi.auth')->group(function () {
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index')->middleware('kmi.access:dashboard');
     Route::post('/logout', [AuthPageController::class, 'logout'])->name('logout');
 
-    Route::resource('projects', ProjectController::class);
-    Route::resource('calendar-sharing', CalendarSharingController::class);
-    Route::get('exposure', [ExposureController::class, 'index'])->name('exposure.index');
-    Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
-    Route::post('face-detection', [AttendanceController::class, 'detectFace'])->name('face.detection.store');
-    Route::post('attendance/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in.store');
-    Route::post('attendance/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out.store');
+    Route::resource('projects', ProjectController::class)->only(['index', 'show'])->middleware('kmi.access:projects');
+    Route::resource('projects', ProjectController::class)->except(['index', 'show'])->middleware('kmi.access:crud-projects');
 
-    Route::resource('leaderboard', LeaderboardController::class)->only(['index', 'show']);
-    Route::resource('interns', InternController::class)->only(['index', 'show']);
-    Route::resource('mentors', MentorController::class)->only(['index', 'show']);
-    Route::resource('skill-sets', SkillSetController::class)->only(['index', 'show']);
-    Route::resource('project-handles', ProjectHandleController::class)->only(['index', 'show']);
-    Route::resource('analytics', AnalyticsController::class)->only(['index', 'show']);
-    Route::resource('achievements', AchievementController::class)->only(['index', 'show']);
-    Route::resource('reports', ReportController::class)->only(['index', 'show']);
-    Route::resource('settings', SettingController::class)->only(['index', 'show']);
+    Route::resource('calendar-sharing', CalendarSharingController::class)->only(['index', 'show'])->middleware('kmi.access:calendar-sharing');
+    Route::resource('calendar-sharing', CalendarSharingController::class)->except(['index', 'show'])->middleware('kmi.access:crud-calendar-sharing');
 
-    Route::middleware('kmi.mentor')->group(function () {
-        Route::resource('leaderboard', LeaderboardController::class)->except(['index', 'show']);
-        Route::resource('interns', InternController::class)->except(['index', 'show']);
-        Route::resource('mentors', MentorController::class)->except(['index', 'show']);
-        Route::resource('skill-sets', SkillSetController::class)->except(['index', 'show']);
-        Route::put('project-handles/weights', [ProjectHandleController::class, 'updateWeights'])->name('project-handles.weights.update');
-        Route::resource('project-handles', ProjectHandleController::class)->except(['index', 'show']);
-        Route::resource('analytics', AnalyticsController::class)->except(['index', 'show']);
-        Route::resource('achievements', AchievementController::class)->except(['index', 'show']);
-        Route::resource('reports', ReportController::class)->except(['index', 'show']);
-        Route::resource('settings', SettingController::class)->except(['index', 'show']);
-        Route::put('attendance/settings', [AttendanceController::class, 'updateSettings'])->name('attendance.settings.update');
-    });
+    Route::get('exposure', [ExposureController::class, 'index'])->name('exposure.index')->middleware('kmi.access:exposure');
+    Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index')->middleware('kmi.access:attendance');
+    Route::post('face-detection', [AttendanceController::class, 'detectFace'])->name('face.detection.store')->middleware('kmi.access:attendance');
+    Route::post('attendance/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in.store')->middleware('kmi.access:attendance');
+    Route::post('attendance/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out.store')->middleware('kmi.access:attendance');
+    Route::put('attendance/settings', [AttendanceController::class, 'updateSettings'])->name('attendance.settings.update')->middleware('kmi.access:attendance-admin');
+    Route::get('attendance/export/excel', [AttendanceController::class, 'exportExcel'])->name('attendance.export.excel')->middleware('kmi.access:attendance-admin');
+    Route::get('attendance/report/pdf', [AttendanceController::class, 'reportPdf'])->name('attendance.report.pdf')->middleware('kmi.access:attendance-admin');
+    Route::get('attendance/salary-slip/pdf', [AttendanceController::class, 'salarySlipPdf'])->name('attendance.salary-slip.pdf')->middleware('kmi.access:attendance-admin');
+
+    Route::resource('leaderboard', LeaderboardController::class)->only(['index', 'show'])->middleware('kmi.access:leaderboard');
+
+    Route::resource('interns', InternController::class)->only(['index', 'show'])->middleware('kmi.access:master-data');
+    Route::resource('interns', InternController::class)->except(['index', 'show'])->middleware('kmi.access:master-data');
+    Route::resource('mentors', MentorController::class)->only(['index', 'show'])->middleware('kmi.access:master-data');
+    Route::resource('mentors', MentorController::class)->except(['index', 'show'])->middleware('kmi.access:master-data');
+    Route::resource('hrds', HrdController::class)->only(['index', 'show'])->middleware('kmi.access:hrd-data');
+    Route::resource('hrds', HrdController::class)->except(['index', 'show'])->middleware('kmi.access:hrd-data');
+    Route::resource('skill-sets', SkillSetController::class)->only(['index', 'show'])->middleware('kmi.access:master-data');
+    Route::resource('skill-sets', SkillSetController::class)->except(['index', 'show'])->middleware('kmi.access:master-data');
+
+    Route::resource('project-handles', ProjectHandleController::class)->only(['index', 'show'])->middleware('kmi.access:project-handles');
+    Route::put('project-handles/weights', [ProjectHandleController::class, 'updateWeights'])->name('project-handles.weights.update')->middleware('kmi.access:project-handles');
+    Route::resource('project-handles', ProjectHandleController::class)->except(['index', 'show'])->middleware('kmi.access:project-handles');
+
+    Route::resource('analytics', AnalyticsController::class)->only(['index', 'show'])->middleware('kmi.access:analytics');
+    Route::resource('analytics', AnalyticsController::class)->except(['index', 'show'])->middleware('kmi.access:crud-analytics');
+    Route::resource('achievements', AchievementController::class)->only(['index', 'show'])->middleware('kmi.access:achievements');
+    Route::resource('achievements', AchievementController::class)->except(['index', 'show'])->middleware('kmi.access:crud-achievements');
+    Route::resource('reports', ReportController::class)->only(['index', 'show'])->middleware('kmi.access:reports');
+    Route::resource('reports', ReportController::class)->except(['index', 'show'])->middleware('kmi.access:reports');
+    Route::resource('settings', SettingController::class)->middleware('kmi.access:settings');
 
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -9,7 +9,8 @@
     $formAction = isset($editingEvaluation)
         ? route('analytics.update', $editingEvaluation->intEvaluation_ID)
         : route('analytics.store');
-    $isMentor = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole === 'Mentor';
+    $authUser = \App\Models\MUser::with('intern')->find(session('auth_user_id'));
+    $canManageAnalytics = $authUser && \App\Support\RoleAccess::can($authUser, 'crud-analytics');
 @endphp
 
 @section('content')
@@ -18,7 +19,7 @@
             <h2>Analytics</h2>
             <p>Statistics, evaluations, and detailed performance reports.</p>
         </div>
-        @if ($isMentor)
+        @if ($canManageAnalytics)
             <a class="btn btn-primary btn-add" href="{{ route('analytics.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Evaluation</a>
         @endif
     </div>
@@ -54,7 +55,7 @@
                             <td>{{ number_format((float) $evaluation->floatSharing, 1) }}</td>
                             <td class="score-a">{{ number_format((float) $evaluation->floatExposureScore, 1) }}</td>
                             <td>
-                                @if ($isMentor)
+                                @if ($canManageAnalytics)
                                     <div class="action-btns">
                                         <a class="btn-icon btn-edit" href="{{ route('analytics.edit', $evaluation->intEvaluation_ID) }}"><i class="fa-solid fa-pen"></i></a>
                                         <button
@@ -87,7 +88,7 @@
             id="evaluationFormModal"
             :active="$isFormOpen"
             :title="isset($editingEvaluation) ? 'Edit Evaluation' : 'Add Evaluation'"
-            subtitle="Exposure score is calculated automatically from the average of four evaluation scores."
+            subtitle="Isi nilai evaluasi untuk menghitung exposure score intern."
             :close-url="route('analytics.index')"
             size="lg"
         >

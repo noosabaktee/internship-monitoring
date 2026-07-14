@@ -6,15 +6,25 @@ use App\Models\MAttendanceSetting;
 use App\Models\MUser;
 use App\Models\TrAttendance;
 use App\Services\FaceRecognitionService;
+use App\Support\RoleAccess;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use RuntimeException;
 
 class AttendanceController extends Controller
@@ -33,25 +43,25 @@ class AttendanceController extends Controller
     public function index(Request $request): View
     {
         $authUser = $this->currentUser($request);
-        $isMentor = $authUser->txtRole === 'Mentor';
+        $isAttendanceAdmin = RoleAccess::isAttendanceAdmin($authUser);
         $setting = $this->attendanceSetting();
         $now = Carbon::now(self::TIMEZONE);
         $isWorkday = $this->isWorkday($now);
         $windows = $this->attendanceWindows($setting, $now);
         $windowState = $isWorkday ? $this->attendanceWindowState($now, $windows) : 'offday';
-        $enrollment = $isMentor
+        $enrollment = $isAttendanceAdmin
             ? null
             : $authUser->faceEnrollment()
                 ->where('bitActive', true)
                 ->first();
-        $todayAttendance = $isMentor
+        $todayAttendance = $isAttendanceAdmin
             ? null
             : TrAttendance::where('intUser_ID', $authUser->intUser_ID)
                 ->whereDate('dtmAttendanceDate', $now->toDateString())
                 ->first();
         $todayClockInAt = $todayAttendance ? $this->attendanceClockInAt($todayAttendance) : null;
         $todayClockOutAt = $todayAttendance ? $this->attendanceClockOutAt($todayAttendance) : null;
-        $summaryRows = $isMentor ? [] : $this->summaryRows($authUser, $setting, $now);
+        $summaryRows = $isAttendanceAdmin ? [] : $this->summaryRows($authUser, $setting, $now);
         $summary = collect($summaryRows);
         $teamTodayRows = collect();
         $attendanceDetail = [
@@ -66,22 +76,19 @@ class AttendanceController extends Controller
                 'pending' => 0,
                 'clockOutWarnings' => 0,
             ],
+            'selectedIntern' => null,
+            'payroll' => null,
         ];
 
-        if ($isMentor) {
-            $teamUsers = MUser::with(['intern', 'faceEnrollment'])
-                ->where('bitActive', true)
-                ->whereHas('intern', fn ($query) => $query->where('bitActive', true))
-                ->get()
-                ->sortBy(fn (MUser $user) => $this->displayName($user))
-                ->values();
+        if ($isAttendanceAdmin) {
+            $teamUsers = $this->attendanceInternUsers();
             $todayAttendances = TrAttendance::with(['user.intern', 'user.mentor'])
                 ->whereDate('dtmAttendanceDate', $now->toDateString())
                 ->get()
                 ->keyBy('intUser_ID');
 
             $teamTodayRows = $this->teamTodayRows($teamUsers, $todayAttendances, $setting, $now);
-            $attendanceDetail = $this->mentorAttendanceDetail($request, $teamUsers, $setting, $now);
+            $attendanceDetail = $this->adminAttendanceDetail($request, $teamUsers, $setting, $now);
         }
 
         return view('dashboard.attendance', [
@@ -106,12 +113,14 @@ class AttendanceController extends Controller
             'clockOutLateEnd' => $windows['clockOutLateEnd'],
             'windowState' => $windowState,
             'isWorkday' => $isWorkday,
-            'isMentor' => $isMentor,
+            'isAttendanceAdmin' => $isAttendanceAdmin,
             'teamTodayRows' => $teamTodayRows,
             'attendanceDetailFilters' => $attendanceDetail['filters'],
             'attendanceDetailInterns' => $attendanceDetail['interns'],
             'attendanceDetailRows' => $attendanceDetail['rows'],
             'attendanceDetailSummary' => $attendanceDetail['summary'],
+            'attendanceSelectedIntern' => $attendanceDetail['selectedIntern'],
+            'attendancePayrollSummary' => $attendanceDetail['payroll'],
         ]);
     }
 
@@ -339,6 +348,11 @@ class AttendanceController extends Controller
     public function updateSettings(Request $request): RedirectResponse
     {
         $authUser = $this->currentUser($request);
+
+        if (! RoleAccess::isAttendanceAdmin($authUser)) {
+            abort(403, 'Setting absensi hanya untuk Headmaster atau HRD.');
+        }
+
         $validated = $request->validate([
             'txtAttendanceSettingClockInStartTime' => ['required', 'date_format:H:i'],
             'txtAttendanceSettingClockInEndTime' => ['required', 'date_format:H:i'],
@@ -382,16 +396,245 @@ class AttendanceController extends Controller
         return redirect()->route('attendance.index')->with('success', 'Setting absensi berhasil diperbarui.');
     }
 
+    public function exportExcel(Request $request): Response
+    {
+        $payload = $this->attendanceExportPayload($request);
+        $filename = 'attendance-' . $payload['filters']['from'] . '-' . $payload['filters']['to'] . '.xlsx';
+        $spreadsheet = $this->attendanceSpreadsheet($payload);
+        $writer = new Xlsx($spreadsheet);
+
+        ob_start();
+        $writer->save('php://output');
+        $content = ob_get_clean();
+        $spreadsheet->disconnectWorksheets();
+
+        return response($content, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'max-age=0',
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function attendanceSpreadsheet(array $payload): Spreadsheet
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Attendance');
+
+        $sheet->mergeCells('A1:L1');
+        $sheet->setCellValue('A1', 'Kalbe Internship Attendance Report');
+        $sheet->setCellValue('A2', 'Period');
+        $sheet->setCellValue('B2', $payload['filters']['from'] . ' to ' . $payload['filters']['to']);
+        $sheet->setCellValue('D2', 'Generated');
+        $sheet->setCellValue('E2', $payload['generatedAt']->format('d M Y H:i') . ' WIB');
+        $sheet->setCellValue('H2', 'Generated By');
+        $sheet->setCellValue('I2', $payload['generatedBy']);
+
+        $summaryLabels = ['Workdays', 'Present', 'Late', 'Absent', 'Pending', 'Out Warning'];
+        $summaryValues = [
+            $payload['summary']['total'],
+            $payload['summary']['present'],
+            $payload['summary']['late'],
+            $payload['summary']['absent'],
+            $payload['summary']['pending'],
+            $payload['summary']['clockOutWarnings'],
+        ];
+
+        foreach ($summaryLabels as $index => $label) {
+            $column = chr(ord('A') + $index);
+            $sheet->setCellValue($column . '4', $label);
+            $sheet->setCellValue($column . '5', $summaryValues[$index]);
+        }
+
+        if ($payload['payroll']) {
+            $sheet->mergeCells('H4:L4');
+            $sheet->setCellValue('H4', 'Payroll Snapshot');
+            $sheet->setCellValue('H5', 'Intern');
+            $sheet->setCellValue('I5', $payload['payroll']['internName']);
+            $sheet->setCellValue('H6', 'Gross');
+            $sheet->setCellValue('I6', $payload['payroll']['grossSalary']);
+            $sheet->setCellValue('J6', 'Deduction');
+            $sheet->setCellValue('K6', $payload['payroll']['deduction']);
+            $sheet->setCellValue('H7', 'Net Salary');
+            $sheet->setCellValue('I7', $payload['payroll']['netSalary']);
+            $sheet->getStyle('I6:K7')->getNumberFormat()->setFormatCode('"Rp" #,##0');
+        }
+
+        $headers = [
+            'Date',
+            'Intern No',
+            'Intern',
+            'Type',
+            'Status',
+            'Clock In',
+            'Clock In Status',
+            'Clock Out',
+            'Clock Out Status',
+            'Salary / Day',
+            'Location In',
+            'Location Out',
+        ];
+        $headerRow = 9;
+        $sheet->fromArray($headers, null, 'A' . $headerRow);
+        $rowNumber = $headerRow + 1;
+
+        foreach ($payload['rows'] as $row) {
+            $sheet->fromArray([
+                $row['date']->format('Y-m-d'),
+                $row['internNo'],
+                $row['name'],
+                $row['internTypeLabel'],
+                $row['status'],
+                $row['clockIn'],
+                $row['clockInStatus'] ?: '-',
+                $row['clockOut'],
+                $row['clockOutStatus'] ?: '-',
+                (float) $row['dailySalary'],
+                $row['locationIn'],
+                $row['locationOut'],
+            ], null, 'A' . $rowNumber);
+
+            $statusColor = match ($row['status']) {
+                'Tidak Masuk' => 'FEE4E2',
+                'Terlambat' => 'FEF0C7',
+                'Hadir' => 'D1FADF',
+                default => 'EAECF0',
+            };
+            $sheet->getStyle('E' . $rowNumber)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($statusColor);
+            $rowNumber++;
+        }
+
+        $lastRow = max($headerRow + 1, $rowNumber - 1);
+        $sheet->freezePane('A10');
+        $sheet->setAutoFilter('A' . $headerRow . ':L' . $lastRow);
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(18)->getColor()->setRGB('12351F');
+        $sheet->getStyle('A2:I2')->getFont()->setBold(true);
+        $sheet->getStyle('A4:F4')->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle('A4:F4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('006838');
+        $sheet->getStyle('A5:F5')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A4:F5')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('CFE5BD');
+        $sheet->getStyle('A' . $headerRow . ':L' . $headerRow)->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle('A' . $headerRow . ':L' . $headerRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('12351F');
+        $sheet->getStyle('A' . $headerRow . ':L' . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('D9E2D0');
+        $sheet->getStyle('J10:J' . $lastRow)->getNumberFormat()->setFormatCode('"Rp" #,##0');
+        $sheet->getStyle('A4:L' . $lastRow)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle('K10:L' . $lastRow)->getAlignment()->setWrapText(true);
+
+        if ($payload['payroll']) {
+            $sheet->getStyle('H4:L4')->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+            $sheet->getStyle('H4:L4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('006838');
+            $sheet->getStyle('H5:L7')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('CFE5BD');
+            $sheet->getStyle('H5:H7')->getFont()->setBold(true);
+            $sheet->getStyle('J6')->getFont()->setBold(true);
+        }
+
+        foreach (range('A', 'L') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $sheet->getColumnDimension('K')->setWidth(38);
+        $sheet->getColumnDimension('L')->setWidth(38);
+        $sheet->getStyle('A1:L' . $lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $spreadsheet->getProperties()
+            ->setCreator('Kalbe Internship Monitoring')
+            ->setTitle('Attendance Report')
+            ->setSubject('Attendance export');
+
+        return $spreadsheet;
+    }
+
+    public function reportPdf(Request $request): Response
+    {
+        $payload = $this->attendanceExportPayload($request);
+        $filename = 'attendance-report-' . $payload['filters']['from'] . '-' . $payload['filters']['to'] . '.pdf';
+
+        return $this->pdfResponse('dashboard.attendance.report-pdf', ['payload' => $payload], $filename);
+    }
+
+    public function salarySlipPdf(Request $request): Response
+    {
+        $payload = $this->attendanceExportPayload($request);
+
+        if (! $payload['payroll']) {
+            abort(422, 'Pilih satu intern terlebih dahulu untuk download slip gaji.');
+        }
+
+        $filename = 'salary-slip-' . Str::slug($payload['payroll']['internName']) . '-' . $payload['filters']['from'] . '-' . $payload['filters']['to'] . '.pdf';
+
+        return $this->pdfResponse('dashboard.attendance.salary-slip-pdf', ['payload' => $payload], $filename);
+    }
+
+    private function pdfResponse(string $view, array $data, string $filename): Response
+    {
+        $options = new Options();
+        $options->set('defaultFont', 'DejaVu Sans');
+        $options->set('isRemoteEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->setPaper('A4');
+        $dompdf->loadHtml(view($view, $data)->render());
+        $dompdf->render();
+
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attendanceExportPayload(Request $request): array
+    {
+        $authUser = $this->currentUser($request);
+
+        if (! RoleAccess::isAttendanceAdmin($authUser)) {
+            abort(403, 'Export absensi hanya untuk Headmaster atau HRD.');
+        }
+
+        $setting = $this->attendanceSetting();
+        $now = Carbon::now(self::TIMEZONE);
+        $teamUsers = $this->attendanceInternUsers();
+        $detail = $this->adminAttendanceDetail($request, $teamUsers, $setting, $now);
+
+        return [
+            'generatedAt' => $now,
+            'generatedBy' => $this->generatedByName($authUser),
+            'filters' => $detail['filters'],
+            'interns' => $detail['interns'],
+            'rows' => $detail['rows'],
+            'summary' => $detail['summary'],
+            'selectedIntern' => $detail['selectedIntern'],
+            'payroll' => $detail['payroll'],
+        ];
+    }
+
     private function currentUser(Request $request): MUser
     {
-        return MUser::with(['intern', 'mentor'])->findOrFail($request->session()->get('auth_user_id'));
+        return MUser::with(['intern', 'mentor', 'adminProfile'])->findOrFail($request->session()->get('auth_user_id'));
     }
 
     private function ensureInternCanAttend(MUser $authUser): void
     {
-        if ($authUser->txtRole === 'Mentor' || ! $authUser->intern) {
+        if (! RoleAccess::isIntern($authUser)) {
             throw ValidationException::withMessages(['attendance' => 'Absensi hanya untuk intern.']);
         }
+    }
+
+    /**
+     * @return Collection<int, MUser>
+     */
+    private function attendanceInternUsers(): Collection
+    {
+        return MUser::with(['intern', 'faceEnrollment'])
+            ->where('bitActive', true)
+            ->whereHas('intern', fn ($query) => $query->where('bitActive', true))
+            ->get()
+            ->sortBy(fn (MUser $user) => $this->displayName($user))
+            ->values();
     }
 
     private function attendanceSetting(): MAttendanceSetting
@@ -713,9 +956,9 @@ class AttendanceController extends Controller
 
     /**
      * @param Collection<int, MUser> $teamUsers
-     * @return array{filters: array<string, string>, interns: Collection<int, MUser>, rows: Collection<int, array<string, mixed>>, summary: array<string, int>}
+     * @return array{filters: array<string, string>, interns: Collection<int, MUser>, rows: Collection<int, array<string, mixed>>, summary: array<string, int>, selectedIntern: ?MUser, payroll: ?array<string, mixed>}
      */
-    private function mentorAttendanceDetail(Request $request, Collection $teamUsers, MAttendanceSetting $setting, Carbon $now): array
+    private function adminAttendanceDetail(Request $request, Collection $teamUsers, MAttendanceSetting $setting, Carbon $now): array
     {
         [$fromDate, $toDate] = $this->detailDateRange($request, $now);
         $selectedUserId = (int) $request->query('intUser_ID', 0);
@@ -728,6 +971,9 @@ class AttendanceController extends Controller
             $filteredUsers = $teamUsers;
         }
 
+        $selectedIntern = $selectedUserId > 0
+            ? $teamUsers->firstWhere('intUser_ID', $selectedUserId)
+            : null;
         $records = TrAttendance::with(['user.intern'])
             ->whereDate('dtmAttendanceDate', '>=', $fromDate->toDateString())
             ->whereDate('dtmAttendanceDate', '<=', $toDate->toDateString())
@@ -777,7 +1023,12 @@ class AttendanceController extends Controller
                 $rows->push([
                     'date' => $date->copy(),
                     'intUser_ID' => $user->intUser_ID,
+                    'intIntern_ID' => $user->intern?->intIntern_ID,
+                    'internNo' => $user->intern?->txtInternNo ?: 'INT-' . str_pad((string) ($user->intern?->intIntern_ID ?? $user->intUser_ID), 3, '0', STR_PAD_LEFT),
                     'name' => $this->displayName($user),
+                    'internType' => $user->intern?->txtInternType ?: RoleAccess::INTERN_DIGITALISASI,
+                    'internTypeLabel' => $this->internTypeLabel($user->intern?->txtInternType),
+                    'dailySalary' => (float) ($user->intern?->floatInternSalary ?? 0),
                     'status' => $status,
                     'clockIn' => $this->attendanceTimeLabel($clockInAt),
                     'clockInStatus' => $clockInStatus,
@@ -804,6 +1055,44 @@ class AttendanceController extends Controller
             'interns' => $teamUsers,
             'rows' => $rows,
             'summary' => $summary,
+            'selectedIntern' => $selectedIntern,
+            'payroll' => $selectedIntern ? $this->payrollSummary($rows, $selectedIntern, $fromDate, $toDate) : null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function payrollSummary(Collection $rows, MUser $internUser, Carbon $fromDate, Carbon $toDate): array
+    {
+        $dailySalary = (float) ($internUser->intern?->floatInternSalary ?? 0);
+        $workdays = $rows->count();
+        $presentDays = $rows->whereIn('status', ['Hadir', 'Terlambat'])->count();
+        $lateDays = $rows->where('status', 'Terlambat')->count();
+        $absentDays = $rows->where('status', 'Tidak Masuk')->count();
+        $pendingDays = $rows->whereNotIn('status', ['Hadir', 'Terlambat', 'Tidak Masuk'])->count();
+        $grossSalary = $dailySalary * $workdays;
+        $deduction = $dailySalary * $absentDays;
+        $netSalary = max(0, $grossSalary - $deduction);
+
+        return [
+            'internName' => $this->displayName($internUser),
+            'internNo' => $internUser->intern?->txtInternNo ?: 'INT-' . str_pad((string) ($internUser->intern?->intIntern_ID ?? $internUser->intUser_ID), 3, '0', STR_PAD_LEFT),
+            'internType' => $this->internTypeLabel($internUser->intern?->txtInternType),
+            'department' => $internUser->intern?->txtDept ?: '-',
+            'period' => $fromDate->format('d M Y') . ' - ' . $toDate->format('d M Y'),
+            'from' => $fromDate,
+            'to' => $toDate,
+            'dailySalary' => $dailySalary,
+            'workdays' => $workdays,
+            'presentDays' => $presentDays,
+            'lateDays' => $lateDays,
+            'absentDays' => $absentDays,
+            'pendingDays' => $pendingDays,
+            'paidDays' => max(0, $workdays - $absentDays),
+            'grossSalary' => $grossSalary,
+            'deduction' => $deduction,
+            'netSalary' => $netSalary,
         ];
     }
 
@@ -941,8 +1230,33 @@ class AttendanceController extends Controller
     {
         return $user->intern?->txtInternName
             ?? $user->mentor?->txtMentorName
+            ?? $user->adminProfile?->txtAdminProfileName
             ?? $user->txtEmail
             ?? 'User';
+    }
+
+    private function generatedByName(MUser $user): string
+    {
+        $profileName = $user->intern?->txtInternName
+            ?? $user->mentor?->txtMentorName
+            ?? $user->adminProfile?->txtAdminProfileName;
+
+        if ($profileName) {
+            return $profileName;
+        }
+
+        $nameFromEmail = trim((string) preg_replace('/[._-]+/', ' ', Str::before((string) $user->txtEmail, '@')));
+
+        return $nameFromEmail !== '' ? Str::title($nameFromEmail) : 'User';
+    }
+
+    private function internTypeLabel(?string $type): string
+    {
+        return match (strtolower((string) ($type ?: RoleAccess::INTERN_DIGITALISASI))) {
+            RoleAccess::INTERN_REGULAR => 'Regular',
+            RoleAccess::INTERN_PKL => 'PKL',
+            default => 'Digitalisasi',
+        };
     }
 
     /**

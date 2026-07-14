@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\MIntern;
+use App\Models\MAdminProfile;
 use App\Models\MAttendanceSetting;
 use App\Models\MFaceEnrollment;
 use App\Models\MMentor;
@@ -18,6 +19,7 @@ use App\Models\TrEvaluation;
 use App\Models\TrInternProject;
 use App\Models\TrProjectMentor;
 use App\Models\TrProjectStage;
+use App\Support\RoleAccess;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -46,6 +48,7 @@ class DatabaseSeeder extends Seeder
             $this->seedAttendanceSetting();
             $this->seedProjectHandles();
             $this->seedProjectWeight();
+            $this->seedAdminUsers($password);
             $mentorNames = collect($internRows)->pluck('mentor')->unique()->values();
             $mentorIds = [];
 
@@ -107,6 +110,8 @@ class DatabaseSeeder extends Seeder
                     'txtInternGender' => $row['gender'],
                     'txtUniversity' => $row['university'],
                     'txtDept' => $row['department'],
+                    'txtInternType' => $row['type'],
+                    'floatInternSalary' => $row['salary'],
                     'txtBio' => null,
                     'dtmEndDate' => $this->dateFromSheet($row['end_date']),
                     'txtInternExtendEndDates' => [],
@@ -233,6 +238,7 @@ class DatabaseSeeder extends Seeder
         MAttendanceSetting::query()->delete();
         MIntern::query()->delete();
         MMentor::query()->delete();
+        MAdminProfile::query()->delete();
         MUser::query()->delete();
     }
 
@@ -321,6 +327,37 @@ class DatabaseSeeder extends Seeder
             'txtInsertedBy' => 'seeder',
             'dtmInserted' => now(),
         ]);
+    }
+
+    private function seedAdminUsers(string $password): void
+    {
+        foreach ([
+            [901, 'headmaster@kalbe.co.id', RoleAccess::ROLE_HEADMASTER, 'Kepala Sekolah Internship', 'Laki-laki', 'Internship Program', 'Headmaster'],
+            [902, 'hrd@kalbe.co.id', RoleAccess::ROLE_HRD, 'HRD Internship Officer', 'Perempuan', 'Human Resources', 'HRD'],
+        ] as [$userId, $email, $role, $name, $gender, $department, $position]) {
+            $user = MUser::create([
+                'intUser_ID' => $userId,
+                'txtEmail' => $email,
+                'txtPassword' => $password,
+                'txtRole' => $role,
+                'bitActive' => true,
+                'txtInsertedBy' => 'seeder',
+                'dtmInserted' => now(),
+            ]);
+
+            MAdminProfile::create([
+                'intUser_ID' => $user->intUser_ID,
+                'txtAdminProfileName' => $name,
+                'txtAdminProfileGender' => $gender,
+                'txtAdminProfileDepartment' => $department,
+                'txtAdminProfilePosition' => $position,
+                'txtAdminProfilePhone' => null,
+                'txtAdminProfileBio' => 'Administrator profile for internship monitoring.',
+                'bitActive' => true,
+                'txtInsertedBy' => 'seeder',
+                'dtmInserted' => now(),
+            ]);
+        }
     }
 
     private function seedCalendarSharings(): void
@@ -513,6 +550,8 @@ class DatabaseSeeder extends Seeder
                 'university' => 'UPI Purwakarta',
                 'department' => 'Manufacturing Development and Planning',
                 'gender' => 'Perempuan',
+                'type' => RoleAccess::INTERN_REGULAR,
+                'salary' => 75000,
                 'mentor' => 'Agung Hartanto',
                 'join_date' => 'Thursday, 21 August 2025',
                 'end_date' => 'Sunday, 17 May 2026',
@@ -528,6 +567,8 @@ class DatabaseSeeder extends Seeder
                 'university' => 'Universitas Atma Jaya',
                 'department' => 'Engineering',
                 'gender' => 'Laki-laki',
+                'type' => RoleAccess::INTERN_PKL,
+                'salary' => 50000,
                 'mentor' => 'Insani Gustrianjar Muharom',
                 'join_date' => 'Monday, 25 August 2025',
                 'end_date' => 'Wednesday, 19 August 2026',
@@ -543,6 +584,8 @@ class DatabaseSeeder extends Seeder
                 'university' => 'Universitas Singaperbangsa Karawang',
                 'department' => 'Manufacturing Development and Planning',
                 'gender' => 'Laki-laki',
+                'type' => RoleAccess::INTERN_DIGITALISASI,
+                'salary' => 100000,
                 'mentor' => 'Agung Hartanto',
                 'join_date' => 'Friday, 19 September 2025',
                 'end_date' => 'Friday, 19 June 2026',
@@ -558,6 +601,8 @@ class DatabaseSeeder extends Seeder
                 'university' => 'Universitas Negeri Yogya',
                 'department' => 'Manufacturing Development and Planning',
                 'gender' => 'Laki-laki',
+                'type' => RoleAccess::INTERN_DIGITALISASI,
+                'salary' => 100000,
                 'mentor' => 'Wahyu Agus',
                 'join_date' => 'Thursday, 13 November 2025',
                 'end_date' => 'Friday, 10 July 2026',
@@ -573,6 +618,8 @@ class DatabaseSeeder extends Seeder
                 'university' => 'Binus Aso',
                 'department' => 'Manufacturing Development and Planning',
                 'gender' => 'Laki-laki',
+                'type' => RoleAccess::INTERN_DIGITALISASI,
+                'salary' => 125000,
                 'mentor' => 'Wahyu Agus',
                 'join_date' => 'Monday, 24 November 2025',
                 'end_date' => 'Tuesday, 21 July 2026',
@@ -588,6 +635,8 @@ class DatabaseSeeder extends Seeder
                 'university' => 'UPI Purwakarta',
                 'department' => 'Engineering',
                 'gender' => 'Laki-laki',
+                'type' => RoleAccess::INTERN_DIGITALISASI,
+                'salary' => 100000,
                 'mentor' => 'Insani Gustrianjar Muharom',
                 'join_date' => 'Monday, 12 January 2026',
                 'end_date' => 'Friday, 10 July 2026',
@@ -603,6 +652,8 @@ class DatabaseSeeder extends Seeder
                 'university' => 'Universitas Padjadjaran',
                 'department' => 'Manufacturing Development and Planning',
                 'gender' => 'Perempuan',
+                'type' => RoleAccess::INTERN_DIGITALISASI,
+                'salary' => 125000,
                 'mentor' => 'Jepri Haerudin',
                 'join_date' => 'Wednesday, 04 February 2026',
                 'end_date' => 'Tuesday, 04 August 2026',
@@ -618,6 +669,8 @@ class DatabaseSeeder extends Seeder
                 'university' => 'Institut Teknologi Sepuluh November',
                 'department' => 'Manufacturing Development and Planning',
                 'gender' => 'Perempuan',
+                'type' => RoleAccess::INTERN_DIGITALISASI,
+                'salary' => 100000,
                 'mentor' => 'Jepri Haerudin',
                 'join_date' => 'Wednesday, 18 February 2026',
                 'end_date' => 'Friday, 17 July 2026',
@@ -633,6 +686,8 @@ class DatabaseSeeder extends Seeder
                 'university' => 'Universitas Singaperbangsa Karawang',
                 'department' => 'Manufacturing Development and Planning',
                 'gender' => 'Laki-laki',
+                'type' => RoleAccess::INTERN_DIGITALISASI,
+                'salary' => 125000,
                 'mentor' => 'Irpan Hidayat Pamil',
                 'join_date' => 'Monday, 04 May 2026',
                 'end_date' => 'Wednesday, 04 November 2026',
@@ -648,6 +703,8 @@ class DatabaseSeeder extends Seeder
                 'university' => 'Universitas Singaperbangsa Karawang',
                 'department' => 'Business Development Analysis - Finance',
                 'gender' => 'Perempuan',
+                'type' => RoleAccess::INTERN_DIGITALISASI,
+                'salary' => 100000,
                 'mentor' => 'Nasthasya Priyanka',
                 'join_date' => 'Tuesday, 02 June 2026',
                 'end_date' => 'Wednesday, 02 September 2026',

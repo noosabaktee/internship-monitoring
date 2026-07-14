@@ -9,6 +9,8 @@
     $formAction = isset($editingProject)
         ? route('projects.update', $editingProject->intProject_ID)
         : route('projects.store');
+    $authUser = \App\Models\MUser::with('intern')->find(session('auth_user_id'));
+    $canManageProjects = $authUser && \App\Support\RoleAccess::can($authUser, 'crud-projects');
     $activeAssignments = isset($editingProject) ? $editingProject->assignments->where('bitActive', true) : collect();
     $activeProjectMentors = isset($editingProject) ? $editingProject->projectMentors->where('bitActive', true) : collect();
     $assignment = $activeAssignments->first();
@@ -59,7 +61,9 @@
             <h2>Project Data</h2>
             <p>Track status and PIC for Collaboration, Main, Satellite, and Sharing projects.</p>
         </div>
-        <a class="btn btn-primary btn-add" href="{{ route('projects.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Project</a>
+        @if ($canManageProjects)
+            <a class="btn btn-primary btn-add" href="{{ route('projects.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Project</a>
+        @endif
     </div>
 
     @if ($isFormOpen)
@@ -67,7 +71,7 @@
             id="projectFormModal"
             :active="$isFormOpen"
             :title="isset($editingProject) ? 'Edit Project' : 'Add New Project'"
-            subtitle="Project master data is stored in mProject. Intern/progress assignments use trInternProject, while mentor assignments use trProjectMentor."
+            subtitle="Isi detail project, PIC intern, mentor, progress, dan tahap pekerjaan."
             :close-url="route('projects.index')"
             size="xl"
         >
@@ -243,18 +247,22 @@
                             </td>
                             <td><span class="status-badge {{ $project->bitActive ? 'status-active' : 'status-inactive' }}">{{ $project->bitActive ? ($rowAssignment?->txtStatus ?? 'Active') : 'Inactive' }}</span></td>
                             <td>
-                                <div class="action-btns">
-                                    <a class="btn-icon btn-edit" href="{{ route('projects.edit', $project->intProject_ID) }}"><i class="fa-solid fa-pen"></i></a>
-                                    <button
-                                        class="btn-icon btn-delete"
-                                        type="button"
-                                        data-delete-modal-trigger
-                                        data-delete-action="{{ route('projects.destroy', $project->intProject_ID) }}"
-                                        data-delete-title="Deactivate Project?"
-                                        data-delete-message="{{ $project->txtProjectName }} and its active assignments, mentors, and stages will be marked inactive."
-                                        data-delete-submit="Deactivate"
-                                    ><i class="fa-solid fa-trash"></i></button>
-                                </div>
+                                @if ($canManageProjects)
+                                    <div class="action-btns">
+                                        <a class="btn-icon btn-edit" href="{{ route('projects.edit', $project->intProject_ID) }}"><i class="fa-solid fa-pen"></i></a>
+                                        <button
+                                            class="btn-icon btn-delete"
+                                            type="button"
+                                            data-delete-modal-trigger
+                                            data-delete-action="{{ route('projects.destroy', $project->intProject_ID) }}"
+                                            data-delete-title="Deactivate Project?"
+                                            data-delete-message="{{ $project->txtProjectName }} and its active assignments, mentors, and stages will be marked inactive."
+                                            data-delete-submit="Deactivate"
+                                        ><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                @else
+                                    <a class="auth-link" href="{{ route('projects.show', $project->intProject_ID) }}">View</a>
+                                @endif
                             </td>
                         </tr>
                     @empty

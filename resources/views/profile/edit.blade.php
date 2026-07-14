@@ -5,6 +5,13 @@
     'bodyClass' => 'profile-page',
 ])
 
+@php
+    $intern = $intern ?? null;
+    $mentor = $mentor ?? null;
+    $user = $user ?? null;
+    $adminProfile = $adminProfile ?? null;
+@endphp
+
 @section('content')
     <div class="page-crud-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
@@ -14,7 +21,7 @@
         <a href="{{ route('profile.show') }}" class="btn-outline"><i class="fa-solid fa-arrow-left"></i> Back to Profile</a>
     </div>
 
-    @if (! $intern && ! $mentor)
+    @if (! $intern && ! $mentor && ! $user)
         <div class="card" style="text-align:center; padding: 40px;">
             <i class="fa-regular fa-user" style="font-size: 40px; color: var(--text-gray);"></i>
             <h3 style="margin: 15px 0;">No profile is available to edit</h3>
@@ -27,10 +34,10 @@
             <section class="profile-card">
                 <div class="profile-card-header">
                     <div class="profile-card-title">
-                        <h2>{{ $intern ? 'Intern Information' : 'Mentor Information' }}</h2>
+                        <h2>{{ $intern ? 'Intern Information' : ($mentor ? 'Mentor Information' : 'Admin Information') }}</h2>
                         <p>This data appears on the profile page and dashboard.</p>
                     </div>
-                    <span class="status-badge {{ ($intern?->bitActive ?? $mentor?->bitActive) ? 'status-active' : 'status-inactive' }}">{{ ($intern?->bitActive ?? $mentor?->bitActive) ? 'Active' : 'Inactive' }}</span>
+                    <span class="status-badge {{ ($intern?->bitActive ?? $mentor?->bitActive ?? $adminProfile?->bitActive ?? $user?->bitActive) ? 'status-active' : 'status-inactive' }}">{{ ($intern?->bitActive ?? $mentor?->bitActive ?? $adminProfile?->bitActive ?? $user?->bitActive) ? 'Active' : 'Inactive' }}</span>
                 </div>
 
                 @if ($intern)
@@ -57,7 +64,51 @@
                         <div class="col-md-6"><label class="form-label">Gender</label><select class="form-control" name="txtMentorGender"><option value="">Select gender</option>@foreach (['Laki-laki' => 'Male', 'Perempuan' => 'Female'] as $genderValue => $genderLabel)<option value="{{ $genderValue }}" @selected(old('txtMentorGender', $mentor->txtMentorGender) === $genderValue)>{{ $genderLabel }}</option>@endforeach</select></div>
                         <div class="col-md-6"><label class="form-label">New Password</label><input class="form-control" type="password" name="txtPassword" placeholder="Leave blank to keep current"></div>
                         <div class="col-md-6"><label class="form-label">Department</label><input class="form-control" name="txtDepartment" value="{{ old('txtDepartment', $mentor->txtDepartment) }}"></div>
-                        <div class="col-md-6"><label class="form-label">Role / Position</label><input class="form-control" name="txtRole" value="{{ old('txtRole', $mentor->txtRole) }}"></div>
+                    </div>
+                @endif
+
+                @if (! $intern && ! $mentor && $user)
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Status</label>
+                            <select class="form-control" name="bitActive">
+                                <option value="1" @selected(old('bitActive', (int) ($adminProfile?->bitActive ?? $user->bitActive ?? true)) == 1)>Active</option>
+                                <option value="0" @selected(old('bitActive', (int) ($adminProfile?->bitActive ?? $user->bitActive ?? true)) == 0)>Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Full Name</label>
+                            <input class="form-control" name="txtAdminProfileName" value="{{ old('txtAdminProfileName', $adminProfile?->txtAdminProfileName ?? '') }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input class="form-control" type="email" name="txtEmail" value="{{ old('txtEmail', $user->txtEmail ?? '') }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">New Password</label>
+                            <input class="form-control" type="password" name="txtPassword" placeholder="Leave blank to keep current">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Gender</label>
+                            <select class="form-control" name="txtAdminProfileGender">
+                                <option value="">Select gender</option>
+                                @foreach (['Laki-laki' => 'Male', 'Perempuan' => 'Female'] as $genderValue => $genderLabel)
+                                    <option value="{{ $genderValue }}" @selected(old('txtAdminProfileGender', $adminProfile?->txtAdminProfileGender ?? '') === $genderValue)>{{ $genderLabel }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Department</label>
+                            <input class="form-control" name="txtAdminProfileDepartment" value="{{ old('txtAdminProfileDepartment', $adminProfile?->txtAdminProfileDepartment ?? '') }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Phone</label>
+                            <input class="form-control" name="txtAdminProfilePhone" value="{{ old('txtAdminProfilePhone', $adminProfile?->txtAdminProfilePhone ?? '') }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Short Bio</label>
+                            <textarea class="form-control" name="txtAdminProfileBio" rows="4">{{ old('txtAdminProfileBio', $adminProfile?->txtAdminProfileBio ?? '') }}</textarea>
+                        </div>
                     </div>
                 @endif
             </section>

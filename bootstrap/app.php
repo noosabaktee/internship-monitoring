@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'kmi.auth' => \App\Http\Middleware\KmiAuthenticate::class,
             'kmi.guest' => \App\Http\Middleware\KmiGuest::class,
             'kmi.mentor' => \App\Http\Middleware\KmiMentorOnly::class,
+            'kmi.access' => \App\Http\Middleware\KmiRoleAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

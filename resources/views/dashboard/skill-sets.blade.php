@@ -9,7 +9,8 @@
     $formAction = isset($editingSkillSet)
         ? route('skill-sets.update', $editingSkillSet->intSkillSet_ID)
         : route('skill-sets.store');
-    $isMentor = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole === 'Mentor';
+    $authUser = \App\Models\MUser::with('intern')->find(session('auth_user_id'));
+    $canManageSkillSets = $authUser && \App\Support\RoleAccess::can($authUser, 'master-data');
 @endphp
 
 @section('content')
@@ -18,7 +19,7 @@
             <h2>Skill Set</h2>
             <p>Master data for project skill categories.</p>
         </div>
-        @if ($isMentor)
+        @if ($canManageSkillSets)
             <a class="btn btn-primary btn-add" href="{{ route('skill-sets.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Skill Set</a>
         @endif
     </div>
@@ -36,7 +37,7 @@
                             <td>{{ $skillSet->txtSkillSetDescription ?: '-' }}</td>
                             <td><span class="status-badge {{ $skillSet->bitActive ? 'status-active' : 'status-inactive' }}">{{ $skillSet->bitActive ? 'Active' : 'Inactive' }}</span></td>
                             <td>
-                                @if ($isMentor)
+                                @if ($canManageSkillSets)
                                     <div class="action-btns">
                                         <a class="btn-icon btn-edit" href="{{ route('skill-sets.edit', $skillSet->intSkillSet_ID) }}"><i class="fa-solid fa-pen"></i></a>
                                         <button
@@ -69,7 +70,7 @@
             id="skillSetFormModal"
             :active="$isFormOpen"
             :title="isset($editingSkillSet) ? 'Edit Skill Set' : 'Add Skill Set'"
-            subtitle="Skill set data is stored in mSkillSet and used by project forms."
+            subtitle="Isi kategori skill yang akan digunakan pada form project."
             :close-url="route('skill-sets.index')"
             size="md"
         >

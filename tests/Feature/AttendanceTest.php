@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\MAdminProfile;
 use App\Models\MAttendanceSetting;
 use App\Models\MFaceEnrollment;
 use App\Models\MIntern;
@@ -9,6 +10,7 @@ use App\Models\TrAttendance;
 use App\Services\FaceRecognitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 uses(RefreshDatabase::class);
 
@@ -61,10 +63,10 @@ it('shows face enrollment controls on profile instead of attendance page', funct
         ->assertSee('data-face-enroll', false);
 });
 
-it('renders mentor attendance page without personal check in controls', function () {
-    $mentor = createAttendanceUser('Mentor');
+it('renders headmaster attendance page without personal check in controls', function () {
+    $headmaster = createAttendanceUser('Headmaster');
 
-    $this->withSession(['auth_user_id' => $mentor->intUser_ID])
+    $this->withSession(['auth_user_id' => $headmaster->intUser_ID])
         ->get(route('attendance.index'))
         ->assertOk()
         ->assertSee('Absensi Intern')
@@ -72,10 +74,10 @@ it('renders mentor attendance page without personal check in controls', function
         ->assertDontSee('data-attendance-page', false);
 });
 
-it('allows mentor to update attendance settings', function () {
-    $mentor = createAttendanceUser('Mentor');
+it('allows HRD to update attendance settings', function () {
+    $hrd = createAttendanceUser('HRD');
 
-    $this->withSession(['auth_user_id' => $mentor->intUser_ID])
+    $this->withSession(['auth_user_id' => $hrd->intUser_ID])
         ->put(route('attendance.settings.update'), [
             'txtAttendanceSettingClockInStartTime' => '06:15',
             'txtAttendanceSettingClockInEndTime' => '08:45',
@@ -151,8 +153,7 @@ it('blocks mentor from checking in', function () {
     $this->from(route('attendance.index'))
         ->withSession(['auth_user_id' => $mentor->intUser_ID])
         ->post(route('attendance.check-in.store'))
-        ->assertRedirect(route('attendance.index'))
-        ->assertSessionHasErrors('attendance');
+        ->assertForbidden();
 
     expect(TrAttendance::count())->toBe(0);
 });
@@ -373,11 +374,11 @@ it('summarizes only the current Monday to Friday workweek', function () {
     }
 });
 
-it('renders mentor attendance detail with date and intern filters', function () {
+it('renders HRD attendance detail with date and intern filters', function () {
     Carbon::setTestNow(Carbon::parse('2026-07-09 10:00:00', 'Asia/Jakarta'));
 
     try {
-        $mentor = createAttendanceUser('Mentor');
+        $hrd = createAttendanceUser('HRD');
         $firstIntern = createAttendanceUser('Intern');
         $secondIntern = createAttendanceUser('Intern Two');
         TrAttendance::create([
@@ -391,7 +392,7 @@ it('renders mentor attendance detail with date and intern filters', function () 
             'dtmInserted' => now(),
         ]);
 
-        $this->withSession(['auth_user_id' => $mentor->intUser_ID])
+        $this->withSession(['auth_user_id' => $hrd->intUser_ID])
             ->get(route('attendance.index', [
                 'from' => '2026-07-08',
                 'to' => '2026-07-08',
@@ -407,10 +408,116 @@ it('renders mentor attendance detail with date and intern filters', function () 
     }
 });
 
+it('allows HRD to export filtered attendance report and salary slip', function () {
+    Carbon::setTestNow(Carbon::parse('2026-07-09 10:00:00', 'Asia/Jakarta'));
+
+    try {
+        $hrd = createAttendanceUser('HRD');
+        MAdminProfile::create([
+            'intUser_ID' => $hrd->intUser_ID,
+            'txtAdminProfileName' => 'HRD Exporter',
+            'txtAdminProfileGender' => 'Perempuan',
+            'txtAdminProfileDepartment' => 'Human Resources',
+            'txtAdminProfilePosition' => 'HRD',
+            'bitActive' => true,
+            'txtInsertedBy' => 'test',
+            'dtmInserted' => now(),
+        ]);
+
+        $intern = createAttendanceUser('Intern');
+        TrAttendance::create([
+            'intUser_ID' => $intern->intUser_ID,
+            'dtmAttendanceDate' => '2026-07-08',
+            'dtmAttendanceClockIn' => Carbon::parse('2026-07-08 08:00:00', 'Asia/Jakarta'),
+            'dtmAttendanceClockOut' => Carbon::parse('2026-07-08 17:00:00', 'Asia/Jakarta'),
+            'txtAttendanceStatus' => 'Hadir',
+            'txtAttendanceClockInStatus' => 'Tepat Waktu',
+            'txtAttendanceClockOutStatus' => 'Tepat Waktu',
+            'txtInsertedBy' => 'test',
+            'dtmInserted' => now(),
+        ]);
+
+        $query = [
+            'from' => '2026-07-08',
+            'to' => '2026-07-08',
+            'intUser_ID' => $intern->intUser_ID,
+        ];
+
+        $excelResponse = $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+            ->get(route('attendance.export.excel', $query))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $excelPath = tempnam(sys_get_temp_dir(), 'attendance-export-');
+        file_put_contents($excelPath, $excelResponse->content());
+        $spreadsheet = IOFactory::load($excelPath);
+
+        expect($spreadsheet->getActiveSheet()->getCell('I2')->getValue())->toBe('HRD Exporter');
+
+        $spreadsheet->disconnectWorksheets();
+        unlink($excelPath);
+
+        $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+            ->get(route('attendance.report.pdf', $query))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+            ->get(route('attendance.salary-slip.pdf', $query))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
+it('renders and updates HRD profile data', function () {
+    $hrd = createAttendanceUser('HRD');
+
+    MAdminProfile::create([
+        'intUser_ID' => $hrd->intUser_ID,
+        'txtAdminProfileName' => 'HRD User',
+        'txtAdminProfileGender' => 'Perempuan',
+        'txtAdminProfileDepartment' => 'Human Resources',
+        'txtAdminProfilePosition' => 'HRD',
+        'bitActive' => true,
+        'txtInsertedBy' => 'test',
+        'dtmInserted' => now(),
+    ]);
+
+    $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+        ->get(route('profile.show'))
+        ->assertOk()
+        ->assertSee('Admin Profile')
+        ->assertSee('HRD User')
+        ->assertSee('Human Resources');
+
+    $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+        ->put(route('profile.update'), [
+            'txtAdminProfileName' => 'HRD Updated',
+            'txtEmail' => 'hrd.updated@attendance.test',
+            'txtAdminProfileGender' => 'Perempuan',
+            'txtAdminProfileDepartment' => 'People Operations',
+            'txtAdminProfilePosition' => 'HR Business Partner',
+            'txtAdminProfilePhone' => '08123456789',
+            'txtAdminProfileBio' => 'Mengelola administrasi internship.',
+            'bitActive' => '1',
+        ])
+        ->assertRedirect(route('profile.show'));
+
+    $profile = MAdminProfile::where('intUser_ID', $hrd->intUser_ID)->first();
+    $hrd->refresh();
+
+    expect($profile->txtAdminProfileName)->toBe('HRD Updated')
+        ->and($profile->txtAdminProfileDepartment)->toBe('People Operations')
+        ->and($profile->txtAdminProfilePhone)->toBe('08123456789')
+        ->and($hrd->txtEmail)->toBe('hrd.updated@attendance.test');
+});
+
 function createAttendanceUser(string $role): MUser
 {
     $now = now();
-    $actualRole = $role === 'Mentor' ? 'Mentor' : 'Intern';
+    $actualRole = in_array($role, ['Mentor', 'Headmaster', 'HRD'], true) ? $role : 'Intern';
     $user = MUser::create([
         'txtEmail' => str_replace(' ', '-', strtolower($role)) . '@attendance.test',
         'txtPassword' => 'secret',
@@ -429,11 +536,13 @@ function createAttendanceUser(string $role): MUser
             'txtInsertedBy' => 'test',
             'dtmInserted' => $now,
         ]);
-    } else {
+    } elseif ($actualRole === 'Intern') {
         MIntern::create([
             'intUser_ID' => $user->intUser_ID,
             'txtInternNo' => 'INT-ATT',
             'txtInternName' => $role === 'Intern Two' ? 'Attendance Intern Two' : 'Attendance Intern',
+            'txtInternType' => 'digitalisasi',
+            'floatInternSalary' => 100000,
             'bitActive' => true,
             'txtInsertedBy' => 'test',
             'dtmInserted' => $now,

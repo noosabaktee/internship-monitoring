@@ -3,7 +3,7 @@
         <div class="modal-header modal-header-danger">
             <div class="modal-title-copy">
                 <h3 id="deleteConfirmTitle">Deactivate Data?</h3>
-                <p>This action will set the selected data to inactive.</p>
+                <p>Data yang dipilih akan dinonaktifkan.</p>
             </div>
             <button class="btn-close" type="button" data-modal-dismiss="deleteConfirmModal" aria-label="Close modal"><i class="fa-solid fa-xmark"></i></button>
         </div>

@@ -10,11 +10,11 @@
 
             <div class="auth-hero">
                 <h1>Create access for internship collaboration.</h1>
-                <p>Register as an intern or mentor so program, project, and evaluation data can be managed more easily.</p>
+                <p>Register your internship access so attendance, project, and monitoring data can be managed more easily.</p>
             </div>
 
             <div class="auth-stats">
-                <div class="auth-stat"><strong>2</strong><span>Roles</span></div>
+                <div class="auth-stat"><strong>4</strong><span>Roles</span></div>
                 <div class="auth-stat"><strong>4</strong><span>Project Types</span></div>
                 <div class="auth-stat"><strong>1</strong><span>Dashboard</span></div>
             </div>
@@ -56,6 +56,8 @@
                                 <option value="">Select role</option>
                                 <option value="Intern" @selected(old('txtRole') === 'Intern')>Intern</option>
                                 <option value="Mentor" @selected(old('txtRole') === 'Mentor')>Mentor</option>
+                                <option value="HRD" @selected(old('txtRole') === 'HRD')>HRD</option>
+                                <option value="Headmaster" @selected(old('txtRole') === 'Headmaster')>Headmaster</option>
                             </select>
                         </div>
                     </div>

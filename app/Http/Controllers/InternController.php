@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MIntern;
 use App\Models\MUser;
+use App\Support\RoleAccess;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,6 +40,8 @@ class InternController extends Controller
             'txtInternGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtUniversity' => ['nullable', 'string', 'max:255'],
             'txtDept' => ['nullable', 'string', 'max:255'],
+            'txtInternType' => ['required', Rule::in(RoleAccess::internTypes())],
+            'floatInternSalary' => ['nullable', 'numeric', 'min:0'],
             'dtmInserted' => ['nullable', 'date'],
             'dtmEndDate' => ['nullable', 'date', 'after_or_equal:dtmInserted'],
             'txtInternExtendEndDates' => ['nullable', 'array'],
@@ -65,6 +68,8 @@ class InternController extends Controller
                 'txtInternGender' => $validated['txtInternGender'] ?? null,
                 'txtUniversity' => $validated['txtUniversity'] ?? null,
                 'txtDept' => $validated['txtDept'] ?? null,
+                'txtInternType' => $validated['txtInternType'],
+                'floatInternSalary' => round((float) ($validated['floatInternSalary'] ?? 0), 2),
                 'dtmEndDate' => $validated['dtmEndDate'] ?? null,
                 'txtInternExtendEndDates' => $this->extensionDates($validated['txtInternExtendEndDates'] ?? []),
                 'bitActive' => (bool) ($validated['bitActive'] ?? true),
@@ -106,6 +111,8 @@ class InternController extends Controller
             'txtInternGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtUniversity' => ['nullable', 'string', 'max:255'],
             'txtDept' => ['nullable', 'string', 'max:255'],
+            'txtInternType' => ['required', Rule::in(RoleAccess::internTypes())],
+            'floatInternSalary' => ['nullable', 'numeric', 'min:0'],
             'dtmInserted' => ['nullable', 'date'],
             'dtmEndDate' => ['nullable', 'date', 'after_or_equal:dtmInserted'],
             'txtInternExtendEndDates' => ['nullable', 'array'],
@@ -133,6 +140,8 @@ class InternController extends Controller
                 'txtInternGender' => $validated['txtInternGender'] ?? null,
                 'txtUniversity' => $validated['txtUniversity'] ?? null,
                 'txtDept' => $validated['txtDept'] ?? null,
+                'txtInternType' => $validated['txtInternType'],
+                'floatInternSalary' => round((float) ($validated['floatInternSalary'] ?? 0), 2),
                 'dtmEndDate' => $validated['dtmEndDate'] ?? null,
                 'txtInternExtendEndDates' => $this->extensionDates($validated['txtInternExtendEndDates'] ?? []),
                 'bitActive' => (bool) ($validated['bitActive'] ?? false),

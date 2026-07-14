@@ -9,7 +9,13 @@
     $formAction = isset($editingMentor)
         ? route('mentors.update', $editingMentor->intMentor_ID)
         : route('mentors.store');
-    $isMentorUser = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole === 'Mentor';
+    $authUser = \App\Models\MUser::with('intern')->find(session('auth_user_id'));
+    $canManageMentors = $authUser && \App\Support\RoleAccess::can($authUser, 'master-data');
+    $roleOptions = [
+        \App\Support\RoleAccess::ROLE_MENTOR => 'Mentor',
+        \App\Support\RoleAccess::ROLE_HRD => 'HRD',
+        \App\Support\RoleAccess::ROLE_HEADMASTER => 'Headmaster',
+    ];
 @endphp
 
 @section('content')
@@ -18,7 +24,7 @@
             <h2>Mentor Data</h2>
             <p>Manage mentors by department and mentoring status.</p>
         </div>
-        @if ($isMentorUser)
+        @if ($canManageMentors)
             <a class="btn btn-primary btn-add" href="{{ route('mentors.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Mentor</a>
         @endif
     </div>
@@ -48,10 +54,10 @@
                             <td>{{ $mentor->txtMentorGender ?: '-' }}</td>
                             <td>{{ $mentor->user->txtEmail ?? '-' }}</td>
                             <td>{{ $mentor->txtDepartment ?: '-' }}</td>
-                            <td>{{ $mentor->txtRole ?: '-' }}</td>
+                            <td>{{ $mentor->user?->txtRole ?? ($mentor->txtRole ?: '-') }}</td>
                             <td><span class="status-badge {{ $mentor->bitActive ? 'status-active' : 'status-inactive' }}">{{ $mentor->bitActive ? 'Active' : 'Inactive' }}</span></td>
                             <td>
-                                @if ($isMentorUser)
+                                @if ($canManageMentors)
                                     <div class="action-btns">
                                         <a class="btn-icon btn-edit" href="{{ route('mentors.edit', $mentor->intMentor_ID) }}"><i class="fa-solid fa-pen"></i></a>
                                         <button
@@ -84,7 +90,7 @@
             id="mentorFormModal"
             :active="$isFormOpen"
             :title="isset($editingMentor) ? 'Edit Mentor' : 'Add New Mentor'"
-            subtitle="Email and password are stored in mUser. Mentor profiles are stored in mMentor."
+            subtitle="Isi data mentor, akun login, dan departemen pembimbing."
             :close-url="route('mentors.index')"
             size="lg"
         >
@@ -94,14 +100,22 @@
                     @method('PUT')
                 @endisset
 
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Status</label>
                     <select class="form-control" name="bitActive">
                         <option value="1" @selected((string) old('bitActive', (int) ($editingMentor->bitActive ?? true)) === '1')>Active</option>
                         <option value="0" @selected((string) old('bitActive', (int) ($editingMentor->bitActive ?? true)) === '0')>Inactive</option>
                     </select>
                 </div>
-                <div class="col-md-8">
+                <div class="col-md-3">
+                    <label class="form-label">Role</label>
+                    <select class="form-control" name="txtRole" required>
+                        @foreach ($roleOptions as $roleValue => $roleLabel)
+                            <option value="{{ $roleValue }}" @selected(old('txtRole', $editingMentor->user->txtRole ?? \App\Support\RoleAccess::ROLE_MENTOR) === $roleValue)>{{ $roleLabel }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-6">
                     <label class="form-label">Full Name</label>
                     <input class="form-control" name="txtMentorName" value="{{ old('txtMentorName', $editingMentor->txtMentorName ?? '') }}" required>
                 </div>
@@ -122,13 +136,9 @@
                     <label class="form-label">Password {{ isset($editingMentor) ? '(leave blank to keep current)' : '' }}</label>
                     <input class="form-control" type="password" name="txtPassword" placeholder="{{ isset($editingMentor) ? 'New password' : 'Default: password' }}">
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-12">
                     <label class="form-label">Department</label>
                     <input class="form-control" name="txtDepartment" value="{{ old('txtDepartment', $editingMentor->txtDepartment ?? '') }}">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Role / Position</label>
-                    <input class="form-control" name="txtRole" value="{{ old('txtRole', $editingMentor->txtRole ?? 'Mentor') }}">
                 </div>
             </form>
 

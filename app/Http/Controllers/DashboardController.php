@@ -10,18 +10,28 @@ use App\Models\TrEvaluation;
 use App\Models\TrInternProject;
 use App\Support\ExposureCurveBuilder;
 use App\Support\ProjectScoreboard;
+use App\Support\RoleAccess;
 use Illuminate\Contracts\View\View;
 
 class DashboardController extends Controller
 {
     public function index(): View
     {
+        $totalInterns = MIntern::where('bitActive', true)->count();
         $interns = MIntern::with(['evaluations', 'projects.project', 'achievements'])
             ->where('bitActive', true)
+            ->where(function ($query) {
+                $query->where('txtInternType', RoleAccess::INTERN_DIGITALISASI)
+                    ->orWhereNull('txtInternType');
+            })
             ->orderBy('txtInternName')
             ->get();
         $latestEvaluations = TrEvaluation::with('intern')
             ->where('bitActive', true)
+            ->whereHas('intern', function ($query) {
+                $query->where('txtInternType', RoleAccess::INTERN_DIGITALISASI)
+                    ->orWhereNull('txtInternType');
+            })
             ->orderByDesc('dtmPeriod')
             ->get()
             ->unique('intIntern_ID');
@@ -56,7 +66,7 @@ class DashboardController extends Controller
             'leaderboardRows' => $leaderboardRows,
             'topPerformers' => $topPerformers,
             'assignments' => $assignments,
-            'totalInterns' => $interns->count(),
+            'totalInterns' => $totalInterns,
             'averageScore' => round((float) $leaderboardRows->avg('score'), 1),
             'collaborationCount' => (int) ($projectTypes['Collaboration'] ?? 0),
             'sharingCount' => (int) ($projectTypes['Sharing'] ?? 0),

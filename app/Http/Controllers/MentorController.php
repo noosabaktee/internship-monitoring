@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MAdminProfile;
 use App\Models\MMentor;
 use App\Models\MUser;
+use App\Support\RoleAccess;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,14 +17,20 @@ class MentorController extends Controller
 {
     public function index(): View
     {
-        $mentors = MMentor::with('user')->orderBy('intMentor_ID')->get();
+        $mentors = MMentor::with('user')
+            ->whereHas('user', fn ($query) => $query->where('txtRole', RoleAccess::ROLE_MENTOR))
+            ->orderBy('intMentor_ID')
+            ->get();
 
         return view('dashboard.mentors', compact('mentors'));
     }
 
     public function create(): View
     {
-        $mentors = MMentor::with('user')->orderBy('intMentor_ID')->get();
+        $mentors = MMentor::with('user')
+            ->whereHas('user', fn ($query) => $query->where('txtRole', RoleAccess::ROLE_MENTOR))
+            ->orderBy('intMentor_ID')
+            ->get();
 
         return view('dashboard.mentors', [
             'mentors' => $mentors,
@@ -38,7 +46,7 @@ class MentorController extends Controller
             'txtMentorName' => ['required', 'string', 'max:255'],
             'txtMentorGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtDepartment' => ['nullable', 'string', 'max:255'],
-            'txtRole' => ['nullable', 'string', 'max:255'],
+            'txtRole' => ['required', Rule::in($this->managedRoles())],
             'bitActive' => ['nullable', 'boolean'],
         ]);
 
@@ -47,22 +55,26 @@ class MentorController extends Controller
             $user = MUser::create([
                 'txtEmail' => $validated['txtEmail'],
                 'txtPassword' => Hash::make($validated['txtPassword'] ?: 'password'),
-                'txtRole' => 'Mentor',
+                'txtRole' => $validated['txtRole'],
                 'bitActive' => (bool) ($validated['bitActive'] ?? true),
                 'txtInsertedBy' => 'system',
                 'dtmInserted' => $now,
             ]);
 
-            MMentor::create([
+            $mentor = MMentor::create([
                 'intUser_ID' => $user->intUser_ID,
                 'txtMentorName' => $validated['txtMentorName'],
                 'txtMentorGender' => $validated['txtMentorGender'] ?? null,
                 'txtDepartment' => $validated['txtDepartment'] ?? null,
-                'txtRole' => $validated['txtRole'] ?? 'Mentor',
+                'txtRole' => $validated['txtRole'],
                 'bitActive' => (bool) ($validated['bitActive'] ?? true),
                 'txtInsertedBy' => 'system',
                 'dtmInserted' => $now,
             ]);
+
+            if ($this->isAdminRole($validated['txtRole'])) {
+                $this->ensureAdminProfileFromMentor($user, $mentor, $validated['txtRole'], $validated, $now);
+            }
         });
 
         return redirect()->route('mentors.index')->with('success', 'Mentor data has been added.');
@@ -82,8 +94,13 @@ class MentorController extends Controller
 
     public function edit(string $mentor): View
     {
-        $mentors = MMentor::with('user')->orderBy('intMentor_ID')->get();
-        $editingMentor = MMentor::with('user')->findOrFail($mentor);
+        $mentors = MMentor::with('user')
+            ->whereHas('user', fn ($query) => $query->where('txtRole', RoleAccess::ROLE_MENTOR))
+            ->orderBy('intMentor_ID')
+            ->get();
+        $editingMentor = MMentor::with('user')
+            ->whereHas('user', fn ($query) => $query->where('txtRole', RoleAccess::ROLE_MENTOR))
+            ->findOrFail($mentor);
 
         return view('dashboard.mentors', [
             'mentors' => $mentors,
@@ -101,7 +118,7 @@ class MentorController extends Controller
             'txtMentorName' => ['required', 'string', 'max:255'],
             'txtMentorGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtDepartment' => ['nullable', 'string', 'max:255'],
-            'txtRole' => ['nullable', 'string', 'max:255'],
+            'txtRole' => ['required', Rule::in($this->managedRoles())],
             'bitActive' => ['nullable', 'boolean'],
         ]);
 
@@ -109,7 +126,7 @@ class MentorController extends Controller
             $now = now();
             $userData = [
                 'txtEmail' => $validated['txtEmail'],
-                'txtRole' => 'Mentor',
+                'txtRole' => $validated['txtRole'],
                 'bitActive' => (bool) ($validated['bitActive'] ?? false),
                 'txtUpdatedBy' => 'system',
                 'dtmUpdated' => $now,
@@ -124,11 +141,15 @@ class MentorController extends Controller
                 'txtMentorName' => $validated['txtMentorName'],
                 'txtMentorGender' => $validated['txtMentorGender'] ?? null,
                 'txtDepartment' => $validated['txtDepartment'] ?? null,
-                'txtRole' => $validated['txtRole'] ?? 'Mentor',
+                'txtRole' => $validated['txtRole'],
                 'bitActive' => (bool) ($validated['bitActive'] ?? false),
                 'txtUpdatedBy' => 'system',
                 'dtmUpdated' => $now,
             ]);
+
+            if ($this->isAdminRole($validated['txtRole'])) {
+                $this->ensureAdminProfileFromMentor($mentorModel->user, $mentorModel, $validated['txtRole'], $validated, $now);
+            }
         });
 
         return redirect()->route('mentors.index')->with('success', 'Mentor data has been updated.');
@@ -151,5 +172,43 @@ class MentorController extends Controller
         ]);
 
         return redirect()->route('mentors.index')->with('success', 'Mentor data has been deactivated.');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function managedRoles(): array
+    {
+        return [
+            RoleAccess::ROLE_MENTOR,
+            RoleAccess::ROLE_HRD,
+            RoleAccess::ROLE_HEADMASTER,
+        ];
+    }
+
+    private function isAdminRole(string $role): bool
+    {
+        return in_array($role, [RoleAccess::ROLE_HRD, RoleAccess::ROLE_HEADMASTER], true);
+    }
+
+    private function ensureAdminProfileFromMentor(MUser $user, MMentor $mentor, string $role, array $validated, mixed $now): void
+    {
+        $profile = MAdminProfile::firstOrNew(['intUser_ID' => $user->intUser_ID]);
+
+        if (! $profile->exists) {
+            $profile->txtInsertedBy = 'system';
+            $profile->dtmInserted = $now;
+        }
+
+        $profile->fill([
+            'txtAdminProfileName' => $validated['txtMentorName'],
+            'txtAdminProfileGender' => $validated['txtMentorGender'] ?? null,
+            'txtAdminProfileDepartment' => $validated['txtDepartment'] ?? null,
+            'txtAdminProfilePosition' => $role,
+            'bitActive' => (bool) ($validated['bitActive'] ?? $mentor->bitActive),
+            'txtUpdatedBy' => 'system',
+            'dtmUpdated' => $now,
+        ]);
+        $profile->save();
     }
 }

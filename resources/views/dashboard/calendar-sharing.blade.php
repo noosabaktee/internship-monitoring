@@ -9,6 +9,8 @@
     $formAction = isset($editingCalendarSharing)
         ? route('calendar-sharing.update', $editingCalendarSharing->intCalendarSharing_ID)
         : route('calendar-sharing.store');
+    $authUser = \App\Models\MUser::with('intern')->find(session('auth_user_id'));
+    $canManageSharing = $authUser && \App\Support\RoleAccess::can($authUser, 'crud-calendar-sharing');
     $sharingIcons = [
         ['value' => 'fa-solid fa-people-group', 'label' => 'Group'],
         ['value' => 'fa-solid fa-person-chalkboard', 'label' => 'Workshop'],
@@ -33,7 +35,9 @@
             <h2>Calendar Sharing</h2>
             <p>Plan and monitor sharing sessions with calendar highlights.</p>
         </div>
-        <a class="btn btn-primary btn-add" href="{{ route('calendar-sharing.create', ['month' => $calendarMonth->format('Y-m')]) }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Sharing</a>
+        @if ($canManageSharing)
+            <a class="btn btn-primary btn-add" href="{{ route('calendar-sharing.create', ['month' => $calendarMonth->format('Y-m')]) }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Sharing</a>
+        @endif
     </div>
 
     <div class="calendar-sharing-grid">
@@ -60,18 +64,22 @@
                                 <td><span class="status-badge {{ $sharing->txtCalendarSharingStatus === 'Cancel' ? 'status-inactive' : 'status-active' }}">{{ $sharing->txtCalendarSharingStatus ?: 'Open' }}</span></td>
                                 <td>{{ $creatorName($sharing->creator) }}</td>
                                 <td>
-                                    <div class="action-btns">
-                                        <a class="btn-icon btn-edit" href="{{ route('calendar-sharing.edit', [$sharing->intCalendarSharing_ID, 'month' => $calendarMonth->format('Y-m')]) }}"><i class="fa-solid fa-pen"></i></a>
-                                        <button
-                                            class="btn-icon btn-delete"
-                                            type="button"
-                                            data-delete-modal-trigger
-                                            data-delete-action="{{ route('calendar-sharing.destroy', $sharing->intCalendarSharing_ID) }}"
-                                            data-delete-title="Deactivate Sharing Activity?"
-                                            data-delete-message="{{ $sharing->txtCalendarSharingTheme }} will be marked inactive and removed from the active calendar."
-                                            data-delete-submit="Deactivate"
-                                        ><i class="fa-solid fa-trash"></i></button>
-                                    </div>
+                                    @if ($canManageSharing)
+                                        <div class="action-btns">
+                                            <a class="btn-icon btn-edit" href="{{ route('calendar-sharing.edit', [$sharing->intCalendarSharing_ID, 'month' => $calendarMonth->format('Y-m')]) }}"><i class="fa-solid fa-pen"></i></a>
+                                            <button
+                                                class="btn-icon btn-delete"
+                                                type="button"
+                                                data-delete-modal-trigger
+                                                data-delete-action="{{ route('calendar-sharing.destroy', $sharing->intCalendarSharing_ID) }}"
+                                                data-delete-title="Deactivate Sharing Activity?"
+                                                data-delete-message="{{ $sharing->txtCalendarSharingTheme }} will be marked inactive and removed from the active calendar."
+                                                data-delete-submit="Deactivate"
+                                            ><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                    @else
+                                        -
+                                    @endif
                                 </td>
                             </tr>
                         @empty
@@ -124,7 +132,7 @@
             id="calendarSharingFormModal"
             :active="$isFormOpen"
             :title="isset($editingCalendarSharing) ? 'Edit Sharing Activity' : 'Add Sharing Activity'"
-            subtitle="Calendar sharing data is stored in trCalendarSharing."
+            subtitle="Isi jadwal, tema, target audiens, dan status kegiatan sharing."
             :close-url="route('calendar-sharing.index', ['month' => $calendarMonth->format('Y-m')])"
             size="lg"
         >

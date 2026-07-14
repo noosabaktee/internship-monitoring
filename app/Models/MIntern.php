@@ -22,6 +22,8 @@ class MIntern extends Model
         'txtInternGender',
         'txtUniversity',
         'txtDept',
+        'txtInternType',
+        'floatInternSalary',
         'txtBio',
         'dtmEndDate',
         'txtInternExtendEndDates',
@@ -34,6 +36,7 @@ class MIntern extends Model
 
     protected $casts = [
         'bitActive' => 'boolean',
+        'floatInternSalary' => 'float',
         'dtmEndDate' => 'datetime',
         'txtInternExtendEndDates' => 'array',
         'dtmInserted' => 'datetime',

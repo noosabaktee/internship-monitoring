@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MFaceEnrollment;
 use App\Models\MIntern;
+use App\Models\MAdminProfile;
 use App\Models\MMentor;
 use App\Models\MUser;
 use App\Services\FaceRecognitionService;
@@ -44,6 +45,12 @@ class ProfileController extends Controller
     {
         $user = $this->currentUser();
 
+        if ($user && ! $user->intern && ! $user->mentor) {
+            $user->load('adminProfile');
+
+            return view('profile.admin', compact('user'));
+        }
+
         if ($user?->txtRole === 'Mentor' && $user->mentor) {
             $mentor = $user->mentor->load([
                 'user',
@@ -55,7 +62,7 @@ class ProfileController extends Controller
             return view('profile.mentor', compact('mentor'));
         }
 
-        $intern = $user?->intern ?? $this->currentIntern();
+        $intern = $user?->intern;
 
         if ($intern) {
             $intern->load(['user.faceEnrollment', 'projects.project.projectMentors.mentor', 'projects.mentor', 'achievements', 'evaluations']);
@@ -69,8 +76,9 @@ class ProfileController extends Controller
         $user = $this->currentUser();
         $intern = $user?->intern;
         $mentor = $user?->mentor;
+        $adminProfile = $user?->adminProfile;
 
-        return view('profile.edit', compact('intern', 'mentor', 'profile'));
+        return view('profile.edit', compact('intern', 'mentor', 'adminProfile', 'user', 'profile'));
     }
 
     public function update(Request $request, ?string $profile = null): RedirectResponse
@@ -83,6 +91,10 @@ class ProfileController extends Controller
 
         if ($user->txtRole === 'Mentor' && $user->mentor) {
             return $this->updateMentorProfile($request, $user->mentor);
+        }
+
+        if (! $user->intern && ! $user->mentor) {
+            return $this->updateAdminProfile($request, $user);
         }
 
         $intern = $user->intern;
@@ -257,7 +269,6 @@ class ProfileController extends Controller
             'txtPassword' => ['nullable', 'string', 'min:6'],
             'txtMentorGender' => ['nullable', 'in:Male,Female,Laki-laki,Perempuan'],
             'txtDepartment' => ['nullable', 'string', 'max:255'],
-            'txtRole' => ['nullable', 'string', 'max:255'],
             'bitActive' => ['nullable', 'boolean'],
         ]);
 
@@ -277,11 +288,57 @@ class ProfileController extends Controller
             'txtMentorName' => $validated['txtMentorName'],
             'txtMentorGender' => $validated['txtMentorGender'] ?? null,
             'txtDepartment' => $validated['txtDepartment'] ?? null,
-            'txtRole' => $validated['txtRole'] ?? 'Mentor',
+            'txtRole' => $mentor->txtRole ?: 'Mentor',
             'bitActive' => (bool) ($validated['bitActive'] ?? false),
             'txtUpdatedBy' => 'profile',
             'dtmUpdated' => $now,
         ]);
+
+        return redirect()->route('profile.show')->with('success', 'Profile has been updated.');
+    }
+
+    private function updateAdminProfile(Request $request, MUser $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'txtAdminProfileName' => ['required', 'string', 'max:255'],
+            'txtEmail' => ['required', 'email', 'max:255'],
+            'txtPassword' => ['nullable', 'string', 'min:6'],
+            'txtAdminProfileGender' => ['nullable', 'in:Male,Female,Laki-laki,Perempuan'],
+            'txtAdminProfileDepartment' => ['nullable', 'string', 'max:255'],
+            'txtAdminProfilePhone' => ['nullable', 'string', 'max:50'],
+            'txtAdminProfileBio' => ['nullable', 'string', 'max:255'],
+            'bitActive' => ['nullable', 'boolean'],
+        ]);
+
+        $now = now();
+        $userData = [
+            'txtEmail' => $validated['txtEmail'],
+            'bitActive' => (bool) ($validated['bitActive'] ?? true),
+            'txtUpdatedBy' => 'profile',
+            'dtmUpdated' => $now,
+        ];
+
+        if (! empty($validated['txtPassword'])) {
+            $userData['txtPassword'] = Hash::make($validated['txtPassword']);
+        }
+
+        $user->update($userData);
+        MAdminProfile::updateOrCreate(
+            ['intUser_ID' => $user->intUser_ID],
+            [
+                'txtAdminProfileName' => $validated['txtAdminProfileName'],
+                'txtAdminProfileGender' => $validated['txtAdminProfileGender'] ?? null,
+                'txtAdminProfileDepartment' => $validated['txtAdminProfileDepartment'] ?? null,
+                'txtAdminProfilePosition' => $user->adminProfile?->txtAdminProfilePosition ?: $user->txtRole,
+                'txtAdminProfilePhone' => $validated['txtAdminProfilePhone'] ?? null,
+                'txtAdminProfileBio' => $validated['txtAdminProfileBio'] ?? null,
+                'bitActive' => (bool) ($validated['bitActive'] ?? true),
+                'txtInsertedBy' => 'profile',
+                'dtmInserted' => $now,
+                'txtUpdatedBy' => 'profile',
+                'dtmUpdated' => $now,
+            ],
+        );
 
         return redirect()->route('profile.show')->with('success', 'Profile has been updated.');
     }
@@ -360,6 +417,6 @@ class ProfileController extends Controller
             return null;
         }
 
-        return MUser::with(['intern', 'mentor', 'faceEnrollment'])->find($userId);
+        return MUser::with(['intern', 'mentor', 'adminProfile', 'faceEnrollment'])->find($userId);
     }
 }

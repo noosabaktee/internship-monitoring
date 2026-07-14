@@ -9,7 +9,8 @@
     $formAction = isset($editingAchievement)
         ? route('achievements.update', $editingAchievement->intAchievement_ID)
         : route('achievements.store');
-    $isMentor = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole === 'Mentor';
+    $authUser = \App\Models\MUser::with('intern')->find(session('auth_user_id'));
+    $canManageAchievements = $authUser && \App\Support\RoleAccess::can($authUser, 'crud-achievements');
     $achievementIcons = [
         ['value' => 'fa-solid fa-trophy', 'label' => 'Trophy'],
         ['value' => 'fa-solid fa-award', 'label' => 'Award'],
@@ -41,7 +42,7 @@
             <h2>Achievements</h2>
             <p>Awards and milestones for interns.</p>
         </div>
-        @if ($isMentor)
+        @if ($canManageAchievements)
             <a class="btn btn-primary btn-add" href="{{ route('achievements.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Achievement</a>
         @endif
     </div>
@@ -63,7 +64,7 @@
                             <p>{{ $achievement->intern->txtInternName ?? '-' }} &bull; {{ $achievement->dtmAwarded?->format('d M Y') ?? '-' }}</p>
                             <p>{{ $achievement->txtDescription }}</p>
                         </div>
-                        @if ($isMentor)
+                        @if ($canManageAchievements)
                             <div class="action-btns">
                                 <a class="btn-icon btn-edit" href="{{ route('achievements.edit', $achievement->intAchievement_ID) }}"><i class="fa-solid fa-pen"></i></a>
                                 <button
@@ -102,7 +103,7 @@
             id="achievementFormModal"
             :active="$isFormOpen"
             :title="isset($editingAchievement) ? 'Edit Achievement' : 'Add Achievement'"
-            subtitle="Achievement data is stored in trAchievement and connected to interns."
+            subtitle="Isi penghargaan atau milestone yang diterima intern."
             :close-url="route('achievements.index')"
             size="lg"
         >

@@ -1,7 +1,9 @@
 @php
-    $authUser = \App\Models\MUser::with(['intern', 'mentor'])->find(session('auth_user_id'));
+    $authUser = \App\Models\MUser::with(['intern', 'mentor', 'adminProfile'])->find(session('auth_user_id'));
     $displayName = $authUser?->intern?->txtInternName
         ?? $authUser?->mentor?->txtMentorName
+        ?? $authUser?->adminProfile?->txtAdminProfileName
+        ?? $authUser?->txtEmail
         ?? 'Admin';
     $displayRole = $authUser?->txtRole ?? 'HR Development';
     $avatarUrl = $authUser?->txtProfilePhoto
@@ -19,11 +21,6 @@
     </div>
 
     <div class="header-right d-flex align-items-center gap-3">
-        <div class="date-picker d-flex align-items-center gap-2" onclick="openDatePicker()">
-            <i class="fa-regular fa-calendar"></i>
-            <input type="month" id="topbarDate" aria-label="Select month">
-        </div>
-        <button class="btn btn-primary btn-sm btn-export"><i class="fa-solid fa-download"></i> Export</button>
         <div class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Light/Dark Mode">
             <i class="fa-solid fa-moon"></i>
         </div>

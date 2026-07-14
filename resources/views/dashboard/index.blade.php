@@ -90,7 +90,6 @@
                                 <div class="badge">{{ $rank }}</div>
                                 <img src="{{ $evaluation['intern']->user?->txtProfilePhoto ? asset('storage/' . $evaluation['intern']->user->txtProfilePhoto) : 'https://ui-avatars.com/api/?name=' . urlencode($evaluation['intern']->txtInternName ?? 'Intern') . '&background=random' }}" alt="{{ $evaluation['intern']->txtInternName ?? 'Intern' }}">
                                 <h5>{{ $evaluation['intern']->txtInternName ?? '-' }}</h5>
-                                <div class="stars">*****</div>
                                 <div class="score">{{ number_format((float) $evaluation['score'], 0) }}</div>
                             </div>
                         @empty

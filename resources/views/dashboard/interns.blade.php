@@ -9,7 +9,13 @@
     $formAction = isset($editingIntern)
         ? route('interns.update', $editingIntern->intIntern_ID)
         : route('interns.store');
-    $isMentor = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole === 'Mentor';
+    $authUser = \App\Models\MUser::with('intern')->find(session('auth_user_id'));
+    $canManageInterns = $authUser && \App\Support\RoleAccess::can($authUser, 'master-data');
+    $internTypeOptions = [
+        'digitalisasi' => 'Digitalisasi',
+        'regular' => 'Regular',
+        'pkl' => 'PKL',
+    ];
     $extendDates = old('txtInternExtendEndDates', $editingIntern->txtInternExtendEndDates ?? []);
     $extendDates = is_array($extendDates) ? array_values(array_filter($extendDates)) : [];
 @endphp
@@ -20,7 +26,7 @@
             <h2>Intern Data</h2>
             <p>Manage profile, university, and internship status data.</p>
         </div>
-        @if ($isMentor)
+        @if ($canManageInterns)
             <a class="btn btn-primary btn-add" href="{{ route('interns.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Intern</a>
         @endif
     </div>
@@ -29,7 +35,7 @@
         <div class="table-responsive">
             <table class="table data-table align-middle mb-0">
                 <thead>
-                    <tr><th>ID</th><th>Full Name</th><th>Gender</th><th>Email</th><th>University</th><th>Dept</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
+                    <tr><th>ID</th><th>Full Name</th><th>Type</th><th>Salary / Day</th><th>Gender</th><th>Email</th><th>University</th><th>Dept</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($interns as $intern)
@@ -47,6 +53,8 @@
                                     <span class="table-person-name">{{ $intern->txtInternName ?: '-' }}</span>
                                 </a>
                             </td>
+                            <td>{{ $internTypeOptions[$intern->txtInternType ?: 'digitalisasi'] ?? ucfirst((string) $intern->txtInternType) }}</td>
+                            <td>Rp {{ number_format((float) ($intern->floatInternSalary ?? 0), 0, ',', '.') }}</td>
                             <td>{{ $intern->txtInternGender ?: '-' }}</td>
                             <td>{{ $intern->user->txtEmail ?? '-' }}</td>
                             <td>{{ $intern->txtUniversity ?: '-' }}</td>
@@ -55,7 +63,7 @@
                             <td>{{ $intern->dtmEndDate?->format('d M Y') ?? '-' }}</td>
                             <td><span class="status-badge {{ $intern->bitActive ? 'status-active' : 'status-inactive' }}">{{ $intern->bitActive ? 'Active' : 'Inactive' }}</span></td>
                             <td>
-                                @if ($isMentor)
+                                @if ($canManageInterns)
                                     <div class="action-btns">
                                         <a class="btn-icon btn-edit" href="{{ route('interns.edit', $intern->intIntern_ID) }}"><i class="fa-solid fa-pen"></i></a>
                                         <button
@@ -74,7 +82,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="10" class="center">No intern data yet.</td></tr>
+                        <tr><td colspan="12" class="center">No intern data yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -88,7 +96,7 @@
             id="internFormModal"
             :active="$isFormOpen"
             :title="isset($editingIntern) ? 'Edit Intern' : 'Add New Intern'"
-            subtitle="Email and password are stored in mUser. Intern profiles are stored in mIntern."
+            subtitle="Isi data intern, akun login, dan periode magang."
             :close-url="route('interns.index')"
             size="lg"
         >
@@ -133,6 +141,18 @@
                 <div class="col-md-6">
                     <label class="form-label">Dept</label>
                     <input class="form-control" name="txtDept" value="{{ old('txtDept', $editingIntern->txtDept ?? '') }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Intern Type</label>
+                    <select class="form-control" name="txtInternType" required>
+                        @foreach ($internTypeOptions as $typeValue => $typeLabel)
+                            <option value="{{ $typeValue }}" @selected(old('txtInternType', $editingIntern->txtInternType ?? 'digitalisasi') === $typeValue)>{{ $typeLabel }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Salary / Workday</label>
+                    <input class="form-control" type="number" min="0" step="1000" name="floatInternSalary" value="{{ old('floatInternSalary', isset($editingIntern) ? number_format((float) ($editingIntern->floatInternSalary ?? 0), 0, '.', '') : 0) }}">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Join Date</label>

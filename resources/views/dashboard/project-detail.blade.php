@@ -27,13 +27,14 @@ $endDate = $project->dtmProjectEndDate;
 $durationDays = $startDate && $endDate ? $startDate->diffInDays($endDate) + 1 : null;
 $today = now()->startOfDay();
 $daysRemaining = $endDate ? $today->diffInDays($endDate, false) : null;
-$isMentor = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole === 'Mentor';
+$authUser = \App\Models\MUser::with('intern')->find(session('auth_user_id'));
+$canManageProjects = $authUser && \App\Support\RoleAccess::can($authUser, 'crud-projects');
 @endphp
 
 @section('content')
 <div class="project-detail-actions">
     <a class="btn btn-outline-primary btn-sm" href="{{ route('projects.index') }}"><i class="fa-solid fa-arrow-left"></i> Back to Projects</a>
-    @if ($isMentor)
+    @if ($canManageProjects)
     <a class="btn btn-primary btn-sm" href="{{ route('projects.edit', $project->intProject_ID) }}"><i class="fa-solid fa-pen"></i> Edit Project</a>
     @endif
 </div>

@@ -9,7 +9,8 @@
     $formAction = isset($editingProjectHandle)
         ? route('project-handles.update', $editingProjectHandle->intProjectHandle_ID)
         : route('project-handles.store');
-    $isMentor = optional(\App\Models\MUser::find(session('auth_user_id')))->txtRole === 'Mentor';
+    $authUser = \App\Models\MUser::with('intern')->find(session('auth_user_id'));
+    $canManageProjectHandles = $authUser && \App\Support\RoleAccess::can($authUser, 'project-handles');
     $isWeightModalOpen = $errors->has('intProjectWeightMain')
         || $errors->has('intProjectWeightCollaboration')
         || $errors->has('intProjectWeightSatellite')
@@ -22,7 +23,7 @@
             <h2>Project Handle</h2>
             <p>Capacity by internship duration and score weights by project type.</p>
         </div>
-        @if ($isMentor)
+        @if ($canManageProjectHandles)
             <a class="btn btn-primary btn-add" href="{{ route('project-handles.create') }}" style="text-decoration:none;"><i class="fa-solid fa-plus"></i> Add Capacity</a>
         @endif
     </div>
@@ -43,7 +44,7 @@
                             <td>{{ $projectHandle->intProjectHandleSharing }}</td>
                             <td><span class="status-badge {{ $projectHandle->bitActive ? 'status-active' : 'status-inactive' }}">{{ $projectHandle->bitActive ? 'Active' : 'Inactive' }}</span></td>
                             <td>
-                                @if ($isMentor)
+                                @if ($canManageProjectHandles)
                                     <div class="action-btns">
                                         <a class="btn-icon btn-edit" href="{{ route('project-handles.edit', $projectHandle->intProjectHandle_ID) }}"><i class="fa-solid fa-pen"></i></a>
                                         <button
@@ -75,7 +76,7 @@
                 <h2>Project Weight</h2>
                 <p>These weights are used to calculate intern leaderboard scores.</p>
             </div>
-            @if ($isMentor)
+            @if ($canManageProjectHandles)
                 <button class="btn btn-primary btn-add" type="button" onclick="openModal('projectWeightModal')"><i class="fa-solid fa-pen"></i> Edit Weight</button>
             @endif
         </div>
@@ -94,7 +95,7 @@
             id="projectHandleFormModal"
             :active="$isFormOpen"
             :title="isset($editingProjectHandle) ? 'Edit Capacity' : 'Add Capacity'"
-            subtitle="Capacity data is stored in mProjectHandle."
+            subtitle="Isi batas kapasitas project berdasarkan durasi magang."
             :close-url="route('project-handles.index')"
             size="lg"
         >
@@ -134,7 +135,7 @@
         id="projectWeightModal"
         :active="$isWeightModalOpen"
         title="Edit Project Weight"
-        subtitle="These weights are used to calculate intern leaderboard scores."
+        subtitle="Atur bobot nilai untuk perhitungan leaderboard intern."
         size="md"
     >
         <form id="projectWeightForm" class="row g-3" action="{{ route('project-handles.weights.update') }}" method="POST">

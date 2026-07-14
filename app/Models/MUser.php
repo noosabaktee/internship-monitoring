@@ -43,6 +43,11 @@ class MUser extends Model
         return $this->hasOne(MMentor::class, 'intUser_ID', 'intUser_ID');
     }
 
+    public function adminProfile()
+    {
+        return $this->hasOne(MAdminProfile::class, 'intUser_ID', 'intUser_ID');
+    }
+
     public function calendarSharings()
     {
         return $this->hasMany(TrCalendarSharing::class, 'intCalendarSharingCreatorUser_ID', 'intUser_ID');

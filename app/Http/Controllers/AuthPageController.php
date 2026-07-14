@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\MIntern;
+use App\Models\MAdminProfile;
 use App\Models\MProject;
 use App\Models\MMentor;
 use App\Models\MUser;
 use App\Models\TrCalendarSharing;
 use App\Models\TrEvaluation;
 use App\Models\TrInternProject;
+use App\Support\RoleAccess;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -230,7 +232,7 @@ class AuthPageController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'txtRole' => ['required', Rule::in(['Intern', 'Mentor'])],
+            'txtRole' => ['required', Rule::in([RoleAccess::ROLE_INTERN, RoleAccess::ROLE_MENTOR, RoleAccess::ROLE_HEADMASTER, RoleAccess::ROLE_HRD])],
             'txtGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtEmail' => ['required', 'email', 'max:255', Rule::unique('mUser', 'txtEmail')],
             'txtPassword' => ['required', 'string', 'min:6', 'confirmed'],
@@ -246,24 +248,39 @@ class AuthPageController extends Controller
             'dtmInserted' => $now,
         ]);
 
-        if ($validated['txtRole'] === 'Intern') {
+        if ($validated['txtRole'] === RoleAccess::ROLE_INTERN) {
             MIntern::create([
                 'intUser_ID' => $user->intUser_ID,
                 'txtInternNo' => 'INT-' . str_pad((string) ($user->intUser_ID), 3, '0', STR_PAD_LEFT),
                 'txtInternName' => $validated['name'],
                 'txtInternGender' => $validated['txtGender'] ?? null,
+                'txtInternType' => RoleAccess::INTERN_DIGITALISASI,
+                'floatInternSalary' => 0,
                 'bitActive' => true,
                 'txtInsertedBy' => 'register',
                 'dtmInserted' => $now,
             ]);
         }
 
-        if ($validated['txtRole'] === 'Mentor') {
+        if ($validated['txtRole'] === RoleAccess::ROLE_MENTOR) {
             MMentor::create([
                 'intUser_ID' => $user->intUser_ID,
                 'txtMentorName' => $validated['name'],
                 'txtMentorGender' => $validated['txtGender'] ?? null,
                 'txtRole' => 'Mentor',
+                'bitActive' => true,
+                'txtInsertedBy' => 'register',
+                'dtmInserted' => $now,
+            ]);
+        }
+
+        if (in_array($validated['txtRole'], [RoleAccess::ROLE_HEADMASTER, RoleAccess::ROLE_HRD], true)) {
+            MAdminProfile::create([
+                'intUser_ID' => $user->intUser_ID,
+                'txtAdminProfileName' => $validated['name'],
+                'txtAdminProfileGender' => $validated['txtGender'] ?? null,
+                'txtAdminProfileDepartment' => $validated['txtRole'] === RoleAccess::ROLE_HRD ? 'Human Resources' : 'Internship Program',
+                'txtAdminProfilePosition' => $validated['txtRole'],
                 'bitActive' => true,
                 'txtInsertedBy' => 'register',
                 'dtmInserted' => $now,

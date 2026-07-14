@@ -25,20 +25,6 @@ window.toggleSidebar = function () {
     body.style.overflow = sidebar.classList.contains('expanded') ? 'hidden' : '';
 };
 
-window.openDatePicker = function () {
-    const topbarDate = document.getElementById('topbarDate');
-
-    if (!topbarDate) {
-        return;
-    }
-
-    if (topbarDate.showPicker) {
-        topbarDate.showPicker();
-    } else {
-        topbarDate.focus();
-    }
-};
-
 window.toggleNavDropdown = function (dropdownId) {
     const dropdown = document.getElementById(dropdownId);
     const toggle = dropdown ? dropdown.querySelector('.nav-dropdown-toggle') : null;
@@ -810,6 +796,8 @@ const crudModalRoutePatterns = [
     /^\/interns\/\d+\/edit$/,
     /^\/mentors\/create$/,
     /^\/mentors\/\d+\/edit$/,
+    /^\/hrds\/create$/,
+    /^\/hrds\/\d+\/edit$/,
     /^\/skill-sets\/create$/,
     /^\/skill-sets\/\d+\/edit$/,
     /^\/project-handles\/create$/,
@@ -1408,8 +1396,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeIcon = themeToggleBtn ? themeToggleBtn.querySelector('i') : null;
     const profileTrigger = document.getElementById('profileTrigger');
     const profileDropdown = document.getElementById('profileDropdown');
-    const topbarDate = document.getElementById('topbarDate');
-    const today = new Date();
     const internExtendButton = document.getElementById('internExtendButton');
     const internExtendFields = document.getElementById('internExtendFields');
     const internExtendNote = document.getElementById('internExtendNote');
@@ -1418,10 +1404,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const projectStageTotal = document.getElementById('projectStageTotal');
     const projectStageWarning = document.getElementById('projectStageWarning');
     let internExtendAddedThisEdit = false;
-
-    if (topbarDate && !topbarDate.value) {
-        topbarDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    }
 
     if (localStorage.getItem('theme') === 'dark' && themeIcon) {
         document.body.classList.add('dark-mode');

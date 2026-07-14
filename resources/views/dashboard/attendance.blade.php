@@ -1,7 +1,7 @@
 @extends('layouts.app', [
     'title' => 'Absensi - Kalbe Internship Dashboard',
     'pageTitle' => 'ABSENSI',
-    'pageSubtitle' => $isMentor ? 'Setting dan monitoring Clock In/Clock Out intern.' : 'Face ID, lokasi, dan rangkuman kehadiran.',
+    'pageSubtitle' => $isAttendanceAdmin ? 'Setting, monitoring, export, dan payroll absensi intern.' : 'Face ID, lokasi, dan rangkuman kehadiran.',
 ])
 
 @php
@@ -16,8 +16,8 @@
     $clockOutWarning = $isWorkday && $hasClockIn && ! $hasClockOut && $pageNow->gt($clockOutEnd);
     $isClockInLate = $todayClockInStatus === 'Terlambat' || ($hasClockIn && $todayClockInAt->gt($clockInEnd));
     $todayClockInStatusClass = $todayClockInStatus === 'Terlambat' ? 'attendance-status-late' : 'attendance-status-present';
-    $canClockIn = ! $isMentor && $isWorkday && $hasFaceEnrollment && ! $hasClockIn && $pageNow->gte($clockInStart);
-    $canClockOut = ! $isMentor && $isWorkday && $hasFaceEnrollment && $hasClockIn && ! $hasClockOut && $clockInBeforeClockOutLimit && $pageNow->gte($clockOutStart) && $pageNow->lte($clockOutLateEnd);
+    $canClockIn = ! $isAttendanceAdmin && $isWorkday && $hasFaceEnrollment && ! $hasClockIn && $pageNow->gte($clockInStart);
+    $canClockOut = ! $isAttendanceAdmin && $isWorkday && $hasFaceEnrollment && $hasClockIn && ! $hasClockOut && $clockInBeforeClockOutLimit && $pageNow->gte($clockOutStart) && $pageNow->lte($clockOutLateEnd);
     $todayStatus = match (true) {
         $isClockInLate => 'Terlambat',
         $hasClockIn => 'Hadir',
@@ -73,5 +73,5 @@
 @endphp
 
 @section('content')
-    @include($isMentor ? 'dashboard.attendance.mentor' : 'dashboard.attendance.intern')
+    @include($isAttendanceAdmin ? 'dashboard.attendance.mentor' : 'dashboard.attendance.intern')
 @endsection
