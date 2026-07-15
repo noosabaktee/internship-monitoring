@@ -13,7 +13,7 @@
         ['ability' => 'analytics', 'route' => 'analytics.index', 'active' => 'analytics.*', 'label' => 'Rapor Intern', 'icon' => 'fa-solid fa-graduation-cap'],
         ['ability' => 'achievements', 'route' => 'achievements.index', 'active' => 'achievements.*', 'label' => 'Achievements', 'icon' => 'fa-solid fa-trophy'],
         ['ability' => 'reports', 'route' => 'reports.index', 'active' => 'reports.*', 'label' => 'Reports', 'icon' => 'fa-regular fa-file-lines'],
-        ['ability' => 'settings', 'route' => 'settings.index', 'active' => 'settings.*', 'label' => 'Settings', 'icon' => 'fa-solid fa-gear'],
+        //['ability' => 'settings', 'route' => 'settings.index', 'active' => 'settings.*', 'label' => 'Settings', 'icon' => 'fa-solid fa-gear'],
     ];
     $masterDataItems = [
         ['ability' => 'master-data', 'route' => 'skill-sets.index', 'active' => 'skill-sets.*', 'label' => 'Skill Set', 'icon' => 'fa-solid fa-layer-group'],
