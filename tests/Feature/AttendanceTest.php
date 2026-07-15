@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\MAdminProfile;
+use App\Models\MAttendanceLocation;
 use App\Models\MAttendanceSetting;
 use App\Models\MFaceEnrollment;
 use App\Models\MIntern;
@@ -85,7 +86,7 @@ it('allows HRD to update attendance settings', function () {
             'txtAttendanceSettingClockOutEndTime' => '18:00',
             'floatAttendanceSettingFaceThreshold' => '0.70',
         ])
-        ->assertRedirect(route('attendance.index'));
+        ->assertRedirect(route('attendance.index', ['tab' => 'settings']));
 
     $setting = MAttendanceSetting::find(1);
 
@@ -401,8 +402,8 @@ it('renders HRD attendance detail with date and intern filters', function () {
             ->assertOk()
             ->assertSee('Detail Absensi')
             ->assertSee('Attendance Intern')
-            ->assertSee('data-attendance-detail-intern="' . $firstIntern->intUser_ID . '"', false)
-            ->assertDontSee('data-attendance-detail-intern="' . $secondIntern->intUser_ID . '"', false);
+            ->assertSee('data-attendance-detail-intern="'.$firstIntern->intUser_ID.'"', false)
+            ->assertDontSee('data-attendance-detail-intern="'.$secondIntern->intUser_ID.'"', false);
     } finally {
         Carbon::setTestNow();
     }
@@ -519,7 +520,7 @@ function createAttendanceUser(string $role): MUser
     $now = now();
     $actualRole = in_array($role, ['Mentor', 'Headmaster', 'HRD'], true) ? $role : 'Intern';
     $user = MUser::create([
-        'txtEmail' => str_replace(' ', '-', strtolower($role)) . '@attendance.test',
+        'txtEmail' => str_replace(' ', '-', strtolower($role)).'@attendance.test',
         'txtPassword' => 'secret',
         'txtRole' => $actualRole,
         'bitActive' => true,
@@ -547,6 +548,22 @@ function createAttendanceUser(string $role): MUser
             'txtInsertedBy' => 'test',
             'dtmInserted' => $now,
         ]);
+
+        MAttendanceLocation::firstOrCreate(
+            ['txtAttendanceLocationCode' => 'TEST-OFFICE'],
+            [
+                'txtAttendanceLocationName' => 'Test Office',
+                'txtAttendanceLocationAddress' => 'Jakarta test location',
+                'floatAttendanceLocationLatitude' => -6.2,
+                'floatAttendanceLocationLongitude' => 106.816666,
+                'intAttendanceLocationRadiusMeter' => 100,
+                'intAttendanceLocationToleranceMeter' => 50,
+                'intAttendanceLocationMaximumAccuracyMeter' => 200,
+                'bitActive' => true,
+                'txtInsertedBy' => 'test',
+                'dtmInserted' => $now,
+            ],
+        );
     }
 
     return $user;
@@ -597,5 +614,5 @@ function attendancePostPayload(): array
 
 function attendanceImagePayload(): string
 {
-    return 'data:image/jpeg;base64,' . base64_encode('fake-image');
+    return 'data:image/jpeg;base64,'.base64_encode('fake-image');
 }

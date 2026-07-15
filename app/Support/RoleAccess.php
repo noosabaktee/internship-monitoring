@@ -7,12 +7,17 @@ use App\Models\MUser;
 class RoleAccess
 {
     public const ROLE_INTERN = 'Intern';
+
     public const ROLE_MENTOR = 'Mentor';
+
     public const ROLE_HEADMASTER = 'Headmaster';
+
     public const ROLE_HRD = 'HRD';
 
     public const INTERN_DIGITALISASI = 'digitalisasi';
+
     public const INTERN_REGULAR = 'regular';
+
     public const INTERN_PKL = 'pkl';
 
     /**
@@ -54,7 +59,7 @@ class RoleAccess
 
     public static function internType(MUser $user): string
     {
-        $type = strtolower((string) ($user->intern?->txtInternType ?: self::INTERN_DIGITALISASI));
+        $type = self::normalizedInternType($user->intern?->txtInternType);
 
         return in_array($type, self::internTypes(), true) ? $type : self::INTERN_DIGITALISASI;
     }
@@ -62,6 +67,19 @@ class RoleAccess
     public static function isDigitalisasiIntern(MUser $user): bool
     {
         return self::isIntern($user) && self::internType($user) === self::INTERN_DIGITALISASI;
+    }
+
+    public static function normalizedInternType(?string $type): string
+    {
+        return strtolower((string) ($type ?: self::INTERN_DIGITALISASI));
+    }
+
+    public static function constrainDigitalisasiInterns($query): void
+    {
+        $query->where(function ($query) {
+            $query->where('txtInternType', self::INTERN_DIGITALISASI)
+                ->orWhereNull('txtInternType');
+        });
     }
 
     public static function can(MUser $user, string $ability): bool
@@ -77,8 +95,10 @@ class RoleAccess
             'attendance-admin' => self::isAttendanceAdmin($user),
             'leaderboard' => self::isMentor($user) || self::isHeadmaster($user) || self::isHrd($user) || self::isDigitalisasiIntern($user),
             'exposure' => self::isMentor($user) || self::isHeadmaster($user) || self::isHrd($user) || self::isDigitalisasiIntern($user),
-            'analytics' => self::isMentor($user) || self::isHeadmaster($user) || self::isHrd($user),
+            'analytics' => self::isIntern($user) || self::isMentor($user) || self::isHeadmaster($user) || self::isHrd($user),
             'crud-analytics' => self::isMentor($user) || self::isHeadmaster($user),
+            'work-from-home' => self::isIntern($user) || self::isAttendanceAdmin($user),
+            'work-from-home-admin' => self::isAttendanceAdmin($user),
             'achievements' => self::isMentor($user) || self::isHeadmaster($user) || self::isHrd($user),
             'crud-achievements' => self::isMentor($user) || self::isHeadmaster($user),
             'reports' => self::isMentor($user) || self::isHeadmaster($user) || self::isDigitalisasiIntern($user),

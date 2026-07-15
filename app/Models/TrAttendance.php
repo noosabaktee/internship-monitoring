@@ -10,14 +10,20 @@ class TrAttendance extends Model
     use GeneratesIntegerIds;
 
     protected $table = 'trAttendance';
+
     protected $primaryKey = 'intAttendance_ID';
+
     public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = [
         'intAttendance_ID',
         'intIntern_ID',
         'intUser_ID',
+        'intAttendanceLocation_ID',
+        'intWorkFromHomeRequest_ID',
+        'txtAttendanceWorkMode',
         'dtmAttendanceDate',
         'dtmCheckIn',
         'dtmCheckOut',
@@ -33,6 +39,9 @@ class TrAttendance extends Model
         'floatAttendanceLatitude',
         'floatAttendanceLongitude',
         'floatAttendanceLocationAccuracy',
+        'floatAttendanceDistanceMeter',
+        'floatAttendanceAllowedDistanceMeter',
+        'bitAttendanceWithinTolerance',
         'txtAttendanceAddress',
         'txtAttendanceLocationUrl',
         'txtAttendanceClockInStatus',
@@ -42,6 +51,8 @@ class TrAttendance extends Model
         'floatAttendanceClockOutLatitude',
         'floatAttendanceClockOutLongitude',
         'floatAttendanceClockOutLocationAccuracy',
+        'floatAttendanceClockOutDistanceMeter',
+        'bitAttendanceClockOutWithinTolerance',
         'txtAttendanceClockOutAddress',
         'txtAttendanceClockOutLocationUrl',
         'txtAttendanceClockOutStatus',
@@ -70,6 +81,11 @@ class TrAttendance extends Model
         'floatAttendanceClockOutLatitude' => 'float',
         'floatAttendanceClockOutLongitude' => 'float',
         'floatAttendanceClockOutLocationAccuracy' => 'float',
+        'floatAttendanceDistanceMeter' => 'float',
+        'floatAttendanceAllowedDistanceMeter' => 'float',
+        'bitAttendanceWithinTolerance' => 'boolean',
+        'floatAttendanceClockOutDistanceMeter' => 'float',
+        'bitAttendanceClockOutWithinTolerance' => 'boolean',
         'floatAttendanceClockOutFaceDistance' => 'float',
         'dtmInserted' => 'datetime',
     ];
@@ -77,5 +93,15 @@ class TrAttendance extends Model
     public function user()
     {
         return $this->belongsTo(MUser::class, 'intUser_ID', 'intUser_ID');
+    }
+
+    public function attendanceLocation()
+    {
+        return $this->belongsTo(MAttendanceLocation::class, 'intAttendanceLocation_ID', 'intAttendanceLocation_ID');
+    }
+
+    public function workFromHomeRequest()
+    {
+        return $this->belongsTo(TrWorkFromHomeRequest::class, 'intWorkFromHomeRequest_ID', 'intWorkFromHomeRequest_ID');
     }
 }

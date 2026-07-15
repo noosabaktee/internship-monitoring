@@ -87,6 +87,7 @@
                 <th>Date</th>
                 <th>Intern</th>
                 <th>Type</th>
+                <th>Mode</th>
                 <th>Status</th>
                 <th>Clock In</th>
                 <th>Clock Out</th>
@@ -99,13 +100,14 @@
                     <td>{{ $row['date']->format('d M Y') }}</td>
                     <td>{{ $row['internNo'] }}<br>{{ $row['name'] }}</td>
                     <td>{{ $row['internTypeLabel'] }}</td>
+                    <td>{{ $row['workMode'] === 'WFH' ? 'WFH' : 'WFO' }}</td>
                     <td class="{{ $statusClass($row['status']) }}">{{ $row['status'] }}</td>
                     <td>{{ $row['clockIn'] }}<br><span class="muted">{{ $row['clockInStatus'] ?: '-' }}</span></td>
                     <td>{{ $row['clockOut'] }}<br><span class="muted">{{ $row['clockOutStatus'] ?: '-' }}</span></td>
                     <td>Rp {{ number_format((float) $row['dailySalary'], 0, ',', '.') }}</td>
                 </tr>
             @empty
-                <tr><td colspan="7">No attendance data on this filter.</td></tr>
+                <tr><td colspan="8">No attendance data on this filter.</td></tr>
             @endforelse
         </tbody>
     </table>

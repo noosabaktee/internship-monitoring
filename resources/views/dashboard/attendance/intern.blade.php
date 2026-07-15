@@ -5,14 +5,23 @@
     data-face-detection-url="{{ route('face.detection.store') }}"
     data-face-threshold="{{ number_format((float) ($setting->floatAttendanceSettingFaceThreshold ?? 0.38), 2, '.', '') }}"
 >
+    @if ($internshipCompleted)
+        <section class="internship-completed-banner">
+            <span><i class="fa-solid fa-graduation-cap"></i></span>
+            <div><strong>Masa internship kamu sudah selesai</strong><p>Periode berakhir pada {{ $internshipEndDate?->format('d M Y') }}. Absensi baru dinonaktifkan, tetapi histori kehadiran tetap dapat dilihat.</p></div>
+            <a class="btn btn-light btn-sm" href="{{ route('analytics.index') }}"><i class="fa-solid fa-certificate"></i> Lihat rapor & sertifikat</a>
+        </section>
+    @endif
+
     <section class="attendance-hero">
         <div class="attendance-hero-main">
             <span class="attendance-eyebrow"><i class="fa-solid fa-user-check"></i> {{ $displayName }}</span>
             <h2>{{ $todayStatus }}</h2>
+            <p>Clock in dan clock out memakai Face ID, mode {{ $todayWorkMode === 'WFH' ? 'WFH bebas radius kantor' : 'WFO dengan geofence kantor' }}, dan histori tetap tercatat rapi.</p>
             <div class="attendance-hero-meta">
                 <span><i class="fa-solid fa-right-to-bracket"></i> In {{ $clockInStart->format('H:i') }} - {{ $clockInEnd->format('H:i') }} WIB</span>
                 <span><i class="fa-solid fa-right-from-bracket"></i> Out {{ $clockOutStart->format('H:i') }} - {{ $clockOutEnd->format('H:i') }} WIB</span>
-                <span><i class="fa-solid fa-location-dot"></i> Lokasi wajib aktif</span>
+                <span><i class="fa-solid {{ $todayWorkMode === 'WFH' ? 'fa-house-laptop' : 'fa-building' }}"></i> Mode {{ $todayWorkMode === 'WFH' ? 'WFH · bebas lokasi' : 'WFO · geofence kantor' }}</span>
                 <span><i class="fa-solid fa-shield-halved"></i> {{ $hasFaceEnrollment ? 'Face ID aktif' : 'Face ID belum aktif' }}</span>
             </div>
         </div>
@@ -50,10 +59,10 @@
             </div>
         </div>
         <div class="attendance-kpi">
-            <i class="fa-solid fa-face-smile"></i>
+            <i class="fa-solid {{ $todayWorkMode === 'WFH' ? 'fa-house-laptop' : 'fa-location-crosshairs' }}"></i>
             <div>
-                <span>Face ID</span>
-                <strong>{{ $hasFaceEnrollment ? 'Aktif' : 'Belum' }}</strong>
+                <span>Mode Kerja</span>
+                <strong>{{ $todayWorkMode === 'WFH' ? 'WFH' : 'WFO' }}</strong>
             </div>
         </div>
     </div>
@@ -169,7 +178,7 @@
                             <th>Tanggal</th>
                             <th>Clock In</th>
                             <th>Clock Out</th>
-                            <th>Status</th>
+                            <th>Status</th><th>Mode</th>
                             <th>Lokasi</th>
                             <!-- <th>Match</th> -->
                         </tr>
@@ -212,6 +221,7 @@
                                     @endif
                                 </td>
                                 <td><span class="attendance-status {{ $statusClass }}">{{ $row['status'] }}</span></td>
+                                <td><span class="work-mode-chip {{ ($row['workMode'] ?? 'Office') === 'WFH' ? 'wfh' : 'office' }}">{{ ($row['workMode'] ?? 'Office') === 'WFH' ? 'WFH' : 'WFO' }}</span></td>
                                 <td>
                                     <div class="attendance-location-stack">
                                         @if ($row['locationInUrl'])

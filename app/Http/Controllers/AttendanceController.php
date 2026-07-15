@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MAttendanceLocation;
 use App\Models\MAttendanceSetting;
 use App\Models\MUser;
 use App\Models\TrAttendance;
+use App\Models\TrWorkFromHomeRequest;
 use App\Services\FaceRecognitionService;
 use App\Support\RoleAccess;
 use Dompdf\Dompdf;
@@ -23,22 +25,24 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use RuntimeException;
 
 class AttendanceController extends Controller
 {
     private const TIMEZONE = 'Asia/Jakarta';
+
     private const DEFAULT_CLOCK_IN_START = '06:30';
+
     private const DEFAULT_CLOCK_IN_END = '09:00';
+
     private const DEFAULT_CLOCK_OUT_START = '16:00';
+
     private const DEFAULT_CLOCK_OUT_END = '18:30';
+
     private const FACE_ALGORITHM = 'insightface-buffalo_l-v1';
 
-    public function __construct(private readonly FaceRecognitionService $faceRecognition)
-    {
-    }
+    public function __construct(private readonly FaceRecognitionService $faceRecognition) {}
 
     public function index(Request $request): View
     {
@@ -49,6 +53,8 @@ class AttendanceController extends Controller
         $isWorkday = $this->isWorkday($now);
         $windows = $this->attendanceWindows($setting, $now);
         $windowState = $isWorkday ? $this->attendanceWindowState($now, $windows) : 'offday';
+        $internshipCompleted = ! $isAttendanceAdmin && $authUser->intern?->hasCompletedInternship($now);
+        $workContext = $isAttendanceAdmin ? null : $this->workContext($authUser, $now);
         $enrollment = $isAttendanceAdmin
             ? null
             : $authUser->faceEnrollment()
@@ -121,6 +127,16 @@ class AttendanceController extends Controller
             'attendanceDetailSummary' => $attendanceDetail['summary'],
             'attendanceSelectedIntern' => $attendanceDetail['selectedIntern'],
             'attendancePayrollSummary' => $attendanceDetail['payroll'],
+            'internshipCompleted' => (bool) $internshipCompleted,
+            'internshipEndDate' => $authUser->intern?->effectiveEndDate(),
+            'todayWorkMode' => $workContext['mode'] ?? 'Office',
+            'attendanceLocation' => $isAttendanceAdmin
+                ? MAttendanceLocation::query()
+                    ->orderByDesc('bitActive')
+                    ->orderByDesc('dtmUpdated')
+                    ->orderBy('intAttendanceLocation_ID')
+                    ->first()
+                : null,
         ]);
     }
 
@@ -154,6 +170,7 @@ class AttendanceController extends Controller
         $setting = $this->attendanceSetting();
         $now = Carbon::now(self::TIMEZONE);
         $windows = $this->attendanceWindows($setting, $now);
+        $workContext = $this->workContext($authUser, $now);
 
         if (! $this->isWorkday($now)) {
             return back()->withErrors([
@@ -163,7 +180,7 @@ class AttendanceController extends Controller
 
         if ($now->lt($windows['clockInStart'])) {
             return back()->withErrors([
-                'attendance' => 'Clock In baru bisa dilakukan mulai ' . $windows['clockInStart']->format('H:i') . ' WIB.',
+                'attendance' => 'Clock In baru bisa dilakukan mulai '.$windows['clockInStart']->format('H:i').' WIB.',
             ]);
         }
 
@@ -176,7 +193,7 @@ class AttendanceController extends Controller
             return back()->withErrors(['attendance' => 'Clock In hari ini sudah tercatat.']);
         }
 
-        $verification = $this->verifiedFaceAndLocation($request, $authUser, $setting);
+        $verification = $this->verifiedFaceAndLocation($request, $authUser, $setting, $workContext);
         $clockInStatus = $now->gt($windows['clockInEnd']) ? 'Terlambat' : 'Tepat Waktu';
         $shouldAutoClockOut = $now->gt($windows['clockOutEnd']);
         $clockOutStatus = $shouldAutoClockOut ? 'Terlambat' : null;
@@ -184,12 +201,18 @@ class AttendanceController extends Controller
 
         $attendanceData = [
             'intUser_ID' => $authUser->intUser_ID,
+            'intAttendanceLocation_ID' => $verification['locationId'],
+            'intWorkFromHomeRequest_ID' => $workContext['request']?->intWorkFromHomeRequest_ID,
+            'txtAttendanceWorkMode' => $workContext['mode'],
             'dtmAttendanceDate' => $now->toDateString(),
             'dtmAttendanceClockIn' => $now,
             'txtAttendanceStatus' => $status,
             'floatAttendanceLatitude' => $verification['latitude'],
             'floatAttendanceLongitude' => $verification['longitude'],
             'floatAttendanceLocationAccuracy' => $verification['accuracy'],
+            'floatAttendanceDistanceMeter' => $verification['distanceMeter'],
+            'floatAttendanceAllowedDistanceMeter' => $verification['allowedDistanceMeter'],
+            'bitAttendanceWithinTolerance' => $verification['withinTolerance'],
             'txtAttendanceAddress' => $verification['locationLabel'],
             'txtAttendanceLocationUrl' => $verification['locationUrl'],
             'txtAttendanceClockInStatus' => $clockInStatus,
@@ -211,6 +234,8 @@ class AttendanceController extends Controller
                 'floatAttendanceClockOutLatitude' => $verification['latitude'],
                 'floatAttendanceClockOutLongitude' => $verification['longitude'],
                 'floatAttendanceClockOutLocationAccuracy' => $verification['accuracy'],
+                'floatAttendanceClockOutDistanceMeter' => $verification['distanceMeter'],
+                'bitAttendanceClockOutWithinTolerance' => $verification['withinTolerance'],
                 'txtAttendanceClockOutAddress' => $verification['locationLabel'],
                 'txtAttendanceClockOutLocationUrl' => $verification['locationUrl'],
                 'txtAttendanceClockOutStatus' => $clockOutStatus,
@@ -297,7 +322,7 @@ class AttendanceController extends Controller
 
         if ($now->lt($windows['clockOutStart'])) {
             return back()->withErrors([
-                'attendance' => 'Clock Out baru bisa dilakukan mulai ' . $windows['clockOutStart']->format('H:i') . ' WIB.',
+                'attendance' => 'Clock Out baru bisa dilakukan mulai '.$windows['clockOutStart']->format('H:i').' WIB.',
             ]);
         }
 
@@ -315,7 +340,11 @@ class AttendanceController extends Controller
             ]);
         }
 
-        $verification = $this->verifiedFaceAndLocation($request, $authUser, $setting);
+        $workContext = [
+            'mode' => $attendance->txtAttendanceWorkMode ?: 'Office',
+            'request' => $attendance->workFromHomeRequest,
+        ];
+        $verification = $this->verifiedFaceAndLocation($request, $authUser, $setting, $workContext);
         $clockOutStatus = $now->gt($windows['clockOutEnd']) ? 'Terlambat' : 'Tepat Waktu';
 
         $attendanceData = [
@@ -323,6 +352,8 @@ class AttendanceController extends Controller
             'floatAttendanceClockOutLatitude' => $verification['latitude'],
             'floatAttendanceClockOutLongitude' => $verification['longitude'],
             'floatAttendanceClockOutLocationAccuracy' => $verification['accuracy'],
+            'floatAttendanceClockOutDistanceMeter' => $verification['distanceMeter'],
+            'bitAttendanceClockOutWithinTolerance' => $verification['withinTolerance'],
             'txtAttendanceClockOutAddress' => $verification['locationLabel'],
             'txtAttendanceClockOutLocationUrl' => $verification['locationUrl'],
             'txtAttendanceClockOutStatus' => $clockOutStatus,
@@ -393,13 +424,13 @@ class AttendanceController extends Controller
             'dtmUpdated' => Carbon::now(self::TIMEZONE),
         ]);
 
-        return redirect()->route('attendance.index')->with('success', 'Setting absensi berhasil diperbarui.');
+        return redirect()->route('attendance.index', ['tab' => 'settings'])->with('success', 'Setting absensi berhasil diperbarui.');
     }
 
     public function exportExcel(Request $request): Response
     {
         $payload = $this->attendanceExportPayload($request);
-        $filename = 'attendance-' . $payload['filters']['from'] . '-' . $payload['filters']['to'] . '.xlsx';
+        $filename = 'attendance-'.$payload['filters']['from'].'-'.$payload['filters']['to'].'.xlsx';
         $spreadsheet = $this->attendanceSpreadsheet($payload);
         $writer = new Xlsx($spreadsheet);
 
@@ -410,26 +441,26 @@ class AttendanceController extends Controller
 
         return response($content, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             'Cache-Control' => 'max-age=0',
         ]);
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     private function attendanceSpreadsheet(array $payload): Spreadsheet
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Attendance');
 
-        $sheet->mergeCells('A1:L1');
+        $sheet->mergeCells('A1:M1');
         $sheet->setCellValue('A1', 'Kalbe Internship Attendance Report');
         $sheet->setCellValue('A2', 'Period');
-        $sheet->setCellValue('B2', $payload['filters']['from'] . ' to ' . $payload['filters']['to']);
+        $sheet->setCellValue('B2', $payload['filters']['from'].' to '.$payload['filters']['to']);
         $sheet->setCellValue('D2', 'Generated');
-        $sheet->setCellValue('E2', $payload['generatedAt']->format('d M Y H:i') . ' WIB');
+        $sheet->setCellValue('E2', $payload['generatedAt']->format('d M Y H:i').' WIB');
         $sheet->setCellValue('H2', 'Generated By');
         $sheet->setCellValue('I2', $payload['generatedBy']);
 
@@ -445,8 +476,8 @@ class AttendanceController extends Controller
 
         foreach ($summaryLabels as $index => $label) {
             $column = chr(ord('A') + $index);
-            $sheet->setCellValue($column . '4', $label);
-            $sheet->setCellValue($column . '5', $summaryValues[$index]);
+            $sheet->setCellValue($column.'4', $label);
+            $sheet->setCellValue($column.'5', $summaryValues[$index]);
         }
 
         if ($payload['payroll']) {
@@ -468,6 +499,7 @@ class AttendanceController extends Controller
             'Intern No',
             'Intern',
             'Type',
+            'Work Mode',
             'Status',
             'Clock In',
             'Clock In Status',
@@ -478,7 +510,7 @@ class AttendanceController extends Controller
             'Location Out',
         ];
         $headerRow = 9;
-        $sheet->fromArray($headers, null, 'A' . $headerRow);
+        $sheet->fromArray($headers, null, 'A'.$headerRow);
         $rowNumber = $headerRow + 1;
 
         foreach ($payload['rows'] as $row) {
@@ -487,6 +519,7 @@ class AttendanceController extends Controller
                 $row['internNo'],
                 $row['name'],
                 $row['internTypeLabel'],
+                $row['workMode'] === 'WFH' ? 'WFH' : 'WFO',
                 $row['status'],
                 $row['clockIn'],
                 $row['clockInStatus'] ?: '-',
@@ -495,7 +528,7 @@ class AttendanceController extends Controller
                 (float) $row['dailySalary'],
                 $row['locationIn'],
                 $row['locationOut'],
-            ], null, 'A' . $rowNumber);
+            ], null, 'A'.$rowNumber);
 
             $statusColor = match ($row['status']) {
                 'Tidak Masuk' => 'FEE4E2',
@@ -503,25 +536,25 @@ class AttendanceController extends Controller
                 'Hadir' => 'D1FADF',
                 default => 'EAECF0',
             };
-            $sheet->getStyle('E' . $rowNumber)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($statusColor);
+            $sheet->getStyle('F'.$rowNumber)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($statusColor);
             $rowNumber++;
         }
 
         $lastRow = max($headerRow + 1, $rowNumber - 1);
         $sheet->freezePane('A10');
-        $sheet->setAutoFilter('A' . $headerRow . ':L' . $lastRow);
+        $sheet->setAutoFilter('A'.$headerRow.':M'.$lastRow);
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(18)->getColor()->setRGB('12351F');
         $sheet->getStyle('A2:I2')->getFont()->setBold(true);
         $sheet->getStyle('A4:F4')->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
         $sheet->getStyle('A4:F4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('006838');
         $sheet->getStyle('A5:F5')->getFont()->setBold(true)->setSize(14);
         $sheet->getStyle('A4:F5')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('CFE5BD');
-        $sheet->getStyle('A' . $headerRow . ':L' . $headerRow)->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
-        $sheet->getStyle('A' . $headerRow . ':L' . $headerRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('12351F');
-        $sheet->getStyle('A' . $headerRow . ':L' . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('D9E2D0');
-        $sheet->getStyle('J10:J' . $lastRow)->getNumberFormat()->setFormatCode('"Rp" #,##0');
-        $sheet->getStyle('A4:L' . $lastRow)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
-        $sheet->getStyle('K10:L' . $lastRow)->getAlignment()->setWrapText(true);
+        $sheet->getStyle('A'.$headerRow.':M'.$headerRow)->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle('A'.$headerRow.':M'.$headerRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('12351F');
+        $sheet->getStyle('A'.$headerRow.':M'.$lastRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('D9E2D0');
+        $sheet->getStyle('K10:K'.$lastRow)->getNumberFormat()->setFormatCode('"Rp" #,##0');
+        $sheet->getStyle('A4:M'.$lastRow)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle('L10:M'.$lastRow)->getAlignment()->setWrapText(true);
 
         if ($payload['payroll']) {
             $sheet->getStyle('H4:L4')->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
@@ -531,13 +564,13 @@ class AttendanceController extends Controller
             $sheet->getStyle('J6')->getFont()->setBold(true);
         }
 
-        foreach (range('A', 'L') as $column) {
+        foreach (range('A', 'M') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
-        $sheet->getColumnDimension('K')->setWidth(38);
         $sheet->getColumnDimension('L')->setWidth(38);
-        $sheet->getStyle('A1:L' . $lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->getColumnDimension('M')->setWidth(38);
+        $sheet->getStyle('A1:M'.$lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         $spreadsheet->getProperties()
             ->setCreator('Kalbe Internship Monitoring')
             ->setTitle('Attendance Report')
@@ -549,7 +582,7 @@ class AttendanceController extends Controller
     public function reportPdf(Request $request): Response
     {
         $payload = $this->attendanceExportPayload($request);
-        $filename = 'attendance-report-' . $payload['filters']['from'] . '-' . $payload['filters']['to'] . '.pdf';
+        $filename = 'attendance-report-'.$payload['filters']['from'].'-'.$payload['filters']['to'].'.pdf';
 
         return $this->pdfResponse('dashboard.attendance.report-pdf', ['payload' => $payload], $filename);
     }
@@ -562,14 +595,14 @@ class AttendanceController extends Controller
             abort(422, 'Pilih satu intern terlebih dahulu untuk download slip gaji.');
         }
 
-        $filename = 'salary-slip-' . Str::slug($payload['payroll']['internName']) . '-' . $payload['filters']['from'] . '-' . $payload['filters']['to'] . '.pdf';
+        $filename = 'salary-slip-'.Str::slug($payload['payroll']['internName']).'-'.$payload['filters']['from'].'-'.$payload['filters']['to'].'.pdf';
 
         return $this->pdfResponse('dashboard.attendance.salary-slip-pdf', ['payload' => $payload], $filename);
     }
 
     private function pdfResponse(string $view, array $data, string $filename): Response
     {
-        $options = new Options();
+        $options = new Options;
         $options->set('defaultFont', 'DejaVu Sans');
         $options->set('isRemoteEnabled', true);
 
@@ -580,7 +613,7 @@ class AttendanceController extends Controller
 
         return response($dompdf->output(), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 
@@ -622,6 +655,13 @@ class AttendanceController extends Controller
         if (! RoleAccess::isIntern($authUser)) {
             throw ValidationException::withMessages(['attendance' => 'Absensi hanya untuk intern.']);
         }
+
+        if ($authUser->intern->hasCompletedInternship(Carbon::now(self::TIMEZONE))) {
+            $endDate = $authUser->intern->effectiveEndDate()?->format('d M Y');
+            throw ValidationException::withMessages([
+                'attendance' => 'Masa internship sudah selesai pada '.$endDate.'. Absensi tidak lagi tersedia.',
+            ]);
+        }
     }
 
     /**
@@ -633,6 +673,7 @@ class AttendanceController extends Controller
             ->where('bitActive', true)
             ->whereHas('intern', fn ($query) => $query->where('bitActive', true))
             ->get()
+            ->reject(fn (MUser $user) => $user->intern?->hasCompletedInternship(Carbon::now(self::TIMEZONE)))
             ->sortBy(fn (MUser $user) => $this->displayName($user))
             ->values();
     }
@@ -710,11 +751,11 @@ class AttendanceController extends Controller
         );
 
         return [
-            'clockInStart' => Carbon::parse($now->toDateString() . ' ' . $clockInStart, self::TIMEZONE),
-            'clockInEnd' => Carbon::parse($now->toDateString() . ' ' . $clockInEnd, self::TIMEZONE),
+            'clockInStart' => Carbon::parse($now->toDateString().' '.$clockInStart, self::TIMEZONE),
+            'clockInEnd' => Carbon::parse($now->toDateString().' '.$clockInEnd, self::TIMEZONE),
             'clockInLateEnd' => $now->copy()->endOfDay(),
-            'clockOutStart' => Carbon::parse($now->toDateString() . ' ' . $clockOutStart, self::TIMEZONE),
-            'clockOutEnd' => Carbon::parse($now->toDateString() . ' ' . $clockOutEnd, self::TIMEZONE),
+            'clockOutStart' => Carbon::parse($now->toDateString().' '.$clockOutStart, self::TIMEZONE),
+            'clockOutEnd' => Carbon::parse($now->toDateString().' '.$clockOutEnd, self::TIMEZONE),
             'clockOutLateEnd' => $now->copy()->endOfDay(),
         ];
     }
@@ -731,7 +772,7 @@ class AttendanceController extends Controller
     }
 
     /**
-     * @param array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon} $windows
+     * @param  array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon}  $windows
      */
     private function attendanceWindowState(Carbon $now, array $windows): string
     {
@@ -761,7 +802,7 @@ class AttendanceController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function verifiedFaceAndLocation(Request $request, MUser $authUser, MAttendanceSetting $setting): array
+    private function verifiedFaceAndLocation(Request $request, MUser $authUser, MAttendanceSetting $setting, array $workContext): array
     {
         $enrollment = $authUser->faceEnrollment()
             ->where('bitActive', true)
@@ -812,13 +853,63 @@ class AttendanceController extends Controller
             ? round((float) $validated['floatAttendanceLocationAccuracy'], 2)
             : null;
         $locationLabel = $this->coordinateLabel($latitude, $longitude, $accuracy);
+        $location = null;
+        $distanceMeter = null;
+        $allowedDistanceMeter = null;
+        $withinTolerance = null;
+
+        if ($workContext['mode'] === 'Office') {
+            $location = MAttendanceLocation::query()
+                ->where('bitActive', true)
+                ->orderByDesc('dtmUpdated')
+                ->orderBy('intAttendanceLocation_ID')
+                ->first();
+
+            if (! $location) {
+                throw ValidationException::withMessages([
+                    'attendance' => 'Lokasi kantor belum dikonfigurasi oleh HRD/Headmaster. Hubungi admin sebelum melakukan absensi normal.',
+                ]);
+            }
+
+            $distanceMeter = round($this->distanceMeter(
+                $latitude,
+                $longitude,
+                (float) $location->floatAttendanceLocationLatitude,
+                (float) $location->floatAttendanceLocationLongitude,
+            ), 2);
+            $allowedDistanceMeter = (float) $location->intAttendanceLocationRadiusMeter
+                + (float) $location->intAttendanceLocationToleranceMeter;
+            $withinTolerance = $distanceMeter <= $allowedDistanceMeter;
+
+            if ($accuracy !== null
+                && $location->intAttendanceLocationMaximumAccuracyMeter
+                && $accuracy > $location->intAttendanceLocationMaximumAccuracyMeter) {
+                throw ValidationException::withMessages([
+                    'attendance' => 'Akurasi GPS '.$accuracy.' meter belum memenuhi batas '.$location->intAttendanceLocationMaximumAccuracyMeter.' meter. Aktifkan mode akurasi tinggi lalu coba lagi.',
+                ]);
+            }
+
+            if (! $withinTolerance) {
+                throw ValidationException::withMessages([
+                    'attendance' => 'Kamu berada '.number_format($distanceMeter, 0, ',', '.').' meter dari '.$location->txtAttendanceLocationName.'. Batas yang diizinkan '.number_format($allowedDistanceMeter, 0, ',', '.').' meter.',
+                ]);
+            }
+
+            $locationLabel = $location->txtAttendanceLocationName.' · '.$locationLabel;
+        } else {
+            $locationLabel = 'WFH · '.$locationLabel;
+        }
 
         return [
             'latitude' => $latitude,
             'longitude' => $longitude,
             'accuracy' => $accuracy,
             'locationLabel' => $locationLabel,
-            'locationUrl' => 'https://www.google.com/maps?q=' . $latitude . ',' . $longitude,
+            'locationUrl' => 'https://www.google.com/maps?q='.$latitude.','.$longitude,
+            'locationId' => $location?->intAttendanceLocation_ID,
+            'distanceMeter' => $distanceMeter,
+            'allowedDistanceMeter' => $allowedDistanceMeter,
+            'withinTolerance' => $withinTolerance,
             'faceDistance' => round($faceDistance, 4),
             'algorithm' => $facePayload['algorithm'] ?? self::FACE_ALGORITHM,
             'device' => Str::limit($validated['txtAttendanceDevice'] ?? $request->userAgent() ?? 'Browser', 255, ''),
@@ -830,6 +921,33 @@ class AttendanceController extends Controller
                 'algorithm' => $facePayload['algorithm'] ?? self::FACE_ALGORITHM,
             ],
         ];
+    }
+
+    /** @return array{mode: string, request: ?TrWorkFromHomeRequest} */
+    private function workContext(MUser $user, Carbon $date): array
+    {
+        $wfhRequest = TrWorkFromHomeRequest::where('intIntern_ID', $user->intern?->intIntern_ID ?? 0)
+            ->where('bitActive', true)
+            ->where('txtWorkFromHomeRequestStatus', TrWorkFromHomeRequest::STATUS_APPROVED)
+            ->whereDate('dtmWorkFromHomeRequestStartDate', '<=', $date->toDateString())
+            ->whereDate('dtmWorkFromHomeRequestEndDate', '>=', $date->toDateString())
+            ->first();
+
+        return [
+            'mode' => $wfhRequest ? 'WFH' : 'Office',
+            'request' => $wfhRequest,
+        ];
+    }
+
+    private function distanceMeter(float $latitudeA, float $longitudeA, float $latitudeB, float $longitudeB): float
+    {
+        $earthRadius = 6371000;
+        $latitudeDelta = deg2rad($latitudeB - $latitudeA);
+        $longitudeDelta = deg2rad($longitudeB - $longitudeA);
+        $a = sin($latitudeDelta / 2) ** 2
+            + cos(deg2rad($latitudeA)) * cos(deg2rad($latitudeB)) * sin($longitudeDelta / 2) ** 2;
+
+        return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
     /**
@@ -845,9 +963,16 @@ class AttendanceController extends Controller
             ->orderBy('dtmAttendanceDate')
             ->get()
             ->keyBy(fn (TrAttendance $attendance) => $attendance->dtmAttendanceDate?->format('Y-m-d'));
+
         return collect(range(0, 4))
-            ->map(function (int $offset) use ($records, $now, $weekStart, $setting) {
+            ->map(function (int $offset) use ($records, $now, $weekStart, $setting, $user) {
                 $date = $weekStart->copy()->addDays($offset);
+                $endDate = $user->intern?->effectiveEndDate();
+
+                if ($endDate && $date->gt($endDate)) {
+                    return null;
+                }
+
                 $dateWindows = $this->attendanceWindows($setting, $date);
                 $dateKey = $date->format('Y-m-d');
                 $attendance = $records->get($dateKey);
@@ -875,6 +1000,7 @@ class AttendanceController extends Controller
                         'locationOutUrl' => $attendance->txtAttendanceClockOutLocationUrl,
                         'faceDistance' => $attendance->floatAttendanceFaceDistance,
                         'clockOutFaceDistance' => $attendance->floatAttendanceClockOutFaceDistance,
+                        'workMode' => $attendance->txtAttendanceWorkMode ?: 'Office',
                     ];
                 }
 
@@ -898,14 +1024,17 @@ class AttendanceController extends Controller
                     'locationOutUrl' => null,
                     'faceDistance' => null,
                     'clockOutFaceDistance' => null,
+                    'workMode' => $this->workContext($user, $date)['mode'],
                 ];
             })
+            ->filter()
+            ->values()
             ->all();
     }
 
     /**
-     * @param Collection<int, MUser> $teamUsers
-     * @param Collection<int, TrAttendance> $todayAttendances
+     * @param  Collection<int, MUser>  $teamUsers
+     * @param  Collection<int, TrAttendance>  $todayAttendances
      * @return Collection<int, array<string, mixed>>
      */
     private function teamTodayRows(Collection $teamUsers, Collection $todayAttendances, MAttendanceSetting $setting, Carbon $now): Collection
@@ -932,10 +1061,12 @@ class AttendanceController extends Controller
                 $clockOutWarning = (bool) $clockInAt
                     && ! $clockOutAt
                     && $now->gt($windows['clockOutEnd']);
+                $workMode = $attendance?->txtAttendanceWorkMode ?: $this->workContext($user, $now)['mode'];
 
                 return [
                     'name' => $this->displayName($user),
                     'role' => 'Intern',
+                    'workMode' => $workMode,
                     'faceRegistered' => (bool) $user->faceEnrollment?->bitActive,
                     'status' => $status,
                     'clockIn' => $this->attendanceTimeLabel($clockInAt),
@@ -955,7 +1086,7 @@ class AttendanceController extends Controller
     }
 
     /**
-     * @param Collection<int, MUser> $teamUsers
+     * @param  Collection<int, MUser>  $teamUsers
      * @return array{filters: array<string, string>, interns: Collection<int, MUser>, rows: Collection<int, array<string, mixed>>, summary: array<string, int>, selectedIntern: ?MUser, payroll: ?array<string, mixed>}
      */
     private function adminAttendanceDetail(Request $request, Collection $teamUsers, MAttendanceSetting $setting, Carbon $now): array
@@ -979,7 +1110,7 @@ class AttendanceController extends Controller
             ->whereDate('dtmAttendanceDate', '<=', $toDate->toDateString())
             ->when($selectedUserId > 0, fn ($query) => $query->where('intUser_ID', $selectedUserId))
             ->get()
-            ->keyBy(fn (TrAttendance $attendance) => $attendance->intUser_ID . '|' . $attendance->dtmAttendanceDate?->format('Y-m-d'));
+            ->keyBy(fn (TrAttendance $attendance) => $attendance->intUser_ID.'|'.$attendance->dtmAttendanceDate?->format('Y-m-d'));
         $rows = collect();
         $summary = $this->emptyDetailSummary();
 
@@ -991,7 +1122,13 @@ class AttendanceController extends Controller
             $dateWindows = $this->attendanceWindows($setting, $date);
 
             foreach ($filteredUsers as $user) {
-                $attendance = $records->get($user->intUser_ID . '|' . $date->format('Y-m-d'));
+                $internEndDate = $user->intern?->effectiveEndDate();
+
+                if ($internEndDate && $date->gt($internEndDate)) {
+                    continue;
+                }
+
+                $attendance = $records->get($user->intUser_ID.'|'.$date->format('Y-m-d'));
                 $clockInAt = $attendance ? $this->attendanceClockInAt($attendance) : null;
                 $clockOutAt = $attendance ? $this->attendanceClockOutAt($attendance) : null;
                 $clockInStatus = $attendance ? $this->attendanceClockInStatus($attendance, $dateWindows) : null;
@@ -1024,11 +1161,12 @@ class AttendanceController extends Controller
                     'date' => $date->copy(),
                     'intUser_ID' => $user->intUser_ID,
                     'intIntern_ID' => $user->intern?->intIntern_ID,
-                    'internNo' => $user->intern?->txtInternNo ?: 'INT-' . str_pad((string) ($user->intern?->intIntern_ID ?? $user->intUser_ID), 3, '0', STR_PAD_LEFT),
+                    'internNo' => $user->intern?->txtInternNo ?: 'INT-'.str_pad((string) ($user->intern?->intIntern_ID ?? $user->intUser_ID), 3, '0', STR_PAD_LEFT),
                     'name' => $this->displayName($user),
                     'internType' => $user->intern?->txtInternType ?: RoleAccess::INTERN_DIGITALISASI,
                     'internTypeLabel' => $this->internTypeLabel($user->intern?->txtInternType),
                     'dailySalary' => (float) ($user->intern?->floatInternSalary ?? 0),
+                    'workMode' => $attendance?->txtAttendanceWorkMode ?: '-',
                     'status' => $status,
                     'clockIn' => $this->attendanceTimeLabel($clockInAt),
                     'clockInStatus' => $clockInStatus,
@@ -1077,10 +1215,10 @@ class AttendanceController extends Controller
 
         return [
             'internName' => $this->displayName($internUser),
-            'internNo' => $internUser->intern?->txtInternNo ?: 'INT-' . str_pad((string) ($internUser->intern?->intIntern_ID ?? $internUser->intUser_ID), 3, '0', STR_PAD_LEFT),
+            'internNo' => $internUser->intern?->txtInternNo ?: 'INT-'.str_pad((string) ($internUser->intern?->intIntern_ID ?? $internUser->intUser_ID), 3, '0', STR_PAD_LEFT),
             'internType' => $this->internTypeLabel($internUser->intern?->txtInternType),
             'department' => $internUser->intern?->txtDept ?: '-',
-            'period' => $fromDate->format('d M Y') . ' - ' . $toDate->format('d M Y'),
+            'period' => $fromDate->format('d M Y').' - '.$toDate->format('d M Y'),
             'from' => $fromDate,
             'to' => $toDate,
             'dailySalary' => $dailySalary,
@@ -1140,7 +1278,7 @@ class AttendanceController extends Controller
     }
 
     /**
-     * @param array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon} $windows
+     * @param  array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon}  $windows
      */
     private function missingAttendanceStatus(Carbon $date, Carbon $now, array $windows): string
     {
@@ -1156,7 +1294,7 @@ class AttendanceController extends Controller
     }
 
     /**
-     * @param array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon} $windows
+     * @param  array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon}  $windows
      */
     private function attendanceStatus(TrAttendance $attendance, array $windows): string
     {
@@ -1174,7 +1312,7 @@ class AttendanceController extends Controller
     }
 
     /**
-     * @param array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon} $windows
+     * @param  array{clockInStart: Carbon, clockInEnd: Carbon, clockInLateEnd: Carbon, clockOutStart: Carbon, clockOutEnd: Carbon, clockOutLateEnd: Carbon}  $windows
      */
     private function attendanceClockInStatus(TrAttendance $attendance, array $windows): ?string
     {
@@ -1213,7 +1351,7 @@ class AttendanceController extends Controller
         $date = $attendance->dtmAttendanceDate?->format('Y-m-d')
             ?: Carbon::now(self::TIMEZONE)->toDateString();
 
-        return Carbon::parse($date . ' ' . $time, self::TIMEZONE);
+        return Carbon::parse($date.' '.$time, self::TIMEZONE);
     }
 
     private function attendanceTimeLabel(?Carbon $value): string
@@ -1289,10 +1427,10 @@ class AttendanceController extends Controller
 
     private function coordinateLabel(float $latitude, float $longitude, mixed $accuracy): string
     {
-        $label = 'Lat ' . number_format($latitude, 6) . ', Lng ' . number_format($longitude, 6);
+        $label = 'Lat '.number_format($latitude, 6).', Lng '.number_format($longitude, 6);
 
         if (is_numeric($accuracy)) {
-            $label .= ' +/- ' . number_format((float) $accuracy, 0) . ' m';
+            $label .= ' +/- '.number_format((float) $accuracy, 0).' m';
         }
 
         return $label;

@@ -16,9 +16,10 @@
     $clockOutWarning = $isWorkday && $hasClockIn && ! $hasClockOut && $pageNow->gt($clockOutEnd);
     $isClockInLate = $todayClockInStatus === 'Terlambat' || ($hasClockIn && $todayClockInAt->gt($clockInEnd));
     $todayClockInStatusClass = $todayClockInStatus === 'Terlambat' ? 'attendance-status-late' : 'attendance-status-present';
-    $canClockIn = ! $isAttendanceAdmin && $isWorkday && $hasFaceEnrollment && ! $hasClockIn && $pageNow->gte($clockInStart);
-    $canClockOut = ! $isAttendanceAdmin && $isWorkday && $hasFaceEnrollment && $hasClockIn && ! $hasClockOut && $clockInBeforeClockOutLimit && $pageNow->gte($clockOutStart) && $pageNow->lte($clockOutLateEnd);
+    $canClockIn = ! $isAttendanceAdmin && ! $internshipCompleted && $isWorkday && $hasFaceEnrollment && ! $hasClockIn && $pageNow->gte($clockInStart);
+    $canClockOut = ! $isAttendanceAdmin && ! $internshipCompleted && $isWorkday && $hasFaceEnrollment && $hasClockIn && ! $hasClockOut && $clockInBeforeClockOutLimit && $pageNow->gte($clockOutStart) && $pageNow->lte($clockOutLateEnd);
     $todayStatus = match (true) {
+        $internshipCompleted => 'Internship Selesai',
         $isClockInLate => 'Terlambat',
         $hasClockIn => 'Hadir',
         (bool) $todayAttendance => $todayAttendance->txtAttendanceStatus ?: 'Hadir',
@@ -42,6 +43,7 @@
         default => 'Dibuka',
     };
     $clockInDisabledReason = match (true) {
+        $internshipCompleted => 'Masa internship sudah selesai. Absensi tidak lagi tersedia.',
         ! $isWorkday => 'Clock In hanya tersedia pada hari kerja Senin-Jumat.',
         $isLegacyFaceEnrollment => 'Perbarui Face ID di halaman Profile.',
         ! $hasFaceEnrollment => 'Daftarkan Face ID di halaman Profile terlebih dahulu.',
@@ -50,6 +52,7 @@
         default => '',
     };
     $clockOutDisabledReason = match (true) {
+        $internshipCompleted => 'Masa internship sudah selesai. Absensi tidak lagi tersedia.',
         ! $isWorkday => 'Clock Out hanya tersedia pada hari kerja Senin-Jumat.',
         $isLegacyFaceEnrollment => 'Perbarui Face ID di halaman Profile.',
         ! $hasFaceEnrollment => 'Daftarkan Face ID di halaman Profile terlebih dahulu.',
@@ -71,6 +74,13 @@
         default => 'Clock Out belum tercatat. Status kehadiran tetap tersimpan, tetapi mentor akan melihat warning ini.',
     };
 @endphp
+
+@if ($isAttendanceAdmin)
+    @push('head')
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    @endpush
+@endif
 
 @section('content')
     @include($isAttendanceAdmin ? 'dashboard.attendance.mentor' : 'dashboard.attendance.intern')

@@ -6,7 +6,7 @@
 ])
 
 @php
-    $latestEvaluation = $intern?->evaluations?->sortByDesc('dtmPeriod')->first();
+    $latestEvaluation = $intern?->evaluations?->sortByDesc('dtmEvaluationCompleted')->first();
     $score = round((float) ($latestEvaluation?->floatExposureScore ?? 0));
     $activeProjects = $intern?->projects?->where('bitActive', true) ?? collect();
     $groupedProjects = $activeProjects->groupBy(fn ($assignment) => $assignment->project?->txtProjectType ?: 'Other');

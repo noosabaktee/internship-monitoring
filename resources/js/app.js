@@ -54,6 +54,7 @@ window.openModal = function (modalId, titleText) {
     }
 
     modal.classList.add('active');
+    modal.dispatchEvent(new CustomEvent('modal:opened'));
     refreshModalScrollLock();
 };
 
@@ -1822,6 +1823,243 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         });
     }
+
+    const setLocationFieldValue = (field, value) => {
+        if (!field) return;
+        field.value = value;
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    const reverseGeocodeLocation = async (latitude, longitude) => {
+        const url = new URL('https://nominatim.openstreetmap.org/reverse');
+        url.searchParams.set('format', 'jsonv2');
+        url.searchParams.set('lat', String(latitude));
+        url.searchParams.set('lon', String(longitude));
+        url.searchParams.set('accept-language', 'id');
+
+        const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+        if (!response.ok) return '';
+
+        const data = await response.json();
+        return data.display_name || '';
+    };
+
+    const updateLocationAddress = async ({ latitude, longitude, address, message, accuracy = null }) => {
+        if (message) message.textContent = 'Mengambil alamat dari koordinat...';
+
+        try {
+            const resolvedAddress = await reverseGeocodeLocation(latitude, longitude);
+            setLocationFieldValue(address, resolvedAddress || `Koordinat ${latitude.toFixed(7)}, ${longitude.toFixed(7)}`);
+            if (message) {
+                const suffix = accuracy === null ? '' : ` (akurasi ±${Math.round(accuracy || 0)} m)`;
+                message.textContent = `Alamat dan koordinat berhasil terisi${suffix}.`;
+            }
+        } catch {
+            setLocationFieldValue(address, `Koordinat ${latitude.toFixed(7)}, ${longitude.toFixed(7)}`);
+            if (message) message.textContent = 'Alamat belum dapat dibaca, tetapi koordinat berhasil terisi.';
+        }
+    };
+
+    document.querySelectorAll('[data-use-current-location]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const latitude = document.querySelector(button.dataset.latTarget);
+            const longitude = document.querySelector(button.dataset.lngTarget);
+            const address = document.querySelector(button.dataset.addressTarget);
+            const message = button.closest('form')?.querySelector('[data-location-message]');
+            const picker = button.closest('form')?.querySelector('[data-location-picker]');
+
+            if (!navigator.geolocation || !latitude || !longitude) {
+                if (message) message.textContent = 'Geolocation tidak tersedia di browser ini.';
+                return;
+            }
+
+            const original = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengambil lokasi';
+            if (message) message.textContent = 'Mengambil koordinat perangkat...';
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const nextLatitude = position.coords.latitude;
+                const nextLongitude = position.coords.longitude;
+                setLocationFieldValue(latitude, nextLatitude.toFixed(7));
+                setLocationFieldValue(longitude, nextLongitude.toFixed(7));
+                picker?.setMapLocation?.(nextLatitude, nextLongitude, 17);
+                await updateLocationAddress({
+                    latitude: nextLatitude,
+                    longitude: nextLongitude,
+                    address,
+                    message,
+                    accuracy: position.coords.accuracy,
+                });
+                button.disabled = false;
+                button.innerHTML = '<i class="fa-solid fa-check"></i> Lokasi Terisi';
+                window.setTimeout(() => { button.innerHTML = original; }, 1800);
+            }, (error) => {
+                button.disabled = false;
+                button.innerHTML = original;
+                if (message) message.textContent = error.code === 1
+                    ? 'Izin lokasi ditolak. Aktifkan permission lokasi lalu coba lagi.'
+                    : 'Lokasi gagal dibaca. Pastikan GPS perangkat aktif.';
+            }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+        });
+    });
+
+    document.querySelectorAll('[data-location-picker]').forEach((picker) => {
+        const overlay = picker.closest('[data-modal-overlay]');
+        let initialized = false;
+
+        const initialize = () => {
+            if (initialized || !window.L) return;
+
+            const form = picker.closest('form');
+            const mapElement = document.getElementById(picker.dataset.mapId);
+            const latitude = document.querySelector(picker.dataset.latTarget);
+            const longitude = document.querySelector(picker.dataset.lngTarget);
+            const address = document.querySelector(picker.dataset.addressTarget);
+            const message = form?.querySelector('[data-location-message]');
+            const queryInput = picker.querySelector('[data-location-map-query]');
+            const searchButton = picker.querySelector('[data-location-map-search]');
+            const googleMapsLink = picker.querySelector('[data-google-maps-link]');
+
+            if (!mapElement || !latitude || !longitude) return;
+            if (picker.getClientRects().length === 0 || mapElement.clientWidth === 0) return;
+
+            const initialLatitude = Number.parseFloat(latitude.value || mapElement.dataset.initialLat || '');
+            const initialLongitude = Number.parseFloat(longitude.value || mapElement.dataset.initialLng || '');
+            const hasInitialCoordinates = Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude);
+            const startLatitude = hasInitialCoordinates ? initialLatitude : -6.2088;
+            const startLongitude = hasInitialCoordinates ? initialLongitude : 106.8456;
+            const map = window.L.map(mapElement, { scrollWheelZoom: false }).setView([startLatitude, startLongitude], hasInitialCoordinates ? 16 : 11);
+            const marker = window.L.marker([startLatitude, startLongitude], { draggable: true }).addTo(map);
+
+            window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap',
+            }).addTo(map);
+
+            const setMapLocation = (nextLatitude, nextLongitude, zoom = 16) => {
+                marker.setLatLng([nextLatitude, nextLongitude]);
+                map.setView([nextLatitude, nextLongitude], zoom);
+                if (googleMapsLink) googleMapsLink.href = `https://www.google.com/maps?q=${nextLatitude},${nextLongitude}`;
+            };
+
+            const chooseLocation = async (nextLatitude, nextLongitude, zoom = 16) => {
+                setMapLocation(nextLatitude, nextLongitude, zoom);
+                setLocationFieldValue(latitude, nextLatitude.toFixed(7));
+                setLocationFieldValue(longitude, nextLongitude.toFixed(7));
+                await updateLocationAddress({ latitude: nextLatitude, longitude: nextLongitude, address, message });
+            };
+
+            picker.setMapLocation = setMapLocation;
+            picker.locationMap = map;
+            setMapLocation(startLatitude, startLongitude, hasInitialCoordinates ? 16 : 11);
+            const syncMapFromCoordinateFields = () => {
+                const nextLatitude = Number.parseFloat(latitude.value);
+                const nextLongitude = Number.parseFloat(longitude.value);
+
+                if (Number.isFinite(nextLatitude) && Number.isFinite(nextLongitude)) {
+                    setMapLocation(nextLatitude, nextLongitude, 16);
+                }
+            };
+
+            latitude.addEventListener('change', syncMapFromCoordinateFields);
+            longitude.addEventListener('change', syncMapFromCoordinateFields);
+            map.on('click', (event) => chooseLocation(event.latlng.lat, event.latlng.lng));
+            marker.on('dragend', () => {
+                const position = marker.getLatLng();
+                chooseLocation(position.lat, position.lng);
+            });
+            searchButton?.addEventListener('click', async () => {
+                const query = (queryInput?.value || '').trim();
+                if (!query) {
+                    if (message) message.textContent = 'Masukkan alamat atau nama lokasi terlebih dahulu.';
+                    return;
+                }
+
+                searchButton.disabled = true;
+                if (message) message.textContent = 'Mencari lokasi di maps...';
+
+                try {
+                    const url = new URL('https://nominatim.openstreetmap.org/search');
+                    url.searchParams.set('format', 'jsonv2');
+                    url.searchParams.set('limit', '1');
+                    url.searchParams.set('accept-language', 'id');
+                    url.searchParams.set('q', query);
+                    const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+                    const [result] = response.ok ? await response.json() : [];
+
+                    if (!result) {
+                        if (message) message.textContent = 'Lokasi tidak ditemukan. Coba kata kunci yang lebih lengkap.';
+                        return;
+                    }
+
+                    await chooseLocation(Number.parseFloat(result.lat), Number.parseFloat(result.lon), 17);
+                } catch {
+                    if (message) message.textContent = 'Pencarian belum tersedia. Klik titik pada peta secara manual.';
+                } finally {
+                    searchButton.disabled = false;
+                }
+            });
+            queryInput?.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    searchButton?.click();
+                }
+            });
+
+            initialized = true;
+            window.setTimeout(() => map.invalidateSize(), 80);
+        };
+
+        const refresh = () => {
+            initialize();
+            window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => picker.locationMap?.invalidateSize({ pan: false }));
+            });
+        };
+
+        if (overlay) {
+            overlay.addEventListener('modal:opened', () => {
+                refresh();
+            });
+            if (overlay.classList.contains('active')) refresh();
+        }
+
+        document.addEventListener('attendance:tab-activated', (event) => {
+            if (event.detail?.tab === 'settings') refresh();
+        });
+
+        if ('ResizeObserver' in window) {
+            const resizeObserver = new ResizeObserver(() => {
+                if (picker.getClientRects().length > 0) refresh();
+            });
+            resizeObserver.observe(picker);
+        }
+
+        refresh();
+    });
+
+    document.querySelectorAll('[data-attendance-admin-tabs]').forEach((tabs) => {
+        const buttons = Array.from(tabs.querySelectorAll('[data-attendance-admin-tab]'));
+        const panels = Array.from(document.querySelectorAll('[data-attendance-admin-panel]'));
+
+        const activate = (tab) => {
+            buttons.forEach((button) => {
+                const active = button.dataset.attendanceAdminTab === tab;
+                button.classList.toggle('is-active', active);
+                button.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            panels.forEach((panel) => { panel.hidden = panel.dataset.attendanceAdminPanel !== tab; });
+            document.dispatchEvent(new CustomEvent('attendance:tab-activated', { detail: { tab } }));
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tab);
+            window.history.replaceState({}, '', url);
+        };
+
+        buttons.forEach((button) => button.addEventListener('click', () => activate(button.dataset.attendanceAdminTab)));
+        activate(tabs.dataset.defaultTab || 'today');
+    });
 
     initializeAuthPage();
     initializeAttendancePage();

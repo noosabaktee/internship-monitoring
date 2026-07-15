@@ -20,25 +20,25 @@ class DashboardController extends Controller
         $totalInterns = MIntern::where('bitActive', true)->count();
         $interns = MIntern::with(['evaluations', 'projects.project', 'achievements'])
             ->where('bitActive', true)
-            ->where(function ($query) {
-                $query->where('txtInternType', RoleAccess::INTERN_DIGITALISASI)
-                    ->orWhereNull('txtInternType');
-            })
+            ->where(fn ($query) => RoleAccess::constrainDigitalisasiInterns($query))
             ->orderBy('txtInternName')
             ->get();
         $latestEvaluations = TrEvaluation::with('intern')
             ->where('bitActive', true)
             ->whereHas('intern', function ($query) {
-                $query->where('txtInternType', RoleAccess::INTERN_DIGITALISASI)
-                    ->orWhereNull('txtInternType');
+                RoleAccess::constrainDigitalisasiInterns($query);
             })
-            ->orderByDesc('dtmPeriod')
+            ->orderByDesc('dtmEvaluationCompleted')
             ->get()
             ->unique('intIntern_ID');
         $leaderboardRows = ProjectScoreboard::rows();
         $topPerformers = $leaderboardRows->take(3)->values();
         $assignments = TrInternProject::with(['intern', 'project.skillSet', 'mentor'])
             ->where('bitActive', true)
+            ->whereHas('intern', function ($query) {
+                $query->where('bitActive', true);
+                RoleAccess::constrainDigitalisasiInterns($query);
+            })
             ->get();
         $activeAssignments = $assignments->filter(fn ($assignment) => $assignment->project?->bitActive);
         $projectTypes = $activeAssignments
@@ -55,8 +55,25 @@ class DashboardController extends Controller
             ->orderBy('intCalendarSharing_ID')
             ->take(5)
             ->get();
-        $sCurveProjects = MProject::with(['stages', 'assignments.intern'])
+        $sCurveProjects = MProject::with([
+            'stages',
+            'assignments' => function ($query) {
+                $query->where('bitActive', true)
+                    ->whereHas('intern', function ($query) {
+                        $query->where('bitActive', true);
+                        RoleAccess::constrainDigitalisasiInterns($query);
+                    })
+                    ->with('intern');
+            },
+        ])
             ->where('bitActive', true)
+            ->whereHas('assignments', function ($query) {
+                $query->where('bitActive', true)
+                    ->whereHas('intern', function ($query) {
+                        $query->where('bitActive', true);
+                        RoleAccess::constrainDigitalisasiInterns($query);
+                    });
+            })
             ->orderBy('txtProjectName')
             ->get();
 

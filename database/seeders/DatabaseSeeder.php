@@ -2,10 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\MIntern;
 use App\Models\MAdminProfile;
+use App\Models\MAttendanceLocation;
 use App\Models\MAttendanceSetting;
 use App\Models\MFaceEnrollment;
+use App\Models\MIntern;
 use App\Models\MMentor;
 use App\Models\MProject;
 use App\Models\MProjectHandle;
@@ -17,8 +18,10 @@ use App\Models\TrAttendance;
 use App\Models\TrCalendarSharing;
 use App\Models\TrEvaluation;
 use App\Models\TrInternProject;
+use App\Models\TrNotification;
 use App\Models\TrProjectMentor;
 use App\Models\TrProjectStage;
+use App\Models\TrWorkFromHomeRequest;
 use App\Support\RoleAccess;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -105,7 +108,7 @@ class DatabaseSeeder extends Seeder
                 MIntern::create([
                     'intIntern_ID' => $internId,
                     'intUser_ID' => $userId,
-                    'txtInternNo' => 'INT-' . str_pad((string) $internId, 3, '0', STR_PAD_LEFT),
+                    'txtInternNo' => 'INT-'.str_pad((string) $internId, 3, '0', STR_PAD_LEFT),
                     'txtInternName' => $row['name'],
                     'txtInternGender' => $row['gender'],
                     'txtUniversity' => $row['university'],
@@ -125,7 +128,7 @@ class DatabaseSeeder extends Seeder
                         continue;
                     }
 
-                    $projectKey = $projectType . '|' . $projectName;
+                    $projectKey = $projectType.'|'.$projectName;
 
                     if (! isset($projectIds[$projectKey])) {
                         $projectIds[$projectKey] = $nextProjectId;
@@ -137,7 +140,7 @@ class DatabaseSeeder extends Seeder
                             'intSkillSet_ID' => $this->skillSetIdForProject($projectName, $projectType, $skillSetIds),
                             'dtmProjectStartDate' => $this->dateFromSheet($row['join_date']),
                             'dtmProjectEndDate' => $this->dateFromSheet($row['end_date']),
-                            'txtDescription' => $projectType . ' project for ' . $row['department'],
+                            'txtDescription' => $projectType.' project for '.$row['department'],
                             'bitActive' => true,
                             'txtInsertedBy' => 'seeder',
                             'dtmInserted' => $this->dateFromSheet($row['join_date']),
@@ -166,7 +169,7 @@ class DatabaseSeeder extends Seeder
                         'dtmInserted' => $this->dateFromSheet($row['join_date']),
                     ]);
 
-                    $projectMentorKey = $projectIds[$projectKey] . '|' . $mentorIds[$row['mentor']];
+                    $projectMentorKey = $projectIds[$projectKey].'|'.$mentorIds[$row['mentor']];
 
                     if (! isset($projectMentorPairs[$projectMentorKey])) {
                         TrProjectMentor::create([
@@ -185,31 +188,39 @@ class DatabaseSeeder extends Seeder
                     $nextAssignmentId++;
                 }
 
-                $hardSkill = random_int(72, 96);
-                $collaboration = random_int(70, 95);
-                $ownership = random_int(73, 97);
-                $sharing = random_int(68, 94);
                 $projectName = collect($row['projects'])->filter()->first() ?? 'Internship Program';
+                $endDate = $this->dateFromSheet($row['end_date']);
 
-                TrEvaluation::create([
-                    'intEvaluation_ID' => $internId,
-                    'intIntern_ID' => $internId,
-                    'dtmPeriod' => $this->dateFromSheet($row['join_date'])->copy()->addMonth()->startOfMonth(),
-                    'floatHardSkill' => $hardSkill,
-                    'floatCollaboration' => $collaboration,
-                    'floatOwnership' => $ownership,
-                    'floatSharing' => $sharing,
-                    'floatExposureScore' => round(($hardSkill + $collaboration + $ownership + $sharing) / 4, 2),
-                    'bitActive' => true,
-                    'txtInsertedBy' => 'seeder',
-                    'dtmInserted' => $this->dateFromSheet($row['join_date']),
-                ]);
+                if ($endDate->lte(now()->addDays(14))) {
+                    $hardSkill = random_int(72, 96);
+                    $collaboration = random_int(70, 95);
+                    $ownership = random_int(73, 97);
+                    $sharing = random_int(68, 94);
+
+                    TrEvaluation::create([
+                        'intEvaluation_ID' => $internId,
+                        'intIntern_ID' => $internId,
+                        'intEvaluatorUser_ID' => MMentor::find($mentorIds[$row['mentor']])?->intUser_ID,
+                        'dtmEvaluationCompleted' => $endDate->toDateString(),
+                        'floatHardSkill' => $hardSkill,
+                        'floatCollaboration' => $collaboration,
+                        'floatOwnership' => $ownership,
+                        'floatSharing' => $sharing,
+                        'floatExposureScore' => round(($hardSkill + $collaboration + $ownership + $sharing) / 4, 2),
+                        'txtEvaluationStrength' => 'Menunjukkan kontribusi yang konsisten, kemauan belajar, dan kolaborasi yang baik selama program internship.',
+                        'txtEvaluationDevelopment' => 'Terus mengembangkan kedalaman teknis dan kepercayaan diri dalam menyampaikan keputusan kerja.',
+                        'txtEvaluationRecommendation' => 'Dinyatakan lulus dan direkomendasikan untuk terus mengembangkan kompetensi pada bidang terkait.',
+                        'bitActive' => true,
+                        'txtInsertedBy' => 'seeder',
+                        'dtmInserted' => $endDate,
+                    ]);
+                }
 
                 TrAchievement::create([
                     'intAchievement_ID' => $internId,
                     'intIntern_ID' => $internId,
                     'txtAchievementTitle' => 'Project Milestone',
-                    'txtDescription' => $row['name'] . ' contributed to ' . $projectName . '.',
+                    'txtDescription' => $row['name'].' contributed to '.$projectName.'.',
                     'txtIcon' => ['fa-solid fa-trophy', 'fa-solid fa-award', 'fa-solid fa-medal', 'fa-solid fa-star'][$index % 4],
                     'dtmAwarded' => $this->dateFromSheet($row['join_date'])->copy()->addMonths(2),
                     'bitActive' => true,
@@ -224,7 +235,10 @@ class DatabaseSeeder extends Seeder
     private function clearCustomTables(): void
     {
         TrAttendance::query()->delete();
+        TrNotification::query()->delete();
+        TrWorkFromHomeRequest::query()->delete();
         MFaceEnrollment::query()->delete();
+        MAttendanceLocation::query()->delete();
         TrCalendarSharing::query()->delete();
         TrAchievement::query()->delete();
         TrEvaluation::query()->delete();
@@ -723,11 +737,11 @@ class DatabaseSeeder extends Seeder
         $localPart = (string) preg_replace('/[^a-z0-9]+/', '.', strtolower($name));
         $localPart = trim($localPart, '.');
 
-        return $localPart . '@kalbe.co.id';
+        return $localPart.'@kalbe.co.id';
     }
 
     /**
-     * @param array<string, int> $skillSetIds
+     * @param  array<string, int>  $skillSetIds
      */
     private function skillSetIdForProject(string $projectName, string $projectType, array $skillSetIds): int
     {

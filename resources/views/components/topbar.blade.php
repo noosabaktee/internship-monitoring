@@ -25,7 +25,28 @@
             <i class="fa-solid fa-moon"></i>
         </div>
         <div class="user-profile d-flex align-items-center gap-2">
-            <i class="fa-regular fa-bell" style="font-size: 20px; color: var(--text-gray); margin-right: 5px; cursor: pointer;"></i>
+            <details class="notification-popover">
+                <summary class="notification-bell" aria-label="Notifikasi">
+                    <i class="fa-regular fa-bell"></i>
+                    @if (($topbarUnreadCount ?? 0) > 0)<span>{{ min(99, $topbarUnreadCount) }}</span>@endif
+                </summary>
+                <div class="notification-popover-card">
+                    <div class="notification-popover-head"><div><strong>Notifikasi</strong><small>{{ $topbarUnreadCount ?? 0 }} belum dibaca</small></div><a href="{{ route('notifications.index') }}">Lihat semua</a></div>
+                    <div class="notification-popover-list">
+                        @forelse (($topbarNotifications ?? collect()) as $topbarNotification)
+                            <form action="{{ route('notifications.read', $topbarNotification->intNotification_ID) }}" method="POST">
+                                @csrf @method('PATCH')
+                                <button class="{{ $topbarNotification->dtmNotificationRead ? '' : 'is-unread' }}" type="submit">
+                                    <span><i class="fa-solid {{ $topbarNotification->txtNotificationType === 'project' ? 'fa-calendar-check' : ($topbarNotification->txtNotificationType === 'wfh' ? 'fa-house-laptop' : ($topbarNotification->txtNotificationType === 'certificate' ? 'fa-certificate' : 'fa-bell')) }}"></i></span>
+                                    <span><strong>{{ $topbarNotification->txtNotificationTitle }}</strong><small>{{ \Illuminate\Support\Str::limit($topbarNotification->txtNotificationMessage, 78) }}</small><em>{{ $topbarNotification->dtmInserted?->diffForHumans() }}</em></span>
+                                </button>
+                            </form>
+                        @empty
+                            <div class="notification-popover-empty"><i class="fa-regular fa-bell-slash"></i><span>Belum ada notifikasi</span></div>
+                        @endforelse
+                    </div>
+                </div>
+            </details>
             <button class="profile-trigger" id="profileTrigger" type="button" aria-haspopup="true" aria-expanded="false">
                 <img src="{{ $avatarUrl }}" alt="{{ $displayName }}">
                 <div class="user-info">

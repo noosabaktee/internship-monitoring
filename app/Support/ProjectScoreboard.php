@@ -14,10 +14,7 @@ class ProjectScoreboard
 
         return MIntern::with(['user', 'projects.project', 'projects.mentor.user'])
             ->where('bitActive', true)
-            ->where(function ($query) {
-                $query->where('txtInternType', RoleAccess::INTERN_DIGITALISASI)
-                    ->orWhereNull('txtInternType');
-            })
+            ->where(fn ($query) => RoleAccess::constrainDigitalisasiInterns($query))
             ->orderBy('txtInternName')
             ->get()
             ->map(function (MIntern $intern) use ($weights) {

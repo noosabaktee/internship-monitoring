@@ -10,8 +10,11 @@ class MUser extends Model
     use GeneratesIntegerIds;
 
     protected $table = 'mUser';
+
     protected $primaryKey = 'intUser_ID';
+
     public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -61,5 +64,10 @@ class MUser extends Model
     public function attendances()
     {
         return $this->hasMany(TrAttendance::class, 'intUser_ID', 'intUser_ID');
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(TrNotification::class, 'intUser_ID', 'intUser_ID');
     }
 }

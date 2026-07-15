@@ -9,6 +9,24 @@
     }
 
     $hasSelectedIntern = (bool) $attendancePayrollSummary;
+    $locationFormHasErrors = collect([
+        'txtAttendanceLocationCode',
+        'txtAttendanceLocationName',
+        'txtAttendanceLocationAddress',
+        'floatAttendanceLocationLatitude',
+        'floatAttendanceLocationLongitude',
+        'intAttendanceLocationRadiusMeter',
+        'intAttendanceLocationToleranceMeter',
+        'intAttendanceLocationMaximumAccuracyMeter',
+    ])->contains(fn ($field) => $errors->has($field));
+    $attendanceTab = $locationFormHasErrors
+        ? 'settings'
+        : (in_array(request('tab'), ['today', 'detail', 'settings'], true) ? request('tab') : 'today');
+    $locationLatitude = old('floatAttendanceLocationLatitude', $attendanceLocation?->floatAttendanceLocationLatitude);
+    $locationLongitude = old('floatAttendanceLocationLongitude', $attendanceLocation?->floatAttendanceLocationLongitude);
+    $locationMapsUrl = is_numeric($locationLatitude) && is_numeric($locationLongitude)
+        ? 'https://www.google.com/maps?q='.$locationLatitude.','.$locationLongitude
+        : 'https://www.google.com/maps';
 @endphp
 
 <div class="attendance-shell">
@@ -16,6 +34,7 @@
         <div class="attendance-hero-main">
             <span class="attendance-eyebrow"><i class="fa-solid fa-user-shield"></i> Headmaster / HRD</span>
             <h2>Absensi Intern</h2>
+            <p>Pantau status harian, atur jam dan lokasi absensi, lalu export laporan atau payroll dari satu tempat.</p>
             <div class="attendance-hero-meta">
                 <span><i class="fa-solid fa-right-to-bracket"></i> In {{ $clockInStart->format('H:i') }} - {{ $clockInEnd->format('H:i') }} WIB</span>
                 <span><i class="fa-solid fa-right-from-bracket"></i> Out {{ $clockOutStart->format('H:i') }} - {{ $clockOutEnd->format('H:i') }} WIB</span>
@@ -29,7 +48,19 @@
         </div>
     </section>
 
-    <div class="attendance-mentor-grid">
+    <nav class="attendance-admin-tabs" aria-label="Navigasi absensi" data-attendance-admin-tabs data-default-tab="{{ $attendanceTab }}">
+        <button class="attendance-admin-tab {{ $attendanceTab === 'today' ? 'is-active' : '' }}" type="button" data-attendance-admin-tab="today">
+            <i class="fa-solid fa-calendar-day"></i><span>Hari Ini</span><small>{{ $teamTodayRows->count() }} intern</small>
+        </button>
+        <button class="attendance-admin-tab {{ $attendanceTab === 'detail' ? 'is-active' : '' }}" type="button" data-attendance-admin-tab="detail">
+            <i class="fa-solid fa-chart-column"></i><span>Detail & Payroll</span><small>Filter dan export</small>
+        </button>
+        <button class="attendance-admin-tab {{ $attendanceTab === 'settings' ? 'is-active' : '' }}" type="button" data-attendance-admin-tab="settings">
+            <i class="fa-solid fa-sliders"></i><span>Pengaturan</span><small>Jam dan lokasi</small>
+        </button>
+    </nav>
+
+    <div class="attendance-admin-tab-panel" data-attendance-admin-panel="settings" @hidden($attendanceTab !== 'settings')>
         <section class="attendance-panel">
             <div class="attendance-panel-head">
                 <div>
@@ -68,7 +99,9 @@
                 </button>
             </form>
         </section>
+    </div>
 
+    <div class="attendance-admin-tab-panel" data-attendance-admin-panel="today" @hidden($attendanceTab !== 'today')>
         <section class="attendance-panel">
             <div class="attendance-panel-head">
                 <div>
@@ -84,6 +117,7 @@
                             <th>Intern</th>
                             <th>Face ID</th>
                             <th>Status</th>
+                            <th>Mode</th>
                             <th>Clock In</th>
                             <th>Clock Out</th>
                             <th>Lokasi</th>
@@ -104,6 +138,7 @@
                                 <td>{{ $row['name'] }}</td>
                                 <td>{{ $row['faceRegistered'] ? 'Aktif' : 'Belum' }}</td>
                                 <td><span class="attendance-status {{ $teamStatusClass }}">{{ $row['status'] }}</span></td>
+                                <td><span class="work-mode-chip {{ ($row['workMode'] ?? 'Office') === 'WFH' ? 'wfh' : 'office' }}">{{ ($row['workMode'] ?? 'Office') === 'WFH' ? 'WFH' : 'WFO' }}</span></td>
                                 <td>
                                     @if ($row['clockInWarning'] ?? false)
                                         <span class="attendance-status attendance-status-warning">Belum Clock In</span>
@@ -142,7 +177,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="center">Belum ada intern aktif.</td></tr>
+                            <tr><td colspan="7" class="center">Belum ada intern aktif.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -150,7 +185,91 @@
         </section>
     </div>
 
-    <section class="attendance-panel attendance-detail-panel">
+    <section class="attendance-panel attendance-location-panel attendance-admin-tab-panel" data-attendance-admin-panel="settings" @hidden($attendanceTab !== 'settings')>
+        <div class="attendance-panel-head">
+            <div><h3>Pengaturan Lokasi Absensi</h3><p>Tentukan satu lokasi kantor untuk absensi normal beserta radius dan toleransi GPS-nya.</p></div>
+            <div class="attendance-location-head-actions">
+                <span class="attendance-map-chip"><i class="fa-solid {{ $attendanceLocation?->bitActive ? 'fa-circle-check' : 'fa-circle-pause' }}"></i> {{ $attendanceLocation?->bitActive ? 'Lokasi aktif' : 'Lokasi belum aktif' }}</span>
+            </div>
+        </div>
+
+        <form id="attendanceLocationSettingForm" class="attendance-location-setting-form" action="{{ $attendanceLocation ? route('attendance-locations.update', $attendanceLocation->intAttendanceLocation_ID) : route('attendance-locations.store') }}" method="POST" data-location-form>
+            @csrf
+            @if ($attendanceLocation)
+                @method('PUT')
+            @endif
+
+            <div class="attendance-location-setting-layout">
+                <div class="location-setting-fields form-grid form-grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="attendanceLocationCode">Kode Lokasi <span class="required">*</span></label>
+                        <input id="attendanceLocationCode" class="form-control" name="txtAttendanceLocationCode" value="{{ old('txtAttendanceLocationCode', $attendanceLocation?->txtAttendanceLocationCode) }}" placeholder="KDC-JKT" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="attendanceLocationName">Nama Lokasi <span class="required">*</span></label>
+                        <input id="attendanceLocationName" class="form-control" name="txtAttendanceLocationName" value="{{ old('txtAttendanceLocationName', $attendanceLocation?->txtAttendanceLocationName) }}" placeholder="Kantor Jakarta" required>
+                    </div>
+                    <div class="form-group form-span-full">
+                        <label class="form-label" for="attendanceLocationAddress">Alamat <span class="required">*</span></label>
+                        <textarea id="attendanceLocationAddress" class="form-control" name="txtAttendanceLocationAddress" rows="3" placeholder="Alamat akan terisi setelah titik lokasi dipilih" required>{{ old('txtAttendanceLocationAddress', $attendanceLocation?->txtAttendanceLocationAddress) }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="attendanceLocationLat">Latitude <span class="required">*</span></label>
+                        <input id="attendanceLocationLat" class="form-control" type="number" step="0.0000001" name="floatAttendanceLocationLatitude" value="{{ $locationLatitude }}" placeholder="-6.2000000" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="attendanceLocationLng">Longitude <span class="required">*</span></label>
+                        <input id="attendanceLocationLng" class="form-control" type="number" step="0.0000001" name="floatAttendanceLocationLongitude" value="{{ $locationLongitude }}" placeholder="106.8166660" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="attendanceLocationRadius">Radius (meter) <span class="required">*</span></label>
+                        <input id="attendanceLocationRadius" class="form-control" type="number" min="10" max="10000" name="intAttendanceLocationRadiusMeter" value="{{ old('intAttendanceLocationRadiusMeter', $attendanceLocation?->intAttendanceLocationRadiusMeter ?? 100) }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="attendanceLocationTolerance">Toleransi GPS (meter) <span class="required">*</span></label>
+                        <input id="attendanceLocationTolerance" class="form-control" type="number" min="0" max="10000" name="intAttendanceLocationToleranceMeter" value="{{ old('intAttendanceLocationToleranceMeter', $attendanceLocation?->intAttendanceLocationToleranceMeter ?? 50) }}" required>
+                    </div>
+                    <div class="form-group form-span-full">
+                        <label class="form-label" for="attendanceLocationAccuracy">Akurasi GPS Maksimum (meter)</label>
+                        <input id="attendanceLocationAccuracy" class="form-control" type="number" min="1" max="10000" name="intAttendanceLocationMaximumAccuracyMeter" value="{{ old('intAttendanceLocationMaximumAccuracyMeter', $attendanceLocation?->intAttendanceLocationMaximumAccuracyMeter ?? 200) }}">
+                    </div>
+                    <label class="check-control form-group form-span-full">
+                        <input type="hidden" name="bitActive" value="0">
+                        <input type="checkbox" name="bitActive" value="1" @checked((bool) old('bitActive', $attendanceLocation?->bitActive ?? true))>
+                        <span>Aktifkan lokasi untuk absensi normal</span>
+                    </label>
+                </div>
+
+                <div class="location-setting-map-column">
+                    <div class="location-picker-actions">
+                        <button class="btn btn-outline-primary" type="button" data-use-current-location data-lat-target="#attendanceLocationLat" data-lng-target="#attendanceLocationLng" data-address-target="#attendanceLocationAddress">
+                            <i class="fa-solid fa-location-crosshairs"></i> Gunakan Lokasi Saat Ini
+                        </button>
+                        <span data-location-message>Cari alamat, klik peta, atau geser pin untuk menentukan titik kantor.</span>
+                    </div>
+
+                    <div class="location-picker-panel" data-location-picker data-lat-target="#attendanceLocationLat" data-lng-target="#attendanceLocationLng" data-address-target="#attendanceLocationAddress" data-map-id="attendanceLocationMap">
+                        <div class="location-picker-head">
+                            <div><strong>Pilih Titik Lokasi</strong><small>Pin pada peta menjadi pusat radius absensi.</small></div>
+                            <a class="btn btn-outline-primary btn-sm" href="{{ $locationMapsUrl }}" target="_blank" rel="noopener" data-google-maps-link><i class="fa-brands fa-google"></i> Buka Google Maps</a>
+                        </div>
+                        <div class="location-picker-search">
+                            <div class="input-icon"><i class="fa-solid fa-magnifying-glass"></i><input class="form-control" type="search" data-location-map-query placeholder="Cari alamat atau nama kantor"></div>
+                            <button class="btn btn-outline-primary" type="button" data-location-map-search><i class="fa-solid fa-map-location-dot"></i> Cari</button>
+                        </div>
+                        <div id="attendanceLocationMap" class="location-map-canvas" data-initial-lat="{{ $locationLatitude }}" data-initial-lng="{{ $locationLongitude }}"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="location-setting-footer">
+                <span><i class="fa-solid fa-circle-info"></i> Perubahan ini berlaku untuk seluruh absensi normal.</span>
+                <button class="btn btn-primary btn-save" type="submit"><i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan Lokasi</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="attendance-panel attendance-detail-panel attendance-admin-tab-panel" data-attendance-admin-panel="detail" @hidden($attendanceTab !== 'detail')>
         <div class="attendance-panel-head">
             <div>
                 <h3>Detail Absensi</h3>
@@ -175,6 +294,7 @@
         </div>
 
         <form class="attendance-detail-filter" action="{{ route('attendance.index') }}" method="GET">
+            <input type="hidden" name="tab" value="detail">
             <div>
                 <label class="form-label">From</label>
                 <input class="form-control" type="date" name="from" value="{{ $attendanceDetailFilters['from'] ?? now('Asia/Jakarta')->startOfMonth()->toDateString() }}">
@@ -201,7 +321,7 @@
         </form>
 
         <div class="attendance-detail-stats">
-            <span><strong>{{ $attendanceDetailSummary['total'] ?? 0 }}</strong> Hari Kerja</span>
+            <span><strong>{{ $attendanceDetailSummary['total'] ?? 0 }}</strong> Absensi</span>
             <span><strong>{{ $attendanceDetailSummary['present'] ?? 0 }}</strong> Hadir</span>
             <span><strong>{{ $attendanceDetailSummary['late'] ?? 0 }}</strong> Terlambat</span>
             <span><strong>{{ $attendanceDetailSummary['absent'] ?? 0 }}</strong> Tidak Masuk</span>
@@ -229,6 +349,7 @@
                         <th>Type</th>
                         <th>Salary / Day</th>
                         <th>Status</th>
+                        <th>Mode</th>
                         <th>Clock In</th>
                         <th>Clock Out</th>
                         <th>Lokasi</th>
@@ -252,6 +373,7 @@
                             <td>{{ $row['internTypeLabel'] ?? 'Digitalisasi' }}</td>
                             <td>Rp {{ number_format((float) ($row['dailySalary'] ?? 0), 0, ',', '.') }}</td>
                             <td><span class="attendance-status {{ $detailStatusClass }}">{{ $row['status'] }}</span></td>
+                            <td><span class="work-mode-chip {{ ($row['workMode'] ?? '') === 'WFH' ? 'wfh' : 'office' }}">{{ ($row['workMode'] ?? '') === 'WFH' ? 'WFH' : (($row['workMode'] ?? '') === 'Office' ? 'WFO' : '-') }}</span></td>
                             <td>
                                 @if ($row['clockInWarning'] ?? false)
                                     <span class="attendance-status attendance-status-warning">Belum Clock In</span>
@@ -296,7 +418,7 @@
                             </td> -->
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="center">Tidak ada data pada filter ini.</td></tr>
+                        <tr><td colspan="9" class="center">Tidak ada data pada filter ini.</td></tr>
                     @endforelse
                 </tbody>
             </table>

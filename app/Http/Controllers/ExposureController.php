@@ -5,17 +5,38 @@ namespace App\Http\Controllers;
 use App\Models\MIntern;
 use App\Models\MProject;
 use App\Support\ExposureCurveBuilder;
+use App\Support\RoleAccess;
 use Illuminate\Contracts\View\View;
 
 class ExposureController extends Controller
 {
     public function index(): View
     {
-        $projects = MProject::with(['stages', 'assignments.intern'])
+        $projects = MProject::with([
+            'stages',
+            'assignments' => function ($query) {
+                $query->where('bitActive', true)
+                    ->whereHas('intern', function ($query) {
+                        $query->where('bitActive', true);
+                        RoleAccess::constrainDigitalisasiInterns($query);
+                    })
+                    ->with('intern');
+            },
+        ])
             ->where('bitActive', true)
+            ->whereHas('assignments', function ($query) {
+                $query->where('bitActive', true)
+                    ->whereHas('intern', function ($query) {
+                        $query->where('bitActive', true);
+                        RoleAccess::constrainDigitalisasiInterns($query);
+                    });
+            })
             ->orderBy('txtProjectName')
             ->get();
-        $interns = MIntern::where('bitActive', true)->orderBy('txtInternName')->get();
+        $interns = MIntern::where('bitActive', true)
+            ->where(fn ($query) => RoleAccess::constrainDigitalisasiInterns($query))
+            ->orderBy('txtInternName')
+            ->get();
         $projectTypes = ExposureCurveBuilder::projectTypes();
         $exposurePayload = [
             ...ExposureCurveBuilder::payload($projects),

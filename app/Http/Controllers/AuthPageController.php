@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MIntern;
 use App\Models\MAdminProfile;
-use App\Models\MProject;
+use App\Models\MIntern;
 use App\Models\MMentor;
+use App\Models\MProject;
 use App\Models\MUser;
 use App\Models\TrCalendarSharing;
 use App\Models\TrEvaluation;
@@ -34,7 +34,7 @@ class AuthPageController extends Controller
         try {
             $latestEvaluations = TrEvaluation::with(['intern.user'])
                 ->where('bitActive', true)
-                ->orderByDesc('dtmPeriod')
+                ->orderByDesc('dtmEvaluationCompleted')
                 ->get()
                 ->unique('intIntern_ID')
                 ->values();
@@ -86,25 +86,25 @@ class AuthPageController extends Controller
                     [
                         'label' => 'Exposure Rate',
                         'value' => $averageScore ?: $fallback['averageScore'],
-                        'display' => ($averageScore ?: $fallback['averageScore']) . '%',
+                        'display' => ($averageScore ?: $fallback['averageScore']).'%',
                         'color' => '#21d66f',
                     ],
                     [
                         'label' => 'Project Completion',
                         'value' => $actualProgress ?: $fallback['actualProgress'],
-                        'display' => ($actualProgress ?: $fallback['actualProgress']) . '%',
+                        'display' => ($actualProgress ?: $fallback['actualProgress']).'%',
                         'color' => '#f6c343',
                     ],
                     [
                         'label' => 'Collaboration',
                         'value' => min(100, $collaborationCount * 20),
-                        'display' => $collaborationCount . ' Projects',
+                        'display' => $collaborationCount.' Projects',
                         'color' => '#54a5ff',
                     ],
                     [
                         'label' => 'Knowledge Sharing',
                         'value' => min(100, $sharingCount * 20),
-                        'display' => $sharingCount . ' Sessions',
+                        'display' => $sharingCount.' Sessions',
                         'color' => '#b076ff',
                     ],
                 ],
@@ -139,10 +139,10 @@ class AuthPageController extends Controller
                     'count' => $total,
                 ])->values()->all() ?: $fallback['skillSets'],
                 'updates' => [
-                    ($topIntern?->txtInternName ?: $fallback['topPerformer']['name']) . ' leads this month with ' . number_format($topScore ?: $fallback['topPerformer']['score'], 1) . ' exposure score',
-                    $collaborationCount . ' collaboration projects currently active',
+                    ($topIntern?->txtInternName ?: $fallback['topPerformer']['name']).' leads this month with '.number_format($topScore ?: $fallback['topPerformer']['score'], 1).' exposure score',
+                    $collaborationCount.' collaboration projects currently active',
                     $nextSession
-                        ? 'Next sharing session on ' . $nextSession->dtmCalendarSharingDate?->format('d F Y')
+                        ? 'Next sharing session on '.$nextSession->dtmCalendarSharingDate?->format('d F Y')
                         : 'New sharing sessions will appear here',
                 ],
             ];
@@ -251,7 +251,7 @@ class AuthPageController extends Controller
         if ($validated['txtRole'] === RoleAccess::ROLE_INTERN) {
             MIntern::create([
                 'intUser_ID' => $user->intUser_ID,
-                'txtInternNo' => 'INT-' . str_pad((string) ($user->intUser_ID), 3, '0', STR_PAD_LEFT),
+                'txtInternNo' => 'INT-'.str_pad((string) ($user->intUser_ID), 3, '0', STR_PAD_LEFT),
                 'txtInternName' => $validated['name'],
                 'txtInternGender' => $validated['txtGender'] ?? null,
                 'txtInternType' => RoleAccess::INTERN_DIGITALISASI,
