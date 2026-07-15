@@ -40,4 +40,6 @@ return [
         'timeout' => env('FACE_SERVICE_TIMEOUT', 45),
     ],
 
+    'api_token_ttl_days' => (int) env('API_TOKEN_TTL_DAYS', 30),
+
 ];

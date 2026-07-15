@@ -162,7 +162,52 @@ class AttendanceController extends Controller
         ]);
     }
 
-    public function checkIn(Request $request): RedirectResponse
+    public function apiIndex(Request $request): JsonResponse
+    {
+        $authUser = $this->currentUser($request);
+        $isAttendanceAdmin = RoleAccess::isAttendanceAdmin($authUser);
+        $query = TrAttendance::with(['attendanceLocation', 'workFromHomeRequest'])
+            ->when(! $isAttendanceAdmin, fn ($query) => $query->where('intUser_ID', $authUser->intUser_ID))
+            ->when($request->filled('from'), fn ($query) => $query->whereDate('dtmAttendanceDate', '>=', $request->query('from')))
+            ->when($request->filled('to'), fn ($query) => $query->whereDate('dtmAttendanceDate', '<=', $request->query('to')))
+            ->when($request->filled('intern_id') && $isAttendanceAdmin, fn ($query) => $query->where('intIntern_ID', $request->integer('intern_id')))
+            ->orderByDesc('dtmAttendanceDate')
+            ->orderByDesc('dtmAttendanceClockIn');
+        $paginator = $query->paginate(min(100, max(1, $request->integer('per_page', 20))));
+        $now = Carbon::now(self::TIMEZONE);
+        $setting = $this->attendanceSetting();
+        $today = $isAttendanceAdmin ? null : TrAttendance::where('intUser_ID', $authUser->intUser_ID)->whereDate('dtmAttendanceDate', $now->toDateString())->first();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data absensi berhasil diambil.',
+            'data' => [
+                'today' => $today ? $this->apiAttendanceRecord($today) : null,
+                'face_registered' => $isAttendanceAdmin ? null : (bool) $authUser->faceEnrollment()->where('bitActive', true)->exists(),
+                'work_mode' => $isAttendanceAdmin ? null : $this->workContext($authUser, $now)['mode'],
+                'settings' => [
+                    'clock_in_start' => $setting->txtAttendanceSettingClockInStartTime,
+                    'clock_in_end' => $setting->txtAttendanceSettingClockInEndTime,
+                    'clock_out_start' => $setting->txtAttendanceSettingClockOutStartTime,
+                    'clock_out_end' => $setting->txtAttendanceSettingClockOutEndTime,
+                    'face_threshold' => $isAttendanceAdmin ? $setting->floatAttendanceSettingFaceThreshold : null,
+                    'location_required' => (bool) $setting->bitAttendanceSettingLocationRequired,
+                    'timezone' => self::TIMEZONE,
+                ],
+                'records' => collect($paginator->items())->map(fn ($attendance) => $this->apiAttendanceRecord($attendance))->values(),
+            ],
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
+        ]);
+    }
+
+    public function checkIn(Request $request): JsonResponse|Response|RedirectResponse
     {
         $authUser = $this->currentUser($request);
         $this->ensureInternCanAttend($authUser);
@@ -173,15 +218,11 @@ class AttendanceController extends Controller
         $workContext = $this->workContext($authUser, $now);
 
         if (! $this->isWorkday($now)) {
-            return back()->withErrors([
-                'attendance' => 'Clock In hanya tersedia pada hari kerja Senin-Jumat.',
-            ]);
+            return $this->attendanceActionError($request, 'Clock In hanya tersedia pada hari kerja Senin-Jumat.');
         }
 
         if ($now->lt($windows['clockInStart'])) {
-            return back()->withErrors([
-                'attendance' => 'Clock In baru bisa dilakukan mulai '.$windows['clockInStart']->format('H:i').' WIB.',
-            ]);
+            return $this->attendanceActionError($request, 'Clock In baru bisa dilakukan mulai '.$windows['clockInStart']->format('H:i').' WIB.');
         }
 
         $alreadyCheckedIn = TrAttendance::where('intUser_ID', $authUser->intUser_ID)
@@ -190,7 +231,7 @@ class AttendanceController extends Controller
             ->exists();
 
         if ($alreadyCheckedIn) {
-            return back()->withErrors(['attendance' => 'Clock In hari ini sudah tercatat.']);
+            return $this->attendanceActionError($request, 'Clock In hari ini sudah tercatat.');
         }
 
         $verification = $this->verifiedFaceAndLocation($request, $authUser, $setting, $workContext);
@@ -282,7 +323,7 @@ class AttendanceController extends Controller
             $attendanceData['txtNotes'] = 'Face ID clock in';
         }
 
-        TrAttendance::create($attendanceData);
+        $attendance = TrAttendance::create($attendanceData);
 
         $message = match (true) {
             $shouldAutoClockOut => 'Clock In terlambat berhasil dicatat dan Clock Out otomatis tersimpan.',
@@ -290,10 +331,10 @@ class AttendanceController extends Controller
             default => 'Clock In berhasil dicatat.',
         };
 
-        return redirect()->route('attendance.index')->with('success', $message);
+        return $this->attendanceActionSuccess($request, $attendance->fresh(['attendanceLocation', 'workFromHomeRequest']), $message);
     }
 
-    public function checkOut(Request $request): RedirectResponse
+    public function checkOut(Request $request): JsonResponse|Response|RedirectResponse
     {
         $authUser = $this->currentUser($request);
         $this->ensureInternCanAttend($authUser);
@@ -303,9 +344,7 @@ class AttendanceController extends Controller
         $windows = $this->attendanceWindows($setting, $now);
 
         if (! $this->isWorkday($now)) {
-            return back()->withErrors([
-                'attendance' => 'Clock Out hanya tersedia pada hari kerja Senin-Jumat.',
-            ]);
+            return $this->attendanceActionError($request, 'Clock Out hanya tersedia pada hari kerja Senin-Jumat.');
         }
 
         $attendance = TrAttendance::where('intUser_ID', $authUser->intUser_ID)
@@ -313,31 +352,25 @@ class AttendanceController extends Controller
             ->first();
 
         if (! $attendance?->dtmAttendanceClockIn) {
-            return back()->withErrors(['attendance' => 'Clock In terlebih dahulu sebelum Clock Out.']);
+            return $this->attendanceActionError($request, 'Clock In terlebih dahulu sebelum Clock Out.');
         }
 
         if ($attendance->dtmAttendanceClockOut) {
-            return back()->withErrors(['attendance' => 'Clock Out hari ini sudah tercatat.']);
+            return $this->attendanceActionError($request, 'Clock Out hari ini sudah tercatat.');
         }
 
         if ($now->lt($windows['clockOutStart'])) {
-            return back()->withErrors([
-                'attendance' => 'Clock Out baru bisa dilakukan mulai '.$windows['clockOutStart']->format('H:i').' WIB.',
-            ]);
+            return $this->attendanceActionError($request, 'Clock Out baru bisa dilakukan mulai '.$windows['clockOutStart']->format('H:i').' WIB.');
         }
 
         $clockInAt = $this->attendanceClockInAt($attendance);
 
         if ($clockInAt?->gt($windows['clockOutEnd'])) {
-            return back()->withErrors([
-                'attendance' => 'Clock In tercatat setelah batas Clock Out, jadi Clock Out hari ini tidak tersedia.',
-            ]);
+            return $this->attendanceActionError($request, 'Clock In tercatat setelah batas Clock Out, jadi Clock Out hari ini tidak tersedia.');
         }
 
         if ($now->gt($windows['clockOutLateEnd'])) {
-            return back()->withErrors([
-                'attendance' => 'Batas Clock Out terlambat hari ini sudah lewat pada 23:59 WIB.',
-            ]);
+            return $this->attendanceActionError($request, 'Batas Clock Out terlambat hari ini sudah lewat pada 23:59 WIB.');
         }
 
         $workContext = [
@@ -373,7 +406,7 @@ class AttendanceController extends Controller
             ? 'Clock Out berhasil dicatat dengan status Terlambat.'
             : 'Clock Out berhasil dicatat.';
 
-        return redirect()->route('attendance.index')->with('success', $message);
+        return $this->attendanceActionSuccess($request, $attendance->fresh(['attendanceLocation', 'workFromHomeRequest']), $message);
     }
 
     public function updateSettings(Request $request): RedirectResponse
@@ -647,7 +680,83 @@ class AttendanceController extends Controller
 
     private function currentUser(Request $request): MUser
     {
+        $apiUser = $request->attributes->get('kmi_api_user');
+
+        if ($apiUser instanceof MUser) {
+            return $apiUser->loadMissing(['intern', 'mentor', 'adminProfile']);
+        }
+
         return MUser::with(['intern', 'mentor', 'adminProfile'])->findOrFail($request->session()->get('auth_user_id'));
+    }
+
+    private function attendanceActionError(Request $request, string $message): JsonResponse|RedirectResponse
+    {
+        if ($request->is('api/*')) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors' => ['attendance' => [$message]],
+            ], 422);
+        }
+
+        return back()->withErrors(['attendance' => $message]);
+    }
+
+    private function attendanceActionSuccess(Request $request, TrAttendance $attendance, string $message): JsonResponse|RedirectResponse
+    {
+        if ($request->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'data' => $this->apiAttendanceRecord($attendance),
+            ]);
+        }
+
+        return redirect()->route('attendance.index')->with('success', $message);
+    }
+
+    private function apiAttendanceRecord(TrAttendance $attendance): array
+    {
+        return [
+            'id' => (int) $attendance->intAttendance_ID,
+            'intern_id' => $attendance->intIntern_ID ? (int) $attendance->intIntern_ID : null,
+            'user_id' => $attendance->intUser_ID ? (int) $attendance->intUser_ID : null,
+            'date' => $attendance->dtmAttendanceDate?->toDateString(),
+            'work_mode' => $attendance->txtAttendanceWorkMode ?: 'Office',
+            'status' => $attendance->txtAttendanceStatus,
+            'clock_in' => $attendance->dtmAttendanceClockIn?->toISOString(),
+            'clock_in_status' => $attendance->txtAttendanceClockInStatus,
+            'clock_out' => $attendance->dtmAttendanceClockOut?->toISOString(),
+            'clock_out_status' => $attendance->txtAttendanceClockOutStatus,
+            'location' => [
+                'name' => $attendance->txtAttendanceAddress,
+                'url' => $attendance->txtAttendanceLocationUrl,
+                'latitude' => $attendance->floatAttendanceLatitude ?? $attendance->floatLatitude,
+                'longitude' => $attendance->floatAttendanceLongitude ?? $attendance->floatLongitude,
+                'accuracy' => $attendance->floatAttendanceLocationAccuracy,
+                'distance_meter' => $attendance->floatAttendanceDistanceMeter,
+                'allowed_distance_meter' => $attendance->floatAttendanceAllowedDistanceMeter,
+                'within_tolerance' => $attendance->bitAttendanceWithinTolerance,
+            ],
+            'clock_out_location' => [
+                'name' => $attendance->txtAttendanceClockOutAddress,
+                'url' => $attendance->txtAttendanceClockOutLocationUrl,
+                'latitude' => $attendance->floatAttendanceClockOutLatitude,
+                'longitude' => $attendance->floatAttendanceClockOutLongitude,
+                'accuracy' => $attendance->floatAttendanceClockOutLocationAccuracy,
+                'distance_meter' => $attendance->floatAttendanceClockOutDistanceMeter,
+                'within_tolerance' => $attendance->bitAttendanceClockOutWithinTolerance,
+            ],
+            'face' => [
+                'distance' => $attendance->floatAttendanceFaceDistance,
+                'algorithm' => $attendance->txtAttendanceFaceAlgorithm,
+            ],
+            'clock_out_face' => [
+                'distance' => $attendance->floatAttendanceClockOutFaceDistance,
+                'algorithm' => $attendance->txtAttendanceClockOutFaceAlgorithm,
+            ],
+            'note' => $attendance->txtAttendanceNote,
+        ];
     }
 
     private function ensureInternCanAttend(MUser $authUser): void
@@ -810,6 +919,16 @@ class AttendanceController extends Controller
 
         if (! $enrollment) {
             throw ValidationException::withMessages(['attendance' => 'Daftarkan wajah terlebih dahulu sebelum absen.']);
+        }
+
+        if ($request->is('api/*')) {
+            $request->merge([
+                'txtAttendanceCapturedImage' => $request->input('image', $request->input('txtAttendanceCapturedImage')),
+                'floatAttendanceLatitude' => $request->input('latitude', $request->input('floatAttendanceLatitude')),
+                'floatAttendanceLongitude' => $request->input('longitude', $request->input('floatAttendanceLongitude')),
+                'floatAttendanceLocationAccuracy' => $request->input('accuracy', $request->input('floatAttendanceLocationAccuracy')),
+                'txtAttendanceDevice' => $request->input('device', $request->input('txtAttendanceDevice')),
+            ]);
         }
 
         $validated = $request->validate([
