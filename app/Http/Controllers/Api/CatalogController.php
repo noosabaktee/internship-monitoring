@@ -43,10 +43,15 @@ class CatalogController extends ApiController
         return $this->success([
             'period' => now()->format('Y-m'),
             'total_interns' => $interns->count(),
-            'active_projects' => MProject::where('bitActive', true)->count(),
+            'active_projects' => RoleAccess::isIntern($user)
+                ? $activeAssignments->count()
+                : MProject::where('bitActive', true)->count(),
             'average_exposure_score' => round((float) $evaluations->avg('floatExposureScore'), 2),
             'average_progress' => round((float) $activeAssignments->avg('floatProgress'), 2),
-            'achievements' => TrAchievement::where('bitActive', true)->count(),
+            'completed_reports' => $evaluations->count(),
+            'achievements' => TrAchievement::where('bitActive', true)
+                ->when(RoleAccess::isIntern($user), fn ($query) => $query->where('intIntern_ID', $user->intern?->intIntern_ID))
+                ->count(),
             'project_type_counts' => $activeAssignments->groupBy(fn ($a) => $a->project?->txtProjectType ?: 'Other')->map->count(),
             'upcoming_calendar_sharings' => $upcoming->map(fn ($sharing) => $this->calendarSharing($sharing))->values(),
             'leaderboard' => $scoreboard->take(5)->values()->map(fn ($row, $index) => [

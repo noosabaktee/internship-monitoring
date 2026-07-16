@@ -274,6 +274,7 @@ API selalu melakukan pembatasan data di server. Mobile client tidak boleh mengan
 | `GET` | `/me/projects` | Intern | Assignment project sendiri |
 | `PATCH` | `/me/projects/{assignment}` | Owner/mentor/Headmaster | Update progress/status |
 | `GET` | `/me/evaluations` | Intern | Evaluasi sendiri |
+| `GET` | `/me/evaluations/{evaluation}/certificate` | Intern pemilik | Preview/download sertifikat yang sudah terbit |
 | `GET` | `/me/achievements` | Intern | Achievement sendiri |
 
 ### Absensi
@@ -461,6 +462,10 @@ Intern dapat memperbarui progress assignment miliknya. Mentor terkait atau Headm
 
 `progress` harus berada pada rentang `0` sampai `100`.
 
+#### `GET /me/evaluations/{evaluation}/certificate`
+
+Response berupa PDF binary dengan autentikasi Bearer. Endpoint hanya dapat dibuka oleh intern pemilik setelah sertifikat diterbitkan; sebelum itu server mengembalikan `404`. Item `GET /me/evaluations` menyediakan `certificate_url` setelah publikasi, sementara nilai dan catatan evaluasi belum ditampilkan sebelum publikasi.
+
 ### Absensi mobile
 
 #### `GET /attendance`
@@ -568,8 +573,12 @@ Pengajuan yang beririsan dengan pengajuan `Pending` atau `Approved` akan ditolak
 Approve:
 
 ```json
-{}
+{
+  "review_note": "WFH disetujui. Tetap ikuti agenda harian tim."
+}
 ```
+
+Catatan persetujuan bersifat opsional dan dapat diperbarui oleh HRD/Headmaster.
 
 Reject wajib menyertakan catatan:
 

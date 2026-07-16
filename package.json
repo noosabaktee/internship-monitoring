@@ -8,7 +8,7 @@
         "face": ".\\face-service\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --app-dir face-service --host 127.0.0.1 --port 9000",
         "face:venv": "python -m venv face-service/.venv",
         "face:install": "if not exist face-service\\.venv\\Scripts\\python.exe (python -m venv face-service\\.venv) else (echo face venv ready) & .\\face-service\\.venv\\Scripts\\python.exe -m pip install --upgrade pip setuptools wheel && .\\face-service\\.venv\\Scripts\\python.exe -m pip install -r face-service/requirements.txt",
-        "dev:all": "concurrently -c \"#93c5fd,#c4b5fd,#86efac\" -n \"laravel,vite,face\" \"php artisan serve --host=127.0.0.1 --port=8000\" \"npm run dev\" \"npm run face\""
+        "dev:all": "concurrently -c \"#93c5fd,#c4b5fd,#86efac\" -n \"laravel,vite,face\" \"php artisan serve --host=0.0.0.0 --port=8000\" \"npm run dev\" \"npm run face\""
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",

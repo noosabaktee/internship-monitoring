@@ -41,6 +41,8 @@ Route::prefix('v1')->group(function () {
         Route::get('me/projects', [InternshipController::class, 'projects']);
         Route::patch('me/projects/{assignment}', [InternshipController::class, 'updateProject']);
         Route::get('me/evaluations', [InternshipController::class, 'evaluations']);
+        Route::get('me/evaluations/{evaluation}/certificate', [InternshipController::class, 'certificate'])
+            ->name('api.v1.me.evaluations.certificate');
         Route::get('me/achievements', [InternshipController::class, 'achievements']);
 
         Route::get('attendance', [AttendanceController::class, 'apiIndex']);

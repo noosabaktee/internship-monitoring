@@ -174,6 +174,9 @@ abstract class ApiController extends Controller
             'recommendation' => $evaluation->txtEvaluationRecommendation,
             'certificate_published' => (bool) $evaluation->bitEvaluationCertificatePublished,
             'certificate_published_at' => $evaluation->dtmEvaluationCertificatePublished?->toISOString(),
+            'certificate_url' => $evaluation->bitEvaluationCertificatePublished
+                ? route('api.v1.me.evaluations.certificate', $evaluation->intEvaluation_ID)
+                : null,
             'active' => (bool) $evaluation->bitActive,
         ];
     }

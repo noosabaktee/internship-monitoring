@@ -7,8 +7,11 @@ use App\Models\TrAchievement;
 use App\Models\TrEvaluation;
 use App\Models\TrInternProject;
 use App\Support\RoleAccess;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class InternshipController extends ApiController
 {
@@ -83,8 +86,75 @@ class InternshipController extends ApiController
             ->where('bitActive', true)
             ->orderByDesc('dtmEvaluationCompleted')
             ->get()
-            ->map(fn ($evaluation) => $this->evaluation($evaluation))
+            ->map(function ($evaluation): array {
+                $payload = $this->evaluation($evaluation);
+                if ($evaluation->bitEvaluationCertificatePublished) {
+                    return $payload;
+                }
+
+                return collect($payload)->except([
+                    'evaluator',
+                    'hard_skill',
+                    'collaboration',
+                    'ownership',
+                    'sharing',
+                    'exposure_score',
+                    'strength',
+                    'development',
+                    'recommendation',
+                ])->all();
+            })
             ->values(), 'Evaluasi internship berhasil diambil.');
+    }
+
+    public function certificate(Request $request, int $evaluation): Response
+    {
+        $user = $this->user($request);
+        abort_unless(RoleAccess::isIntern($user), 403, 'Sertifikat pribadi hanya tersedia untuk intern.');
+
+        $model = TrEvaluation::with(['intern.user', 'evaluator.mentor', 'evaluator.adminProfile'])
+            ->where('bitActive', true)
+            ->findOrFail($evaluation);
+
+        abort_unless((int) $model->intIntern_ID === (int) $user->intern->intIntern_ID, 403);
+        abort_unless($model->bitEvaluationCertificatePublished, 404, 'Sertifikat belum diterbitkan.');
+
+        $intern = $model->intern;
+        $certificateNumber = sprintf(
+            'KDC/INT/%s/%04d',
+            $model->dtmEvaluationCertificatePublished?->format('Y')
+                ?? $model->dtmEvaluationCompleted?->format('Y')
+                ?? now()->format('Y'),
+            $model->intEvaluation_ID,
+        );
+        $logoPath = public_path('images/KDC.png');
+        $logoData = is_file($logoPath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath)) : null;
+        $evaluator = $this->person($model->evaluator);
+        $html = view('dashboard.certificate-pdf', [
+            'evaluation' => $model,
+            'intern' => $intern,
+            'startDate' => $intern->dtmInserted,
+            'endDate' => $intern->effectiveEndDate() ?? $model->dtmEvaluationCompleted,
+            'certificateNumber' => $certificateNumber,
+            'logoData' => $logoData,
+            'evaluatorName' => $evaluator['name'] ?? 'Kalbe Digital Core',
+        ])->render();
+
+        $options = new Options;
+        $options->set('isRemoteEnabled', false);
+        $options->set('isHtml5ParserEnabled', true);
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('a4', 'landscape');
+        $dompdf->render();
+
+        $filename = 'sertifikat-internship-'.str($intern->txtInternName)->slug().'.pdf';
+
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function achievements(Request $request): JsonResponse

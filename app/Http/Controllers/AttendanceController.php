@@ -166,23 +166,46 @@ class AttendanceController extends Controller
     {
         $authUser = $this->currentUser($request);
         $isAttendanceAdmin = RoleAccess::isAttendanceAdmin($authUser);
-        $query = TrAttendance::with(['attendanceLocation', 'workFromHomeRequest'])
+        $query = TrAttendance::with(['attendanceLocation', 'workFromHomeRequest', 'user.intern'])
             ->when(! $isAttendanceAdmin, fn ($query) => $query->where('intUser_ID', $authUser->intUser_ID))
             ->when($request->filled('from'), fn ($query) => $query->whereDate('dtmAttendanceDate', '>=', $request->query('from')))
             ->when($request->filled('to'), fn ($query) => $query->whereDate('dtmAttendanceDate', '<=', $request->query('to')))
-            ->when($request->filled('intern_id') && $isAttendanceAdmin, fn ($query) => $query->where('intIntern_ID', $request->integer('intern_id')))
+            ->when(
+                $request->filled('intern_id') && $isAttendanceAdmin,
+                fn ($query) => $query->whereHas(
+                    'user.intern',
+                    fn ($query) => $query->where('intIntern_ID', $request->integer('intern_id'))
+                )
+            )
             ->orderByDesc('dtmAttendanceDate')
             ->orderByDesc('dtmAttendanceClockIn');
         $paginator = $query->paginate(min(100, max(1, $request->integer('per_page', 20))));
         $now = Carbon::now(self::TIMEZONE);
         $setting = $this->attendanceSetting();
         $today = $isAttendanceAdmin ? null : TrAttendance::where('intUser_ID', $authUser->intUser_ID)->whereDate('dtmAttendanceDate', $now->toDateString())->first();
+        $teamTodayRecords = collect();
+
+        if ($isAttendanceAdmin) {
+            $teamUsers = $this->attendanceInternUsers();
+            $todayAttendances = TrAttendance::with(['attendanceLocation', 'workFromHomeRequest', 'user.intern'])
+                ->whereDate('dtmAttendanceDate', $now->toDateString())
+                ->get()
+                ->keyBy('intUser_ID');
+            $teamTodayRecords = $this->apiTeamTodayRecords($teamUsers, $todayAttendances, $setting, $now);
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Data absensi berhasil diambil.',
             'data' => [
                 'today' => $today ? $this->apiAttendanceRecord($today) : null,
+                'today_records' => $isAttendanceAdmin ? $teamTodayRecords->values() : null,
+                'today_summary' => $isAttendanceAdmin ? [
+                    'total' => $teamTodayRecords->count(),
+                    'clocked_in' => $teamTodayRecords->whereNotNull('clock_in')->count(),
+                    'completed' => $teamTodayRecords->whereNotNull('clock_out')->count(),
+                    'not_checked_in' => $teamTodayRecords->whereNull('clock_in')->count(),
+                ] : null,
                 'face_registered' => $isAttendanceAdmin ? null : (bool) $authUser->faceEnrollment()->where('bitActive', true)->exists(),
                 'work_mode' => $isAttendanceAdmin ? null : $this->workContext($authUser, $now)['mode'],
                 'settings' => [
@@ -719,7 +742,11 @@ class AttendanceController extends Controller
     {
         return [
             'id' => (int) $attendance->intAttendance_ID,
-            'intern_id' => $attendance->intIntern_ID ? (int) $attendance->intIntern_ID : null,
+            'intern_id' => $attendance->intIntern_ID
+                ? (int) $attendance->intIntern_ID
+                : ($attendance->user?->intern?->intIntern_ID
+                    ? (int) $attendance->user->intern->intIntern_ID
+                    : null),
             'user_id' => $attendance->intUser_ID ? (int) $attendance->intUser_ID : null,
             'date' => $attendance->dtmAttendanceDate?->toDateString(),
             'work_mode' => $attendance->txtAttendanceWorkMode ?: 'Office',
@@ -757,6 +784,64 @@ class AttendanceController extends Controller
             ],
             'note' => $attendance->txtAttendanceNote,
         ];
+    }
+
+    /**
+     * @param  Collection<int, MUser>  $teamUsers
+     * @param  Collection<int, TrAttendance>  $todayAttendances
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function apiTeamTodayRecords(
+        Collection $teamUsers,
+        Collection $todayAttendances,
+        MAttendanceSetting $setting,
+        Carbon $now
+    ): Collection {
+        $windows = $this->attendanceWindows($setting, $now);
+        $isWorkday = $this->isWorkday($now);
+
+        return $teamUsers
+            ->map(function (MUser $user) use ($todayAttendances, $windows, $now, $isWorkday): array {
+                $attendance = $todayAttendances->get($user->intUser_ID);
+                $status = match (true) {
+                    (bool) $attendance => $this->attendanceStatus($attendance, $windows),
+                    ! $isWorkday => 'Tidak Ada Absensi',
+                    $now->gt($windows['clockInLateEnd']) => 'Tidak Masuk',
+                    default => 'Belum Clock In',
+                };
+                $record = $attendance
+                    ? $this->apiAttendanceRecord($attendance)
+                    : [
+                        'id' => null,
+                        'intern_id' => (int) $user->intern->intIntern_ID,
+                        'user_id' => (int) $user->intUser_ID,
+                        'date' => $now->toDateString(),
+                        'work_mode' => $this->workContext($user, $now)['mode'],
+                        'status' => $status,
+                        'clock_in' => null,
+                        'clock_in_status' => null,
+                        'clock_out' => null,
+                        'clock_out_status' => null,
+                        'location' => [],
+                        'clock_out_location' => [],
+                        'face' => [],
+                        'clock_out_face' => [],
+                        'note' => null,
+                    ];
+
+                $record['status'] = $status;
+                $record['intern'] = [
+                    'id' => (int) $user->intern->intIntern_ID,
+                    'number' => $user->intern->txtInternNo,
+                    'name' => $this->displayName($user),
+                    'type' => $user->intern->txtInternType,
+                ];
+                $record['face_registered'] = (bool) $user->faceEnrollment?->bitActive;
+
+                return $record;
+            })
+            ->sortBy(fn (array $record) => $record['intern']['name'])
+            ->values();
     }
 
     private function ensureInternCanAttend(MUser $authUser): void
