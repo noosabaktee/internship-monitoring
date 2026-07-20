@@ -126,6 +126,19 @@ it('returns a complete today attendance recap for HRD including interns who have
             ->assertJsonPath('data.today_records.1.intern.name', 'Belum Hadir')
             ->assertJsonPath('data.today_records.1.status', 'Belum Clock In')
             ->assertJsonPath('data.today_records.1.clock_in', null);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/attendance?from=2026-07-15&to=2026-07-16')
+            ->assertOk()
+            ->assertJsonCount(2, 'data.intern_groups')
+            ->assertJsonPath('data.intern_groups.0.intern.name', 'API Intern')
+            ->assertJsonPath('data.intern_groups.0.summary.present', 1)
+            ->assertJsonPath('data.intern_groups.0.summary.absent', 1)
+            ->assertJsonCount(2, 'data.intern_groups.0.records')
+            ->assertJsonPath('data.intern_groups.0.records.0.date', '2026-07-16')
+            ->assertJsonPath('data.intern_groups.1.intern.name', 'Belum Hadir')
+            ->assertJsonPath('data.intern_groups.1.summary.absent', 1)
+            ->assertJsonPath('data.intern_groups.1.summary.pending', 1);
     } finally {
         Carbon::setTestNow();
     }

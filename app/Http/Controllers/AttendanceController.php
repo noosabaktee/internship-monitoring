@@ -184,6 +184,7 @@ class AttendanceController extends Controller
         $setting = $this->attendanceSetting();
         $today = $isAttendanceAdmin ? null : TrAttendance::where('intUser_ID', $authUser->intUser_ID)->whereDate('dtmAttendanceDate', $now->toDateString())->first();
         $teamTodayRecords = collect();
+        $internGroups = null;
 
         if ($isAttendanceAdmin) {
             $teamUsers = $this->attendanceInternUsers();
@@ -192,6 +193,11 @@ class AttendanceController extends Controller
                 ->get()
                 ->keyBy('intUser_ID');
             $teamTodayRecords = $this->apiTeamTodayRecords($teamUsers, $todayAttendances, $setting, $now);
+
+            if ($request->filled('from') && $request->filled('to')) {
+                $detail = $this->adminAttendanceDetail($request, $teamUsers, $setting, $now);
+                $internGroups = $this->apiAdminInternGroups($detail['rows']);
+            }
         }
 
         return response()->json([
@@ -200,6 +206,7 @@ class AttendanceController extends Controller
             'data' => [
                 'today' => $today ? $this->apiAttendanceRecord($today) : null,
                 'today_records' => $isAttendanceAdmin ? $teamTodayRecords->values() : null,
+                'intern_groups' => $isAttendanceAdmin ? $internGroups : null,
                 'today_summary' => $isAttendanceAdmin ? [
                     'total' => $teamTodayRecords->count(),
                     'clocked_in' => $teamTodayRecords->whereNotNull('clock_in')->count(),
@@ -784,6 +791,65 @@ class AttendanceController extends Controller
             ],
             'note' => $attendance->txtAttendanceNote,
         ];
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function apiAdminInternGroups(Collection $rows): Collection
+    {
+        return $rows
+            ->groupBy(fn (array $row): string => (string) $row['intUser_ID'])
+            ->map(function (Collection $internRows): array {
+                $intern = $internRows->first();
+
+                return [
+                    'intern' => [
+                        'id' => $intern['intIntern_ID'] ? (int) $intern['intIntern_ID'] : null,
+                        'user_id' => $intern['intUser_ID'] ? (int) $intern['intUser_ID'] : null,
+                        'number' => $intern['internNo'],
+                        'name' => $intern['name'],
+                        'type' => $intern['internType'],
+                    ],
+                    'summary' => [
+                        'total' => $internRows->count(),
+                        'present' => $internRows->where('status', 'Hadir')->count(),
+                        'late' => $internRows->where('status', 'Terlambat')->count(),
+                        'absent' => $internRows->where('status', 'Tidak Masuk')->count(),
+                        'pending' => $internRows->whereNotIn('status', ['Hadir', 'Terlambat', 'Tidak Masuk'])->count(),
+                    ],
+                    'records' => $internRows->sortByDesc(fn (array $row): string => $row['date']->toDateString())->map(fn (array $row): array => [
+                        'id' => null,
+                        'intern_id' => $row['intIntern_ID'] ? (int) $row['intIntern_ID'] : null,
+                        'user_id' => $row['intUser_ID'] ? (int) $row['intUser_ID'] : null,
+                        'date' => $row['date']->toDateString(),
+                        'work_mode' => $row['workMode'],
+                        'status' => $row['status'],
+                        'clock_in' => $row['clockInIso'],
+                        'clock_in_status' => $row['clockInStatus'],
+                        'clock_out' => $row['clockOutIso'],
+                        'clock_out_status' => $row['clockOutStatus'],
+                        'location' => [
+                            'name' => $row['locationIn'] === '-' ? null : $row['locationIn'],
+                            'url' => $row['locationInUrl'],
+                        ],
+                        'clock_out_location' => [
+                            'name' => $row['locationOut'] === '-' ? null : $row['locationOut'],
+                            'url' => $row['locationOutUrl'],
+                        ],
+                        'note' => null,
+                        'intern' => [
+                            'id' => $row['intIntern_ID'] ? (int) $row['intIntern_ID'] : null,
+                            'number' => $row['internNo'],
+                            'name' => $row['name'],
+                            'type' => $row['internType'],
+                        ],
+                    ])->values(),
+                ];
+            })
+            ->sortBy('intern.name')
+            ->values();
     }
 
     /**
@@ -1373,9 +1439,11 @@ class AttendanceController extends Controller
                     'workMode' => $attendance?->txtAttendanceWorkMode ?: '-',
                     'status' => $status,
                     'clockIn' => $this->attendanceTimeLabel($clockInAt),
+                    'clockInIso' => $clockInAt?->toISOString(),
                     'clockInStatus' => $clockInStatus,
                     'clockInWarning' => $clockInWarning,
                     'clockOut' => $this->attendanceTimeLabel($clockOutAt),
+                    'clockOutIso' => $clockOutAt?->toISOString(),
                     'clockOutStatus' => $attendance?->txtAttendanceClockOutStatus,
                     'clockOutWarning' => $clockOutWarning,
                     'locationIn' => $attendance?->txtAttendanceAddress ?: '-',
