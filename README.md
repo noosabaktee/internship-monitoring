@@ -1,5 +1,9 @@
 # KMI Internship Monitoring
 
+## API
+
+API mobile tersedia pada prefix `/api/v1`. Dokumentasi endpoint, autentikasi Bearer token, role, payload, error, pagination, Face ID, dan absensi tersedia di [API.md](API.md).
+
 ## Development
 
 Install PHP and Node dependencies as usual, then install the local Python face service dependencies once:

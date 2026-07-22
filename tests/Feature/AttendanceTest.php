@@ -211,6 +211,34 @@ it('stores on time clock in status using python face service verification result
         ->and($attendance->txtAttendanceClockInStatus)->toBe('Tepat Waktu');
 });
 
+it('keeps disabled clock in button neutral after an on time clock in passes the deadline', function () {
+    Carbon::setTestNow(Carbon::parse('2026-07-08 10:00:00', 'Asia/Jakarta'));
+
+    try {
+        $intern = createAttendanceUser('Intern');
+        createFaceEnrollment($intern);
+
+        TrAttendance::create([
+            'intUser_ID' => $intern->intUser_ID,
+            'dtmAttendanceDate' => '2026-07-08',
+            'dtmAttendanceClockIn' => Carbon::parse('2026-07-08 08:00:00', 'Asia/Jakarta'),
+            'txtAttendanceStatus' => 'Hadir',
+            'txtAttendanceClockInStatus' => 'Tepat Waktu',
+            'txtInsertedBy' => 'test',
+            'dtmInserted' => now(),
+        ]);
+
+        $this->withSession(['auth_user_id' => $intern->intUser_ID])
+            ->get(route('attendance.index'))
+            ->assertOk()
+            ->assertSee('Tepat Waktu')
+            ->assertSee('Clock In')
+            ->assertDontSee('Clock In Terlambat');
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
 it('shows late status when stored clock in is past the clock in deadline', function () {
     Carbon::setTestNow(Carbon::parse('2026-07-08 10:30:00', 'Asia/Jakarta'));
 

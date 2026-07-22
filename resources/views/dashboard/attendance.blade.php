@@ -63,7 +63,7 @@
         $pageNow->gt($clockOutLateEnd) => 'Batas Clock Out terlambat hari ini sudah lewat.',
         default => '',
     };
-    $clockInButtonText = $pageNow->gt($clockInEnd) ? 'Clock In Terlambat' : 'Clock In';
+    $clockInButtonText = (! $hasClockIn && $pageNow->gt($clockInEnd)) ? 'Clock In Terlambat' : 'Clock In';
     $clockOutButtonText = $clockOutLateOpen ? 'Clock Out Terlambat' : 'Clock Out';
     $clockInWarningText = $pageNow->gt($clockOutEnd)
         ? 'Clock In sudah melewati batas Clock Out. Saat disimpan, Clock Out juga otomatis tercatat dengan status Terlambat.'
