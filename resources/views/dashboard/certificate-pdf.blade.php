@@ -3,36 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        @page { margin: 0; }
+        @page { size: A4 landscape; margin: 0; }
         * { box-sizing: border-box; }
-        body { margin: 0; font-family: DejaVu Sans, sans-serif; color: #17332c; background: #f7faf4; }
-        .page { position: relative; width: 100%; height: 100%; min-height: 740px; padding: 34px; overflow: hidden; }
-        .outer { position: absolute; inset: 18px; border: 3px solid #17332c; }
-        .inner { position: absolute; inset: 25px; border: 1px solid #8cc63f; }
+        html, body { margin: 0; overflow: hidden; }
+        body { font-family: DejaVu Sans, sans-serif; color: #17332c; background: #f7faf4; }
+        .page { position: relative; width: 278mm; height: 192mm; margin: 4mm auto 0; padding: 20px; overflow: hidden; }
+        .outer { position: absolute; inset: 10px; border: 3px solid #17332c; }
+        .inner { position: absolute; inset: 17px; border: 1px solid #8cc63f; }
         .shape-a { position: absolute; width: 310px; height: 310px; background: #8cc63f; opacity: .12; border-radius: 50%; top: -170px; right: -80px; }
         .shape-b { position: absolute; width: 260px; height: 260px; background: #17332c; opacity: .07; border-radius: 50%; bottom: -150px; left: -70px; }
         .accent { position: absolute; top: 0; left: 0; width: 100%; height: 12px; background: #8cc63f; }
-        .content { position: relative; z-index: 2; text-align: center; padding: 10px 58px; }
-        .brand { height: 54px; margin-bottom: 7px; }
+        .content { position: relative; z-index: 2; text-align: center; padding: 6px 56px; }
+        .brand { height: 45px; margin-bottom: 4px; }
         .brand-text { font-size: 15px; font-weight: bold; letter-spacing: 3px; color: #507c25; }
-        .eyebrow { margin-top: 8px; font-size: 11px; letter-spacing: 5px; text-transform: uppercase; color: #567168; }
-        h1 { margin: 4px 0 0; font-family: Georgia, serif; font-size: 45px; font-weight: normal; letter-spacing: 2px; color: #17332c; }
-        .line { width: 96px; height: 3px; margin: 10px auto 16px; background: #8cc63f; }
-        .presented { font-size: 13px; color: #64756f; }
-        .name { margin: 7px 0; font-family: Georgia, serif; font-size: 36px; font-style: italic; color: #315f2c; }
-        .description { width: 78%; margin: 0 auto; font-size: 14px; line-height: 1.75; color: #435c54; }
+        .eyebrow { margin-top: 4px; font-size: 10px; letter-spacing: 5px; text-transform: uppercase; color: #567168; }
+        h1 { margin: 2px 0 0; font-family: Georgia, serif; font-size: 38px; font-weight: normal; letter-spacing: 2px; color: #17332c; }
+        .line { width: 88px; height: 3px; margin: 7px auto 11px; background: #8cc63f; }
+        .presented { font-size: 12px; color: #64756f; }
+        .name { margin: 5px 0; font-family: Georgia, serif; font-size: 30px; font-style: italic; color: #315f2c; }
+        .description { width: 78%; margin: 0 auto; font-size: 12px; line-height: 1.55; color: #435c54; }
         .description strong { color: #17332c; }
-        .score-row { margin: 18px auto 12px; width: 72%; border-collapse: separate; border-spacing: 8px 0; }
-        .score-row td { width: 20%; padding: 10px 6px; border: 1px solid #d9e6d0; background: #fff; border-radius: 7px; }
-        .score-row span { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #77877f; }
-        .score-row strong { display: block; margin-top: 3px; font-size: 19px; color: #315f2c; }
-        .footer { width: 84%; margin: 20px auto 0; display: table; table-layout: fixed; }
+        .score-row { margin: 13px auto 8px; width: 72%; border-collapse: separate; border-spacing: 7px 0; }
+        .score-row td { width: 20%; padding: 8px 5px; border: 1px solid #d9e6d0; background: #fff; border-radius: 7px; }
+        .score-row span { display: block; font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #77877f; }
+        .score-row strong { display: block; margin-top: 2px; font-size: 17px; color: #315f2c; }
+        .footer { width: 84%; margin: 12px auto 0; display: table; table-layout: fixed; }
         .footer > div { display: table-cell; width: 33.33%; vertical-align: bottom; }
-        .meta { text-align: left; font-size: 9px; line-height: 1.7; color: #667970; }
+        .meta { text-align: left; font-size: 8px; line-height: 1.55; color: #667970; }
         .seal { text-align: center; }
-        .seal-circle { display: inline-block; width: 66px; height: 66px; border: 2px solid #8cc63f; border-radius: 50%; padding-top: 14px; font-size: 9px; font-weight: bold; letter-spacing: 1px; color: #315f2c; }
-        .signature { text-align: center; font-size: 10px; }
-        .signature-mark { font-family: Georgia, serif; font-size: 22px; font-style: italic; color: #315f2c; margin-bottom: 3px; }
+        .seal-circle { display: inline-block; width: 56px; height: 56px; border: 2px solid #8cc63f; border-radius: 50%; padding-top: 11px; font-size: 8px; font-weight: bold; letter-spacing: 1px; color: #315f2c; }
+        .signature { text-align: center; font-size: 9px; }
+        .signature-mark { font-family: Georgia, serif; font-size: 19px; font-style: italic; color: #315f2c; margin-bottom: 2px; }
         .signature-line { border-top: 1px solid #17332c; padding-top: 5px; font-weight: bold; }
     </style>
 </head>

@@ -88,13 +88,14 @@ class AttendanceController extends Controller
 
         if ($isAttendanceAdmin) {
             $teamUsers = $this->attendanceInternUsers();
+            $detailUsers = $this->attendanceDetailInternUsers();
             $todayAttendances = TrAttendance::with(['user.intern', 'user.mentor'])
                 ->whereDate('dtmAttendanceDate', $now->toDateString())
                 ->get()
                 ->keyBy('intUser_ID');
 
             $teamTodayRows = $this->teamTodayRows($teamUsers, $todayAttendances, $setting, $now);
-            $attendanceDetail = $this->adminAttendanceDetail($request, $teamUsers, $setting, $now);
+            $attendanceDetail = $this->adminAttendanceDetail($request, $detailUsers, $setting, $now);
         }
 
         return view('dashboard.attendance', [
@@ -195,7 +196,7 @@ class AttendanceController extends Controller
             $teamTodayRecords = $this->apiTeamTodayRecords($teamUsers, $todayAttendances, $setting, $now);
 
             if ($request->filled('from') && $request->filled('to')) {
-                $detail = $this->adminAttendanceDetail($request, $teamUsers, $setting, $now);
+                $detail = $this->adminAttendanceDetail($request, $this->attendanceDetailInternUsers(), $setting, $now);
                 $internGroups = $this->apiAdminInternGroups($detail['rows']);
             }
         }
@@ -938,6 +939,31 @@ class AttendanceController extends Controller
             ->values();
     }
 
+    /**
+     * @return Collection<int, MUser>
+     */
+    private function attendanceDetailInternUsers(): Collection
+    {
+        $now = Carbon::now(self::TIMEZONE);
+
+        return MUser::with(['intern', 'faceEnrollment'])
+            ->withCount('attendances')
+            ->whereHas('intern')
+            ->where(function ($query) {
+                $query
+                    ->where(function ($query) {
+                        $query
+                            ->where('bitActive', true)
+                            ->whereHas('intern', fn ($query) => $query->where('bitActive', true));
+                    })
+                    ->orWhereHas('attendances');
+            })
+            ->get()
+            ->reject(fn (MUser $user) => $user->intern?->hasCompletedInternship($now) && (int) $user->attendances_count === 0)
+            ->sortBy(fn (MUser $user) => $this->displayName($user))
+            ->values();
+    }
+
     private function attendanceSetting(): MAttendanceSetting
     {
         $setting = MAttendanceSetting::firstOrCreate(
@@ -1393,12 +1419,12 @@ class AttendanceController extends Controller
 
             foreach ($filteredUsers as $user) {
                 $internEndDate = $user->intern?->effectiveEndDate();
+                $attendance = $records->get($user->intUser_ID.'|'.$date->format('Y-m-d'));
 
-                if ($internEndDate && $date->gt($internEndDate)) {
+                if ($internEndDate && $date->gt($internEndDate) && ! $attendance) {
                     continue;
                 }
 
-                $attendance = $records->get($user->intUser_ID.'|'.$date->format('Y-m-d'));
                 $clockInAt = $attendance ? $this->attendanceClockInAt($attendance) : null;
                 $clockOutAt = $attendance ? $this->attendanceClockOutAt($attendance) : null;
                 $clockInStatus = $attendance ? $this->attendanceClockInStatus($attendance, $dateWindows) : null;
