@@ -17,6 +17,18 @@ class TrWorkFromHomeRequest extends Model
 
     public const STATUS_CANCELLED = 'Cancelled';
 
+    public const TYPE_WFH = 'WFH';
+
+    public const TYPE_SICK = 'Sakit';
+
+    public const TYPE_PERMISSION = 'Izin';
+
+    public const TYPES = [
+        self::TYPE_WFH,
+        self::TYPE_SICK,
+        self::TYPE_PERMISSION,
+    ];
+
     protected $table = 'trWorkFromHomeRequest';
 
     protected $primaryKey = 'intWorkFromHomeRequest_ID';
@@ -28,6 +40,7 @@ class TrWorkFromHomeRequest extends Model
     protected $fillable = [
         'intWorkFromHomeRequest_ID',
         'intIntern_ID',
+        'txtWorkFromHomeRequestType',
         'dtmWorkFromHomeRequestStartDate',
         'dtmWorkFromHomeRequestEndDate',
         'txtWorkFromHomeRequestReason',
@@ -60,5 +73,14 @@ class TrWorkFromHomeRequest extends Model
     public function approver()
     {
         return $this->belongsTo(MUser::class, 'intApproverUser_ID', 'intUser_ID');
+    }
+
+    public function typeLabel(): string
+    {
+        return match ($this->txtWorkFromHomeRequestType ?: self::TYPE_WFH) {
+            self::TYPE_SICK => 'Sakit',
+            self::TYPE_PERMISSION => 'Izin',
+            default => 'WFH',
+        };
     }
 }

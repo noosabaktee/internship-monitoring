@@ -3,113 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        @page { margin: 28px; }
-        body { font-family: "DejaVu Sans", sans-serif; color: #17202a; font-size: 11px; }
-        .header { border-bottom: 3px solid #8cc63f; padding-bottom: 14px; margin-bottom: 18px; }
-        .brand-row { border-collapse: collapse; margin-bottom: 3px; }
+        @page { margin: 18px; }
+        body { font-family: "DejaVu Sans", sans-serif; color: #111827; font-size: 8px; }
+        .header { border-bottom: 2px solid #8cc63f; padding-bottom: 8px; margin-bottom: 10px; }
+        .brand-row { border-collapse: collapse; margin-bottom: 2px; }
         .brand-row td { vertical-align: middle; padding: 0; }
-        .brand-logo { width: 28px; padding-right: 7px !important; }
-        .brand-logo img { display: block; width: 22px; height: auto; }
-        .brand { color: #006838; font-size: 11px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; }
-        h1 { margin: 4px 0 6px; font-size: 24px; color: #12351f; }
-        .muted { color: #667085; }
-        .meta { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        .meta td { padding: 4px 0; vertical-align: top; }
-        .summary { width: 100%; border-collapse: collapse; margin: 14px 0 18px; }
-        .summary td { width: 16.66%; padding: 8px; border: 1px solid #dfe8d6; background: #f7fbf2; }
-        .summary span { display: block; color: #667085; font-size: 9px; text-transform: uppercase; }
-        .summary strong { display: block; margin-top: 3px; font-size: 15px; color: #12351f; }
-        .payroll { border: 1px solid #dfe8d6; background: #fbfdf7; padding: 12px; margin-bottom: 16px; }
-        .payroll h2 { margin: 0 0 8px; font-size: 14px; color: #12351f; }
-        .payroll-grid { width: 100%; border-collapse: collapse; }
-        .payroll-grid td { padding: 4px 0; }
-        table.data { width: 100%; border-collapse: collapse; }
-        table.data th { background: #12351f; color: #fff; padding: 7px 6px; text-align: left; font-size: 9px; }
-        table.data td { border-bottom: 1px solid #e7ecdf; padding: 6px; vertical-align: top; }
-        .status { font-weight: 700; color: #006838; }
-        .late { color: #a15c00; }
-        .absent { color: #b42318; }
-        .footer { margin-top: 18px; color: #667085; font-size: 9px; text-align: right; }
+        .brand-logo { width: 24px; padding-right: 6px !important; }
+        .brand-logo img { display: block; width: 18px; height: auto; }
+        .brand { color: #006838; font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
+        h1 { margin: 3px 0 4px; color: #12351f; font-size: 17px; }
+        .meta { width: 48%; border-collapse: collapse; }
+        .meta td { padding: 2px 6px 2px 0; vertical-align: top; }
+        .meta td:first-child { width: 78px; font-weight: 800; }
+        .layout { width: 100%; border-collapse: collapse; }
+        .layout > tbody > tr > td { vertical-align: top; }
+        .matrix-wrap { width: 81%; }
+        .legend-wrap { width: 19%; padding-left: 12px; }
+        table.matrix { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .matrix th, .matrix td { border: 1.4px solid #111827; text-align: center; vertical-align: middle; }
+        .matrix th { padding: 5px 3px; font-weight: 800; background: #fff; }
+        .matrix td { padding: 4px 2px; height: 20px; }
+        .name-col { width: 110px; text-align: left !important; padding-left: 6px !important; }
+        .date-col { width: 21px; }
+        .recap-col { width: 58px; }
+        .money-col { width: 66px; }
+        .cell-dot { display: inline-block; width: 18px; height: 18px; border-radius: 50%; line-height: 18px; font-weight: 800; }
+        .present { background: #7ed957; }
+        .late { background: #ffd95a; }
+        .absent { background: #ff5a5f; }
+        .wfh { background: #91a7ff; }
+        .sick { background: #9be7e4; }
+        .permission { background: #bdbdbd; }
+        .pending { background: #f2f4f7; color: #667085; }
+        .legend h2 { margin: 0 0 7px; font-size: 12px; font-weight: 700; }
+        .legend table { width: 100%; border-collapse: collapse; }
+        .legend td { padding: 4px 3px; vertical-align: middle; font-size: 10px; }
+        .legend-swatch { width: 18px; height: 18px; border-radius: 50%; text-align: center; line-height: 18px; font-size: 8px; font-weight: 800; }
+        .footer { margin-top: 8px; color: #667085; font-size: 7px; text-align: right; }
     </style>
 </head>
 <body>
     @php
-        $summary = $payload['summary'];
         $filters = $payload['filters'];
-        $selectedIntern = $payload['selectedIntern'];
-        $payroll = $payload['payroll'];
-        $statusClass = fn ($status) => $status === 'Tidak Masuk' ? 'absent' : ($status === 'Terlambat' ? 'late' : 'status');
+        $dates = $payload['calendar'];
+        $matrixRows = $payload['matrixRows'];
+        $months = $dates->groupBy(fn ($date) => $date->format('Y-m'));
+        $monthName = fn ($date) => match ((int) $date->format('n')) {
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            default => 'Desember',
+        }.' '.$date->format('Y');
     @endphp
 
     <div class="header">
         @include('dashboard.attendance.partials.pdf-brand')
-        <h1>Attendance Report</h1>
-        <!-- <div class="muted">Report absensi berdasarkan data yang tampil pada filter halaman absensi.</div> -->
+        <h1>Attendance Report Matrix</h1>
         <table class="meta">
-            <tr>
-                <td><strong>Period</strong><br>{{ $filters['from'] }} to {{ $filters['to'] }}</td>
-                <td><strong>Intern</strong><br>{{ $selectedIntern ? ($selectedIntern->intern?->txtInternName ?? $selectedIntern->txtEmail) : 'All Intern' }}</td>
-                <td><strong>Generated</strong><br>{{ $payload['generatedAt']->format('d M Y H:i') }} WIB</td>
-                <td><strong>Generated By</strong><br>{{ $payload['generatedBy'] }}</td>
-            </tr>
+            <tr><td>Period</td><td>{{ $filters['from'] }} to {{ $filters['to'] }}</td></tr>
+            <tr><td>Generated</td><td>{{ $payload['generatedAt']->format('d M Y H:i') }} WIB</td></tr>
+            <tr><td>Generated By</td><td>{{ $payload['generatedBy'] }}</td></tr>
+            <tr><td>Intern</td><td>{{ $payload['selectedIntern'] ? ($payload['selectedIntern']->intern?->txtInternName ?? $payload['selectedIntern']->txtEmail) : 'All Intern' }}</td></tr>
         </table>
     </div>
 
-    <table class="summary">
+    <table class="layout">
         <tr>
-            <td><span>Workdays</span><strong>{{ $summary['total'] }}</strong></td>
-            <td><span>Present</span><strong>{{ $summary['present'] }}</strong></td>
-            <td><span>Late</span><strong>{{ $summary['late'] }}</strong></td>
-            <td><span>Absent</span><strong>{{ $summary['absent'] }}</strong></td>
-            <td><span>Pending</span><strong>{{ $summary['pending'] }}</strong></td>
-            <td><span>Out Warning</span><strong>{{ $summary['clockOutWarnings'] }}</strong></td>
+            <td class="matrix-wrap">
+                <table class="matrix">
+                    <thead>
+                        <tr>
+                            <th class="name-col">Bulan</th>
+                            @foreach ($months as $monthDates)
+                                <th class="date-col" colspan="{{ $monthDates->count() }}">{{ $monthDates->first() ? $monthName($monthDates->first()) : '' }}</th>
+                            @endforeach
+                            <th class="recap-col" rowspan="2">Masuk<br>(WFH/WFO)</th>
+                            <th class="recap-col" rowspan="2">Tidak Masuk<br>(Absen/Izin/Sakit)</th>
+                            <th class="money-col" rowspan="2">Uang Saku</th>
+                        </tr>
+                        <tr>
+                            <th class="name-col">Tanggal</th>
+                            @foreach ($dates as $date)
+                                <th class="date-col">{{ $date->format('j') }}</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($matrixRows as $row)
+                            <tr>
+                                <td class="name-col">{{ $row['name'] }}</td>
+                                @foreach ($row['cells'] as $cell)
+                                    <td><span class="cell-dot {{ $cell['class'] }}">{{ $cell['code'] }}</span></td>
+                                @endforeach
+                                <td>{{ $row['presentCount'] }}</td>
+                                <td>{{ $row['notPresentCount'] }}</td>
+                                <td>{{ number_format((float) $row['allowance'], 0, ',', '.') }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td class="name-col" colspan="{{ $dates->count() + 4 }}">Tidak ada data pada filter ini.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </td>
+            <td class="legend-wrap">
+                <div class="legend">
+                    <h2>Warna Kehadiran</h2>
+                    <table>
+                        @foreach ($payload['legend'] as $legend)
+                            <tr>
+                                <td style="width: 24px;"><div class="legend-swatch {{ $legend['class'] }}">{{ $legend['code'] }}</div></td>
+                                <td>{{ strtolower($legend['label']) }}</td>
+                            </tr>
+                        @endforeach
+                    </table>
+                </div>
+            </td>
         </tr>
-    </table>
-
-    @if ($payroll)
-        <div class="payroll">
-            <h2>Payroll Snapshot</h2>
-            <table class="payroll-grid">
-                <tr>
-                    <td><strong>Intern</strong><br>{{ $payroll['internName'] }} - {{ $payroll['internType'] }}</td>
-                    <td><strong>Salary / Day</strong><br>Rp {{ number_format((float) $payroll['dailySalary'], 0, ',', '.') }}</td>
-                    <td><strong>Gross</strong><br>Rp {{ number_format((float) $payroll['grossSalary'], 0, ',', '.') }}</td>
-                    <td><strong>Deduction</strong><br>Rp {{ number_format((float) $payroll['deduction'], 0, ',', '.') }}</td>
-                    <td><strong>Net Salary</strong><br>Rp {{ number_format((float) $payroll['netSalary'], 0, ',', '.') }}</td>
-                </tr>
-            </table>
-        </div>
-    @endif
-
-    <table class="data">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Intern</th>
-                <th>Type</th>
-                <th>Mode</th>
-                <th>Status</th>
-                <th>Clock In</th>
-                <th>Clock Out</th>
-                <th>Salary / Day</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse ($payload['rows'] as $row)
-                <tr>
-                    <td>{{ $row['date']->format('d M Y') }}</td>
-                    <td>{{ $row['internNo'] }}<br>{{ $row['name'] }}</td>
-                    <td>{{ $row['internTypeLabel'] }}</td>
-                    <td>{{ $row['workMode'] === 'WFH' ? 'WFH' : 'WFO' }}</td>
-                    <td class="{{ $statusClass($row['status']) }}">{{ $row['status'] }}</td>
-                    <td>{{ $row['clockIn'] }}<br><span class="muted">{{ $row['clockInStatus'] ?: '-' }}</span></td>
-                    <td>{{ $row['clockOut'] }}<br><span class="muted">{{ $row['clockOutStatus'] ?: '-' }}</span></td>
-                    <td>Rp {{ number_format((float) $row['dailySalary'], 0, ',', '.') }}</td>
-                </tr>
-            @empty
-                <tr><td colspan="8">No attendance data on this filter.</td></tr>
-            @endforelse
-        </tbody>
     </table>
 
     <div class="footer">Generated by Kalbe Internship Monitoring</div>

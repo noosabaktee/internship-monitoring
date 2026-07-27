@@ -3283,6 +3283,16 @@ a.btn-icon {
     color: var(--danger);
 }
 
+.attendance-status-sick {
+    background: #d7fbf7;
+    color: #087f80;
+}
+
+.attendance-status-permission {
+    background: #eef2f7;
+    color: #4b5563;
+}
+
 .attendance-status-waiting {
     background: rgba(245, 158, 11, 0.14);
     color: #B45309;
@@ -3801,6 +3811,7 @@ body.dark-mode .attendance-status-warning {
 .form-span-full { grid-column: 1 / -1; }
 .form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 4px; }
 .field-help { display: block; margin-top: 7px; color: var(--text-gray); font-size: 11px; line-height: 1.5; }
+.field-error { display: block; margin-top: 5px; color: var(--danger); font-size: 10px; font-weight: 700; line-height: 1.45; }
 .required { color: var(--danger); }
 
 .form-control,
@@ -4039,6 +4050,32 @@ input[type="file"].form-control { padding: 8px 10px; }
 .wfh-request-card.is-approved { border-left-color: var(--secondary); }
 .wfh-request-card.is-rejected { border-left-color: var(--danger); }
 .wfh-request-card.is-cancelled { border-left-color: #9ca3af; opacity: .75; }
+.wfh-request-card.type-wfh { border-top-color: #bcd3ff; }
+.wfh-request-card.type-sakit { border-top-color: #b8f1ee; }
+.wfh-request-card.type-izin { border-top-color: #d1d5db; }
+.wfh-type-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; margin: 16px 0; }
+.wfh-type-summary-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 13px; background: var(--white); }
+.wfh-type-summary-card.is-active { border-color: rgba(0,104,56,.28); box-shadow: 0 10px 24px rgba(16,24,40,.07); }
+.wfh-type-summary-card strong { display: block; color: var(--text-dark); font-size: 22px; line-height: 1; }
+.wfh-type-summary-card small { display: block; margin-top: 4px; color: var(--text-gray); font-size: 11px; font-weight: 800; }
+.wfh-type-icon,
+.wfh-type-option-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 11px; }
+.wfh-type-icon.type-wfh,
+.wfh-type-option.type-wfh .wfh-type-option-icon,
+.wfh-type-badge.type-wfh { color: #2459a9; background: #e8f1ff; }
+.wfh-type-icon.type-sakit,
+.wfh-type-option.type-sakit .wfh-type-option-icon,
+.wfh-type-badge.type-sakit { color: #087f80; background: #d7fbf7; }
+.wfh-type-icon.type-izin,
+.wfh-type-option.type-izin .wfh-type-option-icon,
+.wfh-type-badge.type-izin { color: #4b5563; background: #eef2f7; }
+.wfh-type-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.wfh-type-option { position: relative; display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 11px; align-items: center; min-height: 86px; padding: 12px; border: 1px solid var(--border); border-radius: 13px; background: var(--white); cursor: pointer; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.wfh-type-option:hover { border-color: rgba(0,104,56,.22); box-shadow: 0 12px 26px rgba(16,24,40,.08); transform: translateY(-1px); }
+.wfh-type-option input { position: absolute; opacity: 0; pointer-events: none; }
+.wfh-type-option:has(input:checked) { border-color: rgba(0,104,56,.38); box-shadow: inset 0 0 0 1px rgba(0,104,56,.08), 0 12px 26px rgba(16,24,40,.08); }
+.wfh-type-option strong { display: block; color: var(--text-dark); font-size: 13px; line-height: 1.3; }
+.wfh-type-option small { display: block; margin-top: 3px; color: var(--text-gray); font-size: 10px; line-height: 1.45; }
 .wfh-request-date { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 68px; border-radius: 13px; background: var(--bg-body); }
 .wfh-request-date span { color: var(--primary); font-size: 25px; font-weight: 800; line-height: 1; }
 .wfh-request-date small { margin-top: 5px; color: var(--text-gray); font-size: 9px; text-transform: uppercase; }
@@ -4046,12 +4083,15 @@ input[type="file"].form-control { padding: 8px 10px; }
 .wfh-request-title h4 { margin: 0; font-size: 14px; }
 .wfh-request-title p, .wfh-reason { margin: 4px 0 0; color: var(--text-gray); font-size: 11px; line-height: 1.55; }
 .wfh-reason { margin-top: 10px; color: var(--text-dark); }
-.wfh-status, .work-mode-chip { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 5px 9px; border-radius: 999px; font-size: 9px; font-weight: 800; line-height: 1.2; white-space: nowrap; }
+.wfh-request-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.wfh-status, .wfh-type-badge, .work-mode-chip { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 5px 9px; border-radius: 999px; font-size: 9px; font-weight: 800; line-height: 1.2; white-space: nowrap; }
 .wfh-status.is-pending { color: #946000; background: #fff4d8; }
 .wfh-status.is-approved, .work-mode-chip.office { color: var(--primary); background: var(--primary-light); }
 .wfh-status.is-rejected { color: var(--danger); background: var(--danger-light); }
 .wfh-status.is-cancelled { color: #64748b; background: #eef2f7; }
 .work-mode-chip.wfh { color: #2459a9; background: #e8f1ff; }
+.work-mode-chip.sick { color: #087f80; background: #d7fbf7; }
+.work-mode-chip.permission { color: #4b5563; background: #eef2f7; }
 .wfh-request-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 11px; color: var(--text-gray); font-size: 10px; }
 .wfh-request-meta > a, .wfh-request-meta > span { display: inline-flex; align-items: center; gap: 6px; line-height: 1.4; }
 .wfh-request-meta a { color: var(--primary); font-weight: 700; text-decoration: none; }
@@ -4137,6 +4177,8 @@ input[type="file"].form-control { padding: 8px 10px; }
     .report-card-grid, .attendance-location-setting-layout { grid-template-columns: 1fr; }
     .form-grid-3 { grid-template-columns: repeat(2,minmax(0,1fr)); }
     .wfh-review-actions { grid-template-columns: 1fr; }
+    .wfh-type-summary,
+    .wfh-type-options { grid-template-columns: 1fr; }
     .attendance-admin-tab { grid-template-columns: 34px minmax(0, 1fr); padding: 10px; }
     .attendance-admin-tab > i { width: 34px; height: 34px; }
 }

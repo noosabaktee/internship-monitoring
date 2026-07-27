@@ -6,7 +6,7 @@
         ['ability' => 'leaderboard', 'route' => 'leaderboard.index', 'active' => 'leaderboard.*', 'label' => 'Leaderboard', 'icon' => 'fa-solid fa-ranking-star'],
         ['ability' => 'projects', 'route' => 'projects.index', 'active' => 'projects.*', 'label' => 'Projects', 'icon' => 'fa-regular fa-calendar-check'],
         ['ability' => 'attendance', 'route' => 'attendance.index', 'active' => 'attendance.*', 'label' => 'Absensi', 'icon' => 'fa-solid fa-user-check'],
-        ['ability' => 'work-from-home', 'route' => 'work-from-home.index', 'active' => 'work-from-home.*', 'label' => 'Pengajuan WFH', 'icon' => 'fa-solid fa-house-laptop'],
+        ['ability' => 'work-from-home', 'route' => 'work-from-home.index', 'active' => 'work-from-home.*', 'label' => 'WFH / Izin / Sakit', 'icon' => 'fa-solid fa-house-laptop'],
         ['ability' => 'calendar-sharing', 'route' => 'calendar-sharing.index', 'active' => 'calendar-sharing.*', 'label' => 'Calendar Sharing', 'icon' => 'fa-regular fa-calendar-days'],
         ['ability' => 'project-handles', 'route' => 'project-handles.index', 'active' => 'project-handles.*', 'label' => 'Project Handle', 'icon' => 'fa-solid fa-sliders'],
         ['ability' => 'exposure', 'route' => 'exposure.index', 'active' => 'exposure.*', 'label' => 'Exposure', 'icon' => 'fa-solid fa-chart-area'],

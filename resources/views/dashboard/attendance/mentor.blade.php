@@ -130,6 +130,8 @@
                                     'Hadir' => 'attendance-status-present',
                                     'Terlambat' => 'attendance-status-late',
                                     'Tidak Masuk' => 'attendance-status-absent',
+                                    'Sakit' => 'attendance-status-sick',
+                                    'Izin' => 'attendance-status-permission',
                                     default => 'attendance-status-waiting',
                                 };
                                 $teamClockInStatusClass = ($row['clockInStatus'] ?? null) === 'Terlambat' ? 'attendance-status-late' : 'attendance-status-present';
@@ -138,7 +140,7 @@
                                 <td>{{ $row['name'] }}</td>
                                 <td>{{ $row['faceRegistered'] ? 'Aktif' : 'Belum' }}</td>
                                 <td><span class="attendance-status {{ $teamStatusClass }}">{{ $row['status'] }}</span></td>
-                                <td><span class="work-mode-chip {{ ($row['workMode'] ?? 'Office') === 'WFH' ? 'wfh' : 'office' }}">{{ ($row['workMode'] ?? 'Office') === 'WFH' ? 'WFH' : 'WFO' }}</span></td>
+                                <td><span class="work-mode-chip {{ match ($row['workMode'] ?? 'Office') { 'WFH' => 'wfh', 'Sakit' => 'sick', 'Izin' => 'permission', default => 'office' } }}">{{ match ($row['workMode'] ?? 'Office') { 'WFH' => 'WFH', 'Sakit' => 'Sakit', 'Izin' => 'Izin', default => 'WFO' } }}</span></td>
                                 <td>
                                     @if ($row['clockInWarning'] ?? false)
                                         <span class="attendance-status attendance-status-warning">Belum Clock In</span>
@@ -280,10 +282,10 @@
                     <i class="fa-solid fa-file-excel"></i>
                     Export Excel
                 </a>
-                <a class="btn btn-outline-primary btn-sm" href="{{ route('attendance.report.pdf', $attendanceExportQuery) }}">
+                <!-- <a class="btn btn-outline-primary btn-sm" href="{{ route('attendance.report.pdf', $attendanceExportQuery) }}">
                     <i class="fa-solid fa-file-pdf"></i>
                     Report PDF
-                </a>
+                </a> -->
                 @if ($hasSelectedIntern)
                     <a class="btn btn-primary btn-sm" href="{{ route('attendance.salary-slip.pdf', $attendanceExportQuery) }}">
                         <i class="fa-solid fa-receipt"></i>
@@ -325,6 +327,8 @@
             <span><strong>{{ $attendanceDetailSummary['present'] ?? 0 }}</strong> Hadir</span>
             <span><strong>{{ $attendanceDetailSummary['late'] ?? 0 }}</strong> Terlambat</span>
             <span><strong>{{ $attendanceDetailSummary['absent'] ?? 0 }}</strong> Tidak Masuk</span>
+            <span><strong>{{ $attendanceDetailSummary['sick'] ?? 0 }}</strong> Sakit</span>
+            <span><strong>{{ $attendanceDetailSummary['permission'] ?? 0 }}</strong> Izin</span>
             <span><strong>{{ $attendanceDetailSummary['pending'] ?? 0 }}</strong> Belum Clock In</span>
             <span><strong>{{ $attendanceDetailSummary['clockOutWarnings'] ?? 0 }}</strong> Warning Clock Out</span>
         </div>
@@ -363,6 +367,8 @@
                                 'Hadir' => 'attendance-status-present',
                                 'Terlambat' => 'attendance-status-late',
                                 'Tidak Masuk' => 'attendance-status-absent',
+                                'Sakit' => 'attendance-status-sick',
+                                'Izin' => 'attendance-status-permission',
                                 default => 'attendance-status-waiting',
                             };
                             $detailClockInStatusClass = ($row['clockInStatus'] ?? null) === 'Terlambat' ? 'attendance-status-late' : 'attendance-status-present';
@@ -373,7 +379,7 @@
                             <td>{{ $row['internTypeLabel'] ?? 'Digitalisasi' }}</td>
                             <td>Rp {{ number_format((float) ($row['dailySalary'] ?? 0), 0, ',', '.') }}</td>
                             <td><span class="attendance-status {{ $detailStatusClass }}">{{ $row['status'] }}</span></td>
-                            <td><span class="work-mode-chip {{ ($row['workMode'] ?? '') === 'WFH' ? 'wfh' : 'office' }}">{{ ($row['workMode'] ?? '') === 'WFH' ? 'WFH' : (($row['workMode'] ?? '') === 'Office' ? 'WFO' : '-') }}</span></td>
+                            <td><span class="work-mode-chip {{ match ($row['workMode'] ?? '') { 'WFH' => 'wfh', 'Sakit' => 'sick', 'Izin' => 'permission', 'Office' => 'office', default => 'office' } }}">{{ match ($row['workMode'] ?? '') { 'WFH' => 'WFH', 'Sakit' => 'Sakit', 'Izin' => 'Izin', 'Office' => 'WFO', default => '-' } }}</span></td>
                             <td>
                                 @if ($row['clockInWarning'] ?? false)
                                     <span class="attendance-status attendance-status-warning">Belum Clock In</span>

@@ -181,7 +181,7 @@ class NotificationService
             ->each(fn (TrWorkFromHomeRequest $request) => $this->send(
                 $user,
                 'wfh',
-                'Pengajuan WFH baru',
+                'Pengajuan '.$request->typeLabel().' baru',
                 ($request->intern?->txtInternName ?? 'Intern').' mengajukan WFH '.$request->dtmWorkFromHomeRequestStartDate?->format('d M').'–'.$request->dtmWorkFromHomeRequestEndDate?->format('d M Y').'.',
                 route('work-from-home.index'),
                 'wfh-submitted:'.$request->intWorkFromHomeRequest_ID.':'.$user->intUser_ID,

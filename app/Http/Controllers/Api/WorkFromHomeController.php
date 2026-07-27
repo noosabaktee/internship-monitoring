@@ -26,6 +26,7 @@ class WorkFromHomeController extends ApiController
             ->where('bitActive', true)
             ->when(! $isAdmin, fn ($query) => $query->where('intIntern_ID', $user->intern->intIntern_ID))
             ->when($request->filled('status'), fn ($query) => $query->where('txtWorkFromHomeRequestStatus', $request->query('status')))
+            ->when($request->filled('type'), fn ($query) => $query->where('txtWorkFromHomeRequestType', $request->query('type')))
             ->orderByDesc('dtmInserted');
 
         return $this->paginated(
@@ -38,21 +39,23 @@ class WorkFromHomeController extends ApiController
     public function store(Request $request, NotificationService $notifications): JsonResponse
     {
         $user = $this->user($request);
-        abort_unless(RoleAccess::isIntern($user), 403, 'Pengajuan WFH hanya dapat dibuat oleh intern.');
-        abort_if($user->intern->hasCompletedInternship(), 422, 'Masa internship sudah selesai sehingga pengajuan WFH tidak tersedia.');
+        abort_unless(RoleAccess::isIntern($user), 403, 'Pengajuan hanya dapat dibuat oleh intern.');
+        abort_if($user->intern->hasCompletedInternship(), 422, 'Masa internship sudah selesai sehingga pengajuan tidak tersedia.');
 
         $validated = $request->validate([
+            'type' => ['nullable', 'string', 'in:'.implode(',', TrWorkFromHomeRequest::TYPES)],
             'start_date' => ['required', 'date', 'after_or_equal:today'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['required', 'string', 'max:1500'],
             'attachment' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120'],
         ]);
+        $type = $validated['type'] ?? TrWorkFromHomeRequest::TYPE_WFH;
         $start = Carbon::parse($validated['start_date'])->startOfDay();
         $end = Carbon::parse($validated['end_date'])->startOfDay();
         $effectiveEnd = $user->intern->effectiveEndDate();
 
         if ($effectiveEnd && $end->gt($effectiveEnd)) {
-            throw ValidationException::withMessages(['end_date' => ['Tanggal WFH melewati akhir internship.']]);
+            throw ValidationException::withMessages(['end_date' => ['Tanggal pengajuan melewati akhir internship.']]);
         }
 
         $overlap = TrWorkFromHomeRequest::where('intIntern_ID', $user->intern->intIntern_ID)
@@ -63,12 +66,13 @@ class WorkFromHomeController extends ApiController
             ->exists();
 
         if ($overlap) {
-            throw ValidationException::withMessages(['start_date' => ['Sudah ada pengajuan WFH yang beririsan dengan tanggal tersebut.']]);
+            throw ValidationException::withMessages(['start_date' => ['Sudah ada pengajuan yang beririsan dengan tanggal tersebut.']]);
         }
 
         $path = $request->file('attachment')->store('wfh-attachments', 'local');
         $wfh = TrWorkFromHomeRequest::create([
             'intIntern_ID' => $user->intern->intIntern_ID,
+            'txtWorkFromHomeRequestType' => $type,
             'dtmWorkFromHomeRequestStartDate' => $start->toDateString(),
             'dtmWorkFromHomeRequestEndDate' => $end->toDateString(),
             'txtWorkFromHomeRequestReason' => $validated['reason'],
@@ -85,13 +89,13 @@ class WorkFromHomeController extends ApiController
             ->each(fn (MUser $admin) => $notifications->send(
                 $admin,
                 'wfh',
-                'Pengajuan WFH baru',
-                $user->intern->txtInternName.' mengajukan WFH.',
+                'Pengajuan '.$type.' baru',
+                $user->intern->txtInternName.' mengajukan '.$type.'.',
                 '/work-from-home',
                 'api-wfh-submitted:'.$wfh->intWorkFromHomeRequest_ID.':'.$admin->intUser_ID,
             ));
 
-        return $this->success($this->wfh($wfh->fresh(['intern.user', 'approver'])), 'Pengajuan WFH berhasil dibuat.', [], 201);
+        return $this->success($this->wfh($wfh->fresh(['intern.user', 'approver'])), 'Pengajuan berhasil dibuat.', [], 201);
     }
 
     public function approve(Request $request, TrWorkFromHomeRequest $workFromHomeRequest, NotificationService $notifications): JsonResponse
@@ -127,7 +131,7 @@ class WorkFromHomeController extends ApiController
         $path = $workFromHomeRequest->txtWorkFromHomeRequestAttachment;
         abort_unless($path && Storage::disk('local')->exists($path), 404);
 
-        return Storage::disk('local')->response($path, 'lampiran-wfh-'.$workFromHomeRequest->intWorkFromHomeRequest_ID.'.'.pathinfo($path, PATHINFO_EXTENSION), ['X-Content-Type-Options' => 'nosniff'], 'inline');
+        return Storage::disk('local')->response($path, 'lampiran-pengajuan-'.$workFromHomeRequest->intWorkFromHomeRequest_ID.'.'.pathinfo($path, PATHINFO_EXTENSION), ['X-Content-Type-Options' => 'nosniff'], 'inline');
     }
 
     private function review(Request $request, TrWorkFromHomeRequest $requestModel, string $status, NotificationService $notifications): JsonResponse
@@ -148,7 +152,8 @@ class WorkFromHomeController extends ApiController
                 && TrAttendance::where('intWorkFromHomeRequest_ID', $locked->intWorkFromHomeRequest_ID)->exists()) {
                 throw ValidationException::withMessages(['wfh' => ['Persetujuan tidak dapat dibatalkan karena sudah digunakan untuk absensi WFH.']]);
             }
-            if ($status === TrWorkFromHomeRequest::STATUS_APPROVED
+            if (($locked->txtWorkFromHomeRequestType ?: TrWorkFromHomeRequest::TYPE_WFH) === TrWorkFromHomeRequest::TYPE_WFH
+                && $status === TrWorkFromHomeRequest::STATUS_APPROVED
                 && $locked->txtWorkFromHomeRequestStatus !== TrWorkFromHomeRequest::STATUS_APPROVED
                 && TrAttendance::whereHas('user.intern', fn ($query) => $query->where('intIntern_ID', $locked->intIntern_ID))
                     ->whereBetween('dtmAttendanceDate', [$locked->dtmWorkFromHomeRequestStartDate, $locked->dtmWorkFromHomeRequestEndDate])->exists()) {
@@ -168,8 +173,8 @@ class WorkFromHomeController extends ApiController
         $notifications->send(
             $updated->intern->user,
             'wfh',
-            $status === TrWorkFromHomeRequest::STATUS_APPROVED ? 'Pengajuan WFH disetujui' : 'Pengajuan WFH ditolak',
-            $status === TrWorkFromHomeRequest::STATUS_APPROVED ? 'Pengajuan WFH kamu disetujui.' : 'Pengajuan WFH kamu ditolak.',
+            $status === TrWorkFromHomeRequest::STATUS_APPROVED ? 'Pengajuan '.$updated->typeLabel().' disetujui' : 'Pengajuan '.$updated->typeLabel().' ditolak',
+            $status === TrWorkFromHomeRequest::STATUS_APPROVED ? 'Pengajuan '.$updated->typeLabel().' kamu disetujui.' : 'Pengajuan '.$updated->typeLabel().' kamu ditolak.',
             '/work-from-home',
             'api-wfh-reviewed:'.$updated->intWorkFromHomeRequest_ID.':'.$status.':'.$updated->dtmUpdated?->format('YmdHis'),
         );
@@ -184,6 +189,7 @@ class WorkFromHomeController extends ApiController
         return [
             'id' => (int) $wfh->intWorkFromHomeRequest_ID,
             'intern' => $wfh->intern ? $this->internPayload($wfh->intern) : null,
+            'type' => $wfh->txtWorkFromHomeRequestType ?: TrWorkFromHomeRequest::TYPE_WFH,
             'start_date' => $wfh->dtmWorkFromHomeRequestStartDate?->toDateString(),
             'end_date' => $wfh->dtmWorkFromHomeRequestEndDate?->toDateString(),
             'reason' => $wfh->txtWorkFromHomeRequestReason,
