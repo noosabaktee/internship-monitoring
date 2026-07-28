@@ -62,6 +62,35 @@ it('logs in and authenticates subsequent API requests with the returned token', 
         ->assertJsonPath('data.name', 'API Intern');
 });
 
+it('returns a non-project dashboard for regular and PKL interns', function () {
+    MIntern::where('intIntern_ID', 1)->update([
+        'txtInternType' => 'regular',
+        'dtmEndDate' => now('Asia/Jakarta')->addDays(10),
+    ]);
+    TrAttendance::create([
+        'intUser_ID' => 1,
+        'dtmAttendanceDate' => now('Asia/Jakarta')->toDateString(),
+        'dtmAttendanceClockIn' => now('Asia/Jakarta')->setTime(8, 0),
+        'txtAttendanceStatus' => 'Hadir',
+        'txtInsertedBy' => 'test',
+        'dtmInserted' => now(),
+    ]);
+
+    $token = $this->postJson('/api/v1/auth/login', [
+        'email' => 'api.intern@example.com',
+        'password' => 'secret123',
+        'device_name' => 'Pest',
+    ])->json('data.token');
+
+    $this->withHeader('Authorization', 'Bearer '.$token)
+        ->getJson('/api/v1/dashboard')
+        ->assertOk()
+        ->assertJsonPath('data.intern_type', 'regular')
+        ->assertJsonPath('data.attendance_days', 1)
+        ->assertJsonPath('data.remaining_days', 10)
+        ->assertJsonCount(0, 'data.leaderboard');
+});
+
 it('returns a complete today attendance recap for HRD including interns who have not clocked in', function () {
     Carbon::setTestNow(Carbon::parse('2026-07-16 08:30:00', 'Asia/Jakarta'));
 

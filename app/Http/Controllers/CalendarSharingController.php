@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\TrCalendarSharing;
+use App\Services\NotificationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,12 +49,12 @@ class CalendarSharingController extends Controller
         return $this->index($request)->with('mode', 'create');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, NotificationService $notifications): RedirectResponse
     {
         $validated = $this->validatedSharing($request);
         $now = now();
 
-        TrCalendarSharing::create([
+        $sharing = TrCalendarSharing::create([
             'intCalendarSharingCreatorUser_ID' => $request->session()->get('auth_user_id'),
             'txtCalendarSharingTheme' => $validated['txtCalendarSharingTheme'],
             'txtCalendarSharingObjective' => $validated['txtCalendarSharingObjective'] ?? null,
@@ -66,6 +67,8 @@ class CalendarSharingController extends Controller
             'txtInsertedBy' => 'system',
             'dtmInserted' => $now,
         ]);
+
+        $notifications->calendarSharingCreated($sharing);
 
         return redirect()->route('calendar-sharing.index')->with('success', 'Calendar sharing data has been added.');
     }

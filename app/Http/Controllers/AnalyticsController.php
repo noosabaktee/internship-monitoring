@@ -51,6 +51,7 @@ class AnalyticsController extends Controller
 
             return TrEvaluation::create([
                 ...$validated,
+                ...$this->legacyScoreValues($validated),
                 'intEvaluatorUser_ID' => $user->intUser_ID,
                 'dtmEvaluationCompleted' => now('Asia/Jakarta')->toDateString(),
                 'floatExposureScore' => $this->averageScore($validated),
@@ -114,6 +115,7 @@ class AnalyticsController extends Controller
 
         $evaluation->update([
             ...$validated,
+            ...$this->legacyScoreValues($validated),
             'floatExposureScore' => $this->averageScore($validated),
             'txtUpdatedBy' => $user->txtEmail,
             'dtmUpdated' => now(),
@@ -149,16 +151,14 @@ class AnalyticsController extends Controller
                 ?? now()->format('Y'),
             $evaluation->intEvaluation_ID,
         );
-        $logoPath = public_path('images/KDC.png');
-        $logoData = is_file($logoPath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath)) : null;
         $html = view('dashboard.certificate-pdf', [
             'evaluation' => $evaluation,
             'intern' => $intern,
             'startDate' => $startDate,
             'endDate' => $endDate,
             'certificateNumber' => $certificateNumber,
-            'logoData' => $logoData,
             'evaluatorName' => $this->evaluatorName($evaluation->evaluator),
+            ...$this->certificateArtwork(),
         ])->render();
 
         $options = new Options;
@@ -232,8 +232,8 @@ class AnalyticsController extends Controller
             'evaluations' => $evaluations,
             'interns' => $interns,
             'averageExposure' => round((float) $evaluations->avg('floatExposureScore'), 1),
-            'averageCollaboration' => round((float) $evaluations->avg('floatCollaboration'), 1),
-            'averageSharing' => round((float) $evaluations->avg('floatSharing'), 1),
+            'averageCollaboration' => round((float) $evaluations->avg('floatTeamwork'), 1),
+            'averageSharing' => round((float) $evaluations->avg('floatCommunicationSkills'), 1),
             'evaluatedInterns' => $evaluations->unique('intIntern_ID')->count(),
             'publishedCertificates' => $evaluations->where('bitEvaluationCertificatePublished', true)->count(),
             'activeAssignments' => TrInternProject::where('bitActive', true)->count(),
@@ -243,24 +243,87 @@ class AnalyticsController extends Controller
 
     private function validateEvaluation(Request $request): array
     {
+        $this->mapLegacyAssessmentInput($request);
+
         return $request->validate([
             'intIntern_ID' => ['required', 'integer', Rule::exists('mIntern', 'intIntern_ID')],
-            'floatHardSkill' => ['required', 'numeric', 'min:0', 'max:100'],
-            'floatCollaboration' => ['required', 'numeric', 'min:0', 'max:100'],
-            'floatOwnership' => ['required', 'numeric', 'min:0', 'max:100'],
-            'floatSharing' => ['required', 'numeric', 'min:0', 'max:100'],
-            'txtEvaluationStrength' => ['required', 'string', 'max:2000'],
-            'txtEvaluationDevelopment' => ['required', 'string', 'max:2000'],
-            'txtEvaluationRecommendation' => ['required', 'string', 'max:2000'],
+            'floatDisciplineAttendance' => ['required', 'numeric', 'min:0', 'max:100'],
+            'floatResponsibilityInitiative' => ['required', 'numeric', 'min:0', 'max:100'],
+            'floatTechnicalSkills' => ['required', 'numeric', 'min:0', 'max:100'],
+            'floatTeamwork' => ['required', 'numeric', 'min:0', 'max:100'],
+            'floatCommunicationSkills' => ['required', 'numeric', 'min:0', 'max:100'],
+            'floatCreativityProblemSolving' => ['required', 'numeric', 'min:0', 'max:100'],
+            'floatProfessionalismWorkEthics' => ['required', 'numeric', 'min:0', 'max:100'],
+            'txtEvaluationStrength' => ['nullable', 'string', 'max:2000'],
+            'txtEvaluationDevelopment' => ['nullable', 'string', 'max:2000'],
+            'txtEvaluationRecommendation' => ['nullable', 'string', 'max:2000'],
         ]);
     }
 
     private function averageScore(array $data): float
     {
-        return round(((float) $data['floatHardSkill']
-            + (float) $data['floatCollaboration']
-            + (float) $data['floatOwnership']
-            + (float) $data['floatSharing']) / 4, 2);
+        return round(collect([
+            'floatDisciplineAttendance',
+            'floatResponsibilityInitiative',
+            'floatTechnicalSkills',
+            'floatTeamwork',
+            'floatCommunicationSkills',
+            'floatCreativityProblemSolving',
+            'floatProfessionalismWorkEthics',
+        ])->avg(fn (string $field) => (float) $data[$field]), 2);
+    }
+
+    private function mapLegacyAssessmentInput(Request $request): void
+    {
+        if ($request->filled('floatDisciplineAttendance')) {
+            return;
+        }
+
+        if (! $request->filled('floatHardSkill')) {
+            return;
+        }
+
+        $legacyAverage = collect([
+            $request->input('floatHardSkill'),
+            $request->input('floatCollaboration'),
+            $request->input('floatOwnership'),
+            $request->input('floatSharing'),
+        ])->avg(fn ($score) => (float) $score);
+
+        $request->merge([
+            'floatDisciplineAttendance' => $legacyAverage,
+            'floatResponsibilityInitiative' => $legacyAverage,
+            'floatTechnicalSkills' => $legacyAverage,
+            'floatTeamwork' => $legacyAverage,
+            'floatCommunicationSkills' => $legacyAverage,
+            'floatCreativityProblemSolving' => $legacyAverage,
+            'floatProfessionalismWorkEthics' => $legacyAverage,
+        ]);
+    }
+
+    private function legacyScoreValues(array $data): array
+    {
+        return [
+            'floatHardSkill' => $data['floatTechnicalSkills'],
+            'floatCollaboration' => $data['floatTeamwork'],
+            'floatOwnership' => round(((float) $data['floatResponsibilityInitiative'] + (float) $data['floatProfessionalismWorkEthics']) / 2, 2),
+            'floatSharing' => $data['floatCommunicationSkills'],
+        ];
+    }
+
+    private function certificateArtwork(): array
+    {
+        $image = static function (string $filename): ?string {
+            $path = public_path('images/certificate/'.$filename);
+
+            return is_file($path) ? 'data:image/png;base64,'.base64_encode(file_get_contents($path)) : null;
+        };
+
+        return [
+            'pageOneBackground' => $image('page-1-background.png'),
+            'pageTwoBackground' => $image('page-2-background.png'),
+            'watermarkData' => $image('kalbe-nutritionals-watermark.png'),
+        ];
     }
 
     private function authorizeEvaluation(Request $request, TrEvaluation $evaluation): void

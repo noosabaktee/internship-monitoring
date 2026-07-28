@@ -48,7 +48,7 @@
             @forelse ($evaluations as $evaluation)
                 @php
                     $score = (float) $evaluation->floatExposureScore;
-                    $grade = match (true) { $score >= 90 => 'Outstanding', $score >= 80 => 'Excellent', $score >= 70 => 'Good', default => 'Developing' };
+                    $grade = \App\Models\TrEvaluation::gradeFor($score);
                     $evaluatorName = $evaluation->evaluator?->mentor?->txtMentorName
                         ?? $evaluation->evaluator?->adminProfile?->txtAdminProfileName
                         ?? $evaluation->evaluator?->txtEmail
@@ -88,15 +88,12 @@
                     </div>
 
                     <div class="report-score-grid">
-                        <div><span>Hard Skill</span><strong>{{ number_format((float) $evaluation->floatHardSkill, 0) }}</strong></div>
-                        <div><span>Collaboration</span><strong>{{ number_format((float) $evaluation->floatCollaboration, 0) }}</strong></div>
-                        <div><span>Ownership</span><strong>{{ number_format((float) $evaluation->floatOwnership, 0) }}</strong></div>
-                        <div><span>Sharing</span><strong>{{ number_format((float) $evaluation->floatSharing, 0) }}</strong></div>
-                    </div>
-
-                    <div class="report-note">
-                        <span>Kekuatan utama</span>
-                        <p>{{ $evaluation->txtEvaluationStrength ?: 'Catatan kekuatan belum dilengkapi pada data evaluasi sebelumnya.' }}</p>
+                        @foreach ($evaluation->assessmentCriteria() as $criterion)
+                            <div>
+                                <span>{{ $criterion['label'] }}</span>
+                                <strong>{{ number_format($criterion['score'], 0) }} · {{ $criterion['grade'] }}</strong>
+                            </div>
+                        @endforeach
                     </div>
 
                     <div class="report-card-footer">
@@ -166,29 +163,21 @@
                 </div>
 
                 @foreach ([
-                    'floatHardSkill' => ['Hard Skill', 'fa-code'],
-                    'floatCollaboration' => ['Collaboration', 'fa-people-group'],
-                    'floatOwnership' => ['Ownership', 'fa-hand-fist'],
-                    'floatSharing' => ['Knowledge Sharing', 'fa-share-nodes'],
+                    'floatDisciplineAttendance' => ['Discipline & Attendance', 'fa-calendar-check'],
+                    'floatResponsibilityInitiative' => ['Responsibility & Initiative', 'fa-person-circle-check'],
+                    'floatTechnicalSkills' => ['Technical Skills', 'fa-code'],
+                    'floatTeamwork' => ['Teamwork', 'fa-people-group'],
+                    'floatCommunicationSkills' => ['Communication Skills', 'fa-comments'],
+                    'floatCreativityProblemSolving' => ['Creativity & Problem-Solving', 'fa-lightbulb'],
+                    'floatProfessionalismWorkEthics' => ['Professionalism & Work Ethics', 'fa-user-tie'],
                 ] as $field => [$label, $icon])
                     <div class="form-group score-input-group">
                         <label class="form-label" for="{{ $field }}"><i class="fa-solid {{ $icon }}"></i> {{ $label }}</label>
-                        <input id="{{ $field }}" class="form-control" type="number" min="0" max="100" step="0.01" name="{{ $field }}" value="{{ old($field, $editingEvaluation->{$field} ?? '') }}" placeholder="0–100" required>
+                        <input id="{{ $field }}" class="form-control assessment-score-input" type="number" min="0" max="100" step="0.01" name="{{ $field }}" value="{{ old($field, $editingEvaluation->{$field} ?? '') }}" placeholder="0–100" required>
+                        <small class="field-help">Grade otomatis: <strong data-grade-for="{{ $field }}">-</strong></small>
                     </div>
                 @endforeach
 
-                <div class="form-group form-span-full">
-                    <label class="form-label" for="evaluationStrength">Kekuatan Utama <span class="required">*</span></label>
-                    <textarea id="evaluationStrength" class="form-control" name="txtEvaluationStrength" rows="3" maxlength="2000" placeholder="Kompetensi dan kontribusi terbaik intern..." required>{{ old('txtEvaluationStrength', $editingEvaluation->txtEvaluationStrength ?? '') }}</textarea>
-                </div>
-                <div class="form-group form-span-full">
-                    <label class="form-label" for="evaluationDevelopment">Area Pengembangan <span class="required">*</span></label>
-                    <textarea id="evaluationDevelopment" class="form-control" name="txtEvaluationDevelopment" rows="3" maxlength="2000" placeholder="Hal yang masih dapat ditingkatkan..." required>{{ old('txtEvaluationDevelopment', $editingEvaluation->txtEvaluationDevelopment ?? '') }}</textarea>
-                </div>
-                <div class="form-group form-span-full">
-                    <label class="form-label" for="evaluationRecommendation">Rekomendasi Akhir <span class="required">*</span></label>
-                    <textarea id="evaluationRecommendation" class="form-control" name="txtEvaluationRecommendation" rows="3" maxlength="2000" placeholder="Kesimpulan dan rekomendasi kelulusan..." required>{{ old('txtEvaluationRecommendation', $editingEvaluation->txtEvaluationRecommendation ?? '') }}</textarea>
-                </div>
             </form>
 
             <x-slot:footer>
@@ -196,5 +185,30 @@
                 <button class="btn-save" type="submit" form="evaluationForm"><i class="fa-solid fa-file-circle-check"></i> {{ isset($editingEvaluation) ? 'Simpan Perubahan' : 'Simpan Sertifikat' }}</button>
             </x-slot:footer>
         </x-crud-modal>
+    @endpush
+
+    @push('head')
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const gradeFor = (value) => {
+                    const score = Number(value);
+                    if (!Number.isFinite(score) || value === '') return '-';
+                    if (score >= 90) return 'A';
+                    if (score >= 80) return 'B';
+                    if (score >= 70) return 'C';
+                    if (score >= 60) return 'D';
+                    return 'E';
+                };
+
+                document.querySelectorAll('.assessment-score-input').forEach((input) => {
+                    const output = document.querySelector(`[data-grade-for="${input.id}"]`);
+                    const update = () => {
+                        if (output) output.textContent = gradeFor(input.value);
+                    };
+                    input.addEventListener('input', update);
+                    update();
+                });
+            });
+        </script>
     @endpush
 @endif

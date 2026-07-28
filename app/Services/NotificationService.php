@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\MIntern;
 use App\Models\MUser;
+use App\Models\TrCalendarSharing;
 use App\Models\TrInternProject;
 use App\Models\TrNotification;
 use App\Models\TrWorkFromHomeRequest;
@@ -14,6 +15,26 @@ use Illuminate\Support\Collection;
 
 class NotificationService
 {
+    public function calendarSharingCreated(TrCalendarSharing $sharing): void
+    {
+        $sharing->loadMissing('creator');
+        $date = $sharing->dtmCalendarSharingDate?->timezone('Asia/Jakarta');
+
+        MUser::where('bitActive', true)
+            ->orderBy('intUser_ID')
+            ->each(fn (MUser $user) => $this->send(
+                $user,
+                'calendar',
+                'Calendar sharing baru',
+                $sharing->txtCalendarSharingTheme
+                    .' dijadwalkan pada '
+                    .($date?->format('d M Y, H:i').' WIB' ?: 'jadwal yang akan diumumkan')
+                    .'.',
+                route('calendar-sharing.index'),
+                'calendar-sharing-created:'.$sharing->intCalendarSharing_ID,
+            ));
+    }
+
     public function syncFor(MUser $user): void
     {
         $user->loadMissing(['intern', 'mentor']);

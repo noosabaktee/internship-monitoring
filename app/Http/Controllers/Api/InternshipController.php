@@ -99,6 +99,8 @@ class InternshipController extends ApiController
                     'ownership',
                     'sharing',
                     'exposure_score',
+                    'grade',
+                    'assessment_criteria',
                     'strength',
                     'development',
                     'recommendation',
@@ -127,17 +129,22 @@ class InternshipController extends ApiController
                 ?? now()->format('Y'),
             $model->intEvaluation_ID,
         );
-        $logoPath = public_path('images/KDC.png');
-        $logoData = is_file($logoPath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath)) : null;
         $evaluator = $this->person($model->evaluator);
+        $image = static function (string $filename): ?string {
+            $path = public_path('images/certificate/'.$filename);
+
+            return is_file($path) ? 'data:image/png;base64,'.base64_encode(file_get_contents($path)) : null;
+        };
         $html = view('dashboard.certificate-pdf', [
             'evaluation' => $model,
             'intern' => $intern,
             'startDate' => $intern->dtmInserted,
             'endDate' => $intern->effectiveEndDate() ?? $model->dtmEvaluationCompleted,
             'certificateNumber' => $certificateNumber,
-            'logoData' => $logoData,
             'evaluatorName' => $evaluator['name'] ?? 'Kalbe Digital Core',
+            'pageOneBackground' => $image('page-1-background.png'),
+            'pageTwoBackground' => $image('page-2-background.png'),
+            'watermarkData' => $image('kalbe-nutritionals-watermark.png'),
         ])->render();
 
         $options = new Options;

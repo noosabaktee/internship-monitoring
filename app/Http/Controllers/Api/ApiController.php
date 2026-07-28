@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MUser;
+use App\Models\TrEvaluation;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -169,6 +170,8 @@ abstract class ApiController extends Controller
             'ownership' => $evaluation->floatOwnership,
             'sharing' => $evaluation->floatSharing,
             'exposure_score' => $evaluation->floatExposureScore,
+            'grade' => TrEvaluation::gradeFor((float) $evaluation->floatExposureScore),
+            'assessment_criteria' => $evaluation->assessmentCriteria(),
             'strength' => $evaluation->txtEvaluationStrength,
             'development' => $evaluation->txtEvaluationDevelopment,
             'recommendation' => $evaluation->txtEvaluationRecommendation,

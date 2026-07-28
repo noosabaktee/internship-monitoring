@@ -9,6 +9,7 @@ use App\Models\MProject;
 use App\Models\MProjectHandle;
 use App\Models\MSkillSet;
 use App\Models\TrAchievement;
+use App\Models\TrAttendance;
 use App\Models\TrCalendarSharing;
 use App\Models\TrEvaluation;
 use App\Support\ProjectScoreboard;
@@ -21,6 +22,7 @@ class CatalogController extends ApiController
     public function dashboard(Request $request): JsonResponse
     {
         $user = $this->user($request);
+        $isDigitalizationIntern = RoleAccess::isDigitalisasiIntern($user);
         $interns = MIntern::where('bitActive', true)
             ->when(RoleAccess::isIntern($user), fn ($query) => $query->where('intIntern_ID', $user->intern?->intIntern_ID))
             ->when(! RoleAccess::isIntern($user), fn ($query) => $query->where(fn ($query) => RoleAccess::constrainDigitalisasiInterns($query)))
@@ -38,10 +40,23 @@ class CatalogController extends ApiController
             ->orderBy('dtmCalendarSharingDate')
             ->take(5)
             ->get();
-        $scoreboard = ProjectScoreboard::rows();
+        $scoreboard = RoleAccess::isIntern($user) && ! $isDigitalizationIntern
+            ? collect()
+            : ProjectScoreboard::rows();
+        $attendanceDays = RoleAccess::isIntern($user)
+            ? TrAttendance::where('intUser_ID', $user->intUser_ID)
+                ->whereNotNull('dtmAttendanceClockIn')
+                ->count()
+            : 0;
+        $remainingDays = RoleAccess::isIntern($user) && $user->intern->effectiveEndDate()
+            ? (int) max(0, now('Asia/Jakarta')->startOfDay()->diffInDays($user->intern->effectiveEndDate(), false))
+            : null;
 
         return $this->success([
             'period' => now()->format('Y-m'),
+            'intern_type' => RoleAccess::isIntern($user) ? RoleAccess::internType($user) : null,
+            'attendance_days' => $attendanceDays,
+            'remaining_days' => $remainingDays,
             'total_interns' => $interns->count(),
             'active_projects' => RoleAccess::isIntern($user)
                 ? $activeAssignments->count()

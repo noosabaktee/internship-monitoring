@@ -228,13 +228,12 @@
                             </div>
                         </div>
                         <div class="score-breakdown">
-                            @foreach ([
-                                'Hard Skills' => $latestEvaluation?->floatHardSkill ?? 0,
-                                'Collaboration' => $latestEvaluation?->floatCollaboration ?? 0,
-                                'Ownership' => $latestEvaluation?->floatOwnership ?? 0,
-                                'Sharing' => $latestEvaluation?->floatSharing ?? 0,
-                            ] as $label => $value)
-                                <div class="score-row"><span>{{ $label }}</span><div class="progress-track"><div class="progress-fill" style="width:{{ (float) $value }}%"></div></div><strong>{{ number_format((float) $value, 0) }}</strong></div>
+                            @foreach ($latestEvaluation?->assessmentCriteria() ?? [] as $criterion)
+                                <div class="score-row">
+                                    <span>{{ $criterion['label'] }}</span>
+                                    <div class="progress-track"><div class="progress-fill" style="width:{{ $criterion['score'] }}%"></div></div>
+                                    <strong>{{ number_format($criterion['score'], 0) }} · {{ $criterion['grade'] }}</strong>
+                                </div>
                             @endforeach
                         </div>
                     </section>

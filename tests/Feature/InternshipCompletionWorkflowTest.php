@@ -24,6 +24,15 @@ use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
+it('calculates assessment grades from the certificate score ranges', function () {
+    expect(TrEvaluation::gradeFor(100))->toBe('A')
+        ->and(TrEvaluation::gradeFor(90))->toBe('A')
+        ->and(TrEvaluation::gradeFor(89.99))->toBe('B')
+        ->and(TrEvaluation::gradeFor(70))->toBe('C')
+        ->and(TrEvaluation::gradeFor(60))->toBe('D')
+        ->and(TrEvaluation::gradeFor(59.99))->toBe('E');
+});
+
 it('publishes one final report and locks the certificate until it is issued', function () {
     $mentor = revisionUser('Mentor', 'Final Report Mentor');
     $intern = revisionUser('Intern', 'Final Report Intern', '2026-07-31');
@@ -59,7 +68,7 @@ it('publishes one final report and locks the certificate until it is issued', fu
         ->assertSee('Rapor Final Saya')
         ->assertSee('Mentor atau Headmaster belum menerbitkan sertifikat')
         ->assertSee('Menunggu diterbitkan')
-        ->assertDontSee('Hard Skill')
+        ->assertDontSee('Technical Skills')
         ->assertDontSee('Cepat belajar dan konsisten menyelesaikan tanggung jawab.')
         ->assertDontSee('Unduh Sertifikat');
 
@@ -84,8 +93,8 @@ it('publishes one final report and locks the certificate until it is issued', fu
     $this->withSession(['auth_user_id' => $intern->intUser_ID])
         ->get(route('analytics.index'))
         ->assertOk()
-        ->assertSee('Hard Skill')
-        ->assertSee('Cepat belajar dan konsisten menyelesaikan tanggung jawab.')
+        ->assertSee('Technical Skills')
+        ->assertSee('Professionalism &amp; Work Ethics', false)
         ->assertSee('Unduh Sertifikat');
 
     $this->withSession(['auth_user_id' => $intern->intUser_ID])
@@ -153,6 +162,33 @@ it('lets every intern type open their report while exposure stays digitalisasi o
         ->assertSessionHasNoErrors();
 
     expect(TrEvaluation::where('intIntern_ID', $pklIntern->intern->intIntern_ID)->exists())->toBeTrue();
+});
+
+it('adds a notification for active users when calendar sharing is created', function () {
+    $headmaster = revisionUser('Headmaster', 'Calendar Owner');
+    $intern = revisionUser('Intern', 'Calendar Recipient', '2026-12-31', RoleAccess::INTERN_PKL);
+
+    $this->withSession(['auth_user_id' => $headmaster->intUser_ID])
+        ->post(route('calendar-sharing.store'), [
+            'txtCalendarSharingTheme' => 'Safety Sharing',
+            'txtCalendarSharingObjective' => 'Meningkatkan awareness',
+            'txtCalendarSharingDescription' => 'Sesi sharing keselamatan kerja.',
+            'txtCalendarSharingTargetAudience' => 'All Intern',
+            'dtmCalendarSharingDate' => '2026-08-03 09:00:00',
+            'txtCalendarSharingStatus' => 'Open',
+        ])
+        ->assertRedirect(route('calendar-sharing.index'))
+        ->assertSessionHasNoErrors();
+
+    $notification = TrNotification::where('intUser_ID', $intern->intUser_ID)
+        ->where('txtNotificationType', 'calendar')
+        ->first();
+
+    expect($notification)->not->toBeNull()
+        ->and($notification->txtNotificationTitle)->toBe('Calendar sharing baru')
+        ->and($notification->txtNotificationMessage)->toContain('Safety Sharing')
+        ->and($notification->txtNotificationLink)->toBe(route('calendar-sharing.index'))
+        ->and($notification->dtmNotificationRead)->toBeNull();
 });
 
 it('filters exposure projects and interns to digitalisasi data', function () {
@@ -528,10 +564,13 @@ function revisionEvaluationPayload(int $internId): array
 {
     return [
         'intIntern_ID' => $internId,
-        'floatHardSkill' => 90,
-        'floatCollaboration' => 85,
-        'floatOwnership' => 88,
-        'floatSharing' => 87,
+        'floatDisciplineAttendance' => 90,
+        'floatResponsibilityInitiative' => 85,
+        'floatTechnicalSkills' => 88,
+        'floatTeamwork' => 87,
+        'floatCommunicationSkills' => 90,
+        'floatCreativityProblemSolving' => 85,
+        'floatProfessionalismWorkEthics' => 87.5,
         'txtEvaluationStrength' => 'Cepat belajar dan konsisten menyelesaikan tanggung jawab.',
         'txtEvaluationDevelopment' => 'Perlu lebih percaya diri saat mempresentasikan keputusan teknis.',
         'txtEvaluationRecommendation' => 'Lulus dengan hasil sangat baik dan direkomendasikan untuk kesempatan berikutnya.',
