@@ -21,7 +21,7 @@ class WorkFromHomeController extends ApiController
     {
         $user = $this->user($request);
         $isAdmin = RoleAccess::isAttendanceAdmin($user);
-        abort_unless($isAdmin || RoleAccess::isIntern($user), 403, 'Kamu tidak memiliki akses WFH.');
+        abort_unless($isAdmin || RoleAccess::isIntern($user), 403, 'Kamu tidak memiliki akses pengajuan.');
         $query = TrWorkFromHomeRequest::with(['intern.user', 'approver'])
             ->where('bitActive', true)
             ->when(! $isAdmin, fn ($query) => $query->where('intIntern_ID', $user->intern->intIntern_ID))
@@ -32,7 +32,7 @@ class WorkFromHomeController extends ApiController
         return $this->paginated(
             $query->paginate(min(100, max(1, $request->integer('per_page', 20)))),
             fn ($wfh) => $this->wfh($wfh),
-            'Daftar pengajuan WFH berhasil diambil.',
+            'Daftar pengajuan berhasil diambil.',
         );
     }
 
@@ -95,7 +95,7 @@ class WorkFromHomeController extends ApiController
                 'api-wfh-submitted:'.$wfh->intWorkFromHomeRequest_ID.':'.$admin->intUser_ID,
             ));
 
-        return $this->success($this->wfh($wfh->fresh(['intern.user', 'approver'])), 'Pengajuan berhasil dibuat.', [], 201);
+        return $this->success($this->wfh($wfh->fresh(['intern.user', 'approver'])), 'Pengajuan '.$type.' berhasil dibuat.', [], 201);
     }
 
     public function approve(Request $request, TrWorkFromHomeRequest $workFromHomeRequest, NotificationService $notifications): JsonResponse
@@ -120,7 +120,7 @@ class WorkFromHomeController extends ApiController
             'dtmUpdated' => now(),
         ]);
 
-        return $this->success($this->wfh($workFromHomeRequest->fresh(['intern.user', 'approver'])), 'Pengajuan WFH dibatalkan.');
+        return $this->success($this->wfh($workFromHomeRequest->fresh(['intern.user', 'approver'])), 'Pengajuan '.$workFromHomeRequest->typeLabel().' dibatalkan.');
     }
 
     public function attachment(Request $request, TrWorkFromHomeRequest $workFromHomeRequest): StreamedResponse
@@ -137,7 +137,7 @@ class WorkFromHomeController extends ApiController
     private function review(Request $request, TrWorkFromHomeRequest $requestModel, string $status, NotificationService $notifications): JsonResponse
     {
         $user = $this->user($request);
-        abort_unless(RoleAccess::isAttendanceAdmin($user), 403, 'Hanya HRD atau Headmaster yang dapat meninjau WFH.');
+        abort_unless(RoleAccess::isAttendanceAdmin($user), 403, 'Hanya HRD atau Headmaster yang dapat meninjau pengajuan.');
         $validated = $request->validate([
             'review_note' => [$status === TrWorkFromHomeRequest::STATUS_REJECTED ? 'required' : 'nullable', 'string', 'max:1000'],
         ]);
@@ -179,7 +179,7 @@ class WorkFromHomeController extends ApiController
             'api-wfh-reviewed:'.$updated->intWorkFromHomeRequest_ID.':'.$status.':'.$updated->dtmUpdated?->format('YmdHis'),
         );
 
-        return $this->success($this->wfh($updated), 'Status pengajuan WFH berhasil diperbarui.');
+        return $this->success($this->wfh($updated), 'Status pengajuan '.$updated->typeLabel().' berhasil diperbarui.');
     }
 
     private function wfh(TrWorkFromHomeRequest $wfh): array

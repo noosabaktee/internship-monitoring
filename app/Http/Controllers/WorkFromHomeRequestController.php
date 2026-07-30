@@ -130,7 +130,7 @@ class WorkFromHomeRequestController extends Controller
                 $admin,
                 'wfh',
                 'Pengajuan '.$typeLabel.' baru',
-                $user->intern->txtInternName.' mengajukan WFH '.$start->format('d M').'–'.$end->format('d M Y').'.',
+                $user->intern->txtInternName.' mengajukan '.$typeLabel.' '.$start->format('d M').'–'.$end->format('d M Y').'.',
                 route('work-from-home.index'),
                 'wfh-submitted:'.$wfhRequest->intWorkFromHomeRequest_ID.':'.$admin->intUser_ID,
             ));
@@ -164,7 +164,7 @@ class WorkFromHomeRequestController extends Controller
             'dtmUpdated' => now(),
         ]);
 
-        return back()->with('success', 'Pengajuan WFH dibatalkan.');
+        return back()->with('success', 'Pengajuan '.$this->requestTypeLabel($workFromHomeRequest->txtWorkFromHomeRequestType).' dibatalkan.');
     }
 
     public function attachment(Request $request, TrWorkFromHomeRequest $workFromHomeRequest): StreamedResponse

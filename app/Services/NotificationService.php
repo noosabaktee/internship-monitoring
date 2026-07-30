@@ -203,7 +203,7 @@ class NotificationService
                 $user,
                 'wfh',
                 'Pengajuan '.$request->typeLabel().' baru',
-                ($request->intern?->txtInternName ?? 'Intern').' mengajukan WFH '.$request->dtmWorkFromHomeRequestStartDate?->format('d M').'–'.$request->dtmWorkFromHomeRequestEndDate?->format('d M Y').'.',
+                ($request->intern?->txtInternName ?? 'Intern').' mengajukan '.$request->typeLabel().' '.$request->dtmWorkFromHomeRequestStartDate?->format('d M').'–'.$request->dtmWorkFromHomeRequestEndDate?->format('d M Y').'.',
                 route('work-from-home.index'),
                 'wfh-submitted:'.$request->intWorkFromHomeRequest_ID.':'.$user->intUser_ID,
             ));

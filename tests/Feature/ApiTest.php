@@ -173,7 +173,7 @@ it('returns a complete today attendance recap for HRD including interns who have
     }
 });
 
-it('accepts a valid WFH submission from the mobile API', function () {
+it('accepts a typed absence submission from the mobile API', function () {
     Carbon::setTestNow(Carbon::parse('2026-07-16 09:00:00', 'Asia/Jakarta'));
     Storage::fake('local');
 
@@ -186,9 +186,10 @@ it('accepts a valid WFH submission from the mobile API', function () {
 
         $this->withHeader('Authorization', 'Bearer '.$token)
             ->post('/api/v1/work-from-home', [
+                'type' => 'Sakit',
                 'start_date' => '2026-07-17',
                 'end_date' => '2026-07-17',
-                'reason' => 'Mengerjakan project dan mengikuti meeting dari rumah.',
+                'reason' => 'Memerlukan istirahat dan melampirkan surat dokter.',
                 'attachment' => UploadedFile::fake()->create(
                     'dokumen-pendukung.pdf',
                     128,
@@ -197,12 +198,14 @@ it('accepts a valid WFH submission from the mobile API', function () {
             ])
             ->assertCreated()
             ->assertJsonPath('success', true)
+            ->assertJsonPath('data.type', 'Sakit')
             ->assertJsonPath('data.status', 'Pending')
             ->assertJsonPath('data.start_date', '2026-07-17')
             ->assertJsonPath('data.attachment_available', true);
 
         $this->assertDatabaseHas('trWorkFromHomeRequest', [
             'intIntern_ID' => 1,
+            'txtWorkFromHomeRequestType' => 'Sakit',
             'txtWorkFromHomeRequestStatus' => 'Pending',
         ]);
     } finally {
