@@ -2,11 +2,57 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    @php
+        $certificateFontPath = fn (string $filename): string => str_replace('\\', '/', public_path('fonts/certificate-ttf/'.$filename));
+    @endphp
     <style>
+        @font-face {
+            font-family: 'KalbeSystemCertificate';
+            src: url('{{ $certificateFontPath('KalbeSystem-Regular.ttf') }}') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'KalbeSystemCertificate';
+            src: url('{{ $certificateFontPath('KalbeSystem-SemiBold.ttf') }}') format('truetype');
+            font-weight: 600;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'KalbeSystemCertificate';
+            src: url('{{ $certificateFontPath('KalbeSystem-Bold.ttf') }}') format('truetype');
+            font-weight: 700;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'KalbeSerifCertificate';
+            src: url('{{ $certificateFontPath('KalbeSerif-Regular.ttf') }}') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'KalbeGeometricCertificate';
+            src: url('{{ $certificateFontPath('KalbeGeometric-Regular.ttf') }}') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'KalbeGeometricCertificate';
+            src: url('{{ $certificateFontPath('KalbeGeometric-SemiBold.ttf') }}') format('truetype');
+            font-weight: 600;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'KalbeGeometricCertificate';
+            src: url('{{ $certificateFontPath('KalbeGeometric-Bold.ttf') }}') format('truetype');
+            font-weight: 700;
+            font-style: normal;
+        }
+
         @page { size: A4 landscape; margin: 0; }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
-        body { font-family: DejaVu Sans, sans-serif; color: #111; background: #f9f9f9; }
+        body { font-family: 'KalbeSystemCertificate', sans-serif; color: #111; background: #f9f9f9; }
         .page {
             position: relative;
             width: 297mm;
@@ -23,24 +69,39 @@
         .page-two { background-image: url('{{ $pageTwoBackground }}'); }
         .center { position: absolute; left: 0; width: 100%; text-align: center; }
         .green { color: #218b72; }
+        .certificate-brand-mask {
+            position: absolute;
+            left: 37.5mm;
+            top: 21.5mm;
+            width: 46mm;
+            height: 28mm;
+            background: #f9f9f9;
+        }
+        .certificate-brand {
+            position: absolute;
+            left: 38.7mm;
+            top: 23mm;
+            width: 42mm;
+            height: auto;
+        }
         .certificate-title {
             top: 17mm;
-            font-size: 35pt;
+            font-size: 47pt;
             line-height: 1;
             font-weight: 700;
-            letter-spacing: .8mm;
+            letter-spacing: .35mm;
         }
         .certificate-subtitle {
             top: 40mm;
-            font-size: 15pt;
+            font-size: 19pt;
             line-height: 1;
-            letter-spacing: .25mm;
+            letter-spacing: .4mm;
         }
-        .certificate-presented { top: 61mm; font-size: 11pt; }
+        .certificate-presented { top: 59.4mm; font-size: 14pt; }
         .certificate-name {
-            top: 73mm;
-            font-family: DejaVu Serif, serif;
-            font-size: 30pt;
+            top: 72mm;
+            font-family: 'KalbeSerifCertificate', serif;
+            font-size: 36pt;
             line-height: 1.15;
             color: #218b72;
         }
@@ -65,26 +126,50 @@
         .certificate-name-rule::before { left: -.9mm; }
         .certificate-name-rule::after { right: -.9mm; }
         .certificate-school {
-            top: 93mm;
-            font-size: 10.5pt;
+            top: 90mm;
+            font-family: 'KalbeGeometricCertificate', sans-serif;
+            font-size: 14pt;
             color: #4b4b4b;
         }
         .certificate-copy {
             position: absolute;
             left: 24mm;
-            top: 106mm;
+            top: 105mm;
             width: 249mm;
             margin: 0;
             text-align: center;
-            font-size: 10.7pt;
-            line-height: 1.45;
+            font-size: 14.8pt;
+            line-height: 1;
             letter-spacing: .05mm;
         }
+        .certificate-copy-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .certificate-copy-medium .certificate-copy-line-1,
+        .certificate-copy-medium .certificate-copy-line-2 {
+            font-size: 13.8pt;
+            letter-spacing: 0;
+        }
+        .certificate-copy-long .certificate-copy-line-1,
+        .certificate-copy-long .certificate-copy-line-2 {
+            font-size: 13pt;
+            letter-spacing: 0;
+        }
+        .certificate-copy-line-1 { top: 0; }
+        .certificate-copy-line-2 { top: 19.5pt; }
+        .certificate-copy-line-3 { top: 39pt; }
+        .certificate-copy-line-4 { top: 58.5pt; }
+        .certificate-copy-line-5 { top: 78pt; }
         .certificate-copy strong { font-weight: 700; }
         .certificate-place {
-            top: 149mm;
+            top: 147.5mm;
             color: #176b5e;
-            font-size: 10.5pt;
+            font-family: 'KalbeGeometricCertificate', sans-serif;
+            font-size: 12.95pt;
             font-weight: 700;
         }
         .signature {
@@ -93,20 +178,25 @@
             color: #006c57;
         }
         .signature-one { left: 112mm; top: 189mm; width: 73mm; }
-        .signature-two { left: 185mm; top: 182mm; width: 77mm; }
-        .signature-rule { border-top: .35mm solid #718109; padding-top: 2.2mm; }
+        .signature-rule { border-top: .35mm solid #718109; padding-top: 1.1mm; }
         .signature-name {
-            font-size: 9.5pt;
+            font-family: 'KalbeGeometricCertificate', sans-serif;
+            font-size: 12pt;
             line-height: 1.1;
             font-weight: 700;
             text-decoration: underline;
         }
-        .signature-role { margin-top: .5mm; font-size: 9.2pt; line-height: 1.1; }
+        .signature-role {
+            margin-top: -1.2mm;
+            font-family: 'KalbeGeometricCertificate', sans-serif;
+            font-size: 12pt;
+            line-height: 1.1;
+        }
 
         .report-title {
-            top: 28mm;
+            top: 27.5mm;
             color: #218b72;
-            font-size: 19.5pt;
+            font-size: 26pt;
             line-height: 1;
             font-weight: 700;
             letter-spacing: .25mm;
@@ -117,49 +207,60 @@
             top: -19mm;
             width: 148mm;
             height: 209mm;
-            opacity: .055;
+            opacity: .18;
         }
         .assessment {
             position: absolute;
             left: 40.7mm;
-            top: 45.9mm;
+            top: 44.3mm;
             width: 216.1mm;
             border-collapse: collapse;
             table-layout: fixed;
             background: transparent;
-            font-size: 9pt;
+            font-family: 'KalbeGeometricCertificate', sans-serif;
+            font-size: 12pt;
         }
         .assessment th,
         .assessment td {
             border: .3mm solid #5aa24d;
             padding: 0;
             vertical-align: middle;
-            background: transparent;
+            background-color: rgba(255, 255, 255, .42);
         }
-        .assessment thead tr { height: 28.6mm; }
-        .assessment tbody tr { height: 8.48mm; }
-        .assessment th { font-size: 10pt; font-weight: 700; }
+        .assessment th {
+            height: 19mm;
+            font-size: 13pt;
+            font-weight: 700;
+        }
+        .assessment tbody td {
+            height: 8.17mm;
+            font-size: 12pt;
+        }
         .assessment .number { width: 9.2%; text-align: center; font-weight: 700; }
         .assessment .criterion { width: 53.5%; padding-left: .2mm; font-weight: 700; }
         .assessment .score { width: 18.2%; text-align: center; }
         .assessment .grade { width: 19.1%; text-align: center; }
         .description-title {
             position: absolute;
-            left: 41.2mm;
-            top: 132mm;
+            left: 40.7mm;
+            top: 131mm;
             margin: 0;
             color: #176b5e;
-            font-size: 11pt;
-            font-weight: 700;
+            background-color: rgba(255, 255, 255, .42);
+            font-family: 'KalbeGeometricCertificate', sans-serif;
+            font-size: 14.47pt;
+            font-weight: 600;
+            padding: .8mm 0;
         }
         .grade-description {
             position: absolute;
             left: 40.7mm;
-            top: 142.3mm;
+            top: 141.4mm;
             width: 92.8mm;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: 7.6pt;
+            font-family: 'KalbeSystemCertificate', sans-serif;
+            font-size: 10pt;
         }
         .grade-description th,
         .grade-description td {
@@ -168,8 +269,9 @@
             padding: 0 2.2mm;
             text-align: left;
             vertical-align: middle;
+            background-color: rgba(255, 255, 255, .58);
         }
-        .grade-description th { font-size: 7pt; font-weight: 700; }
+        .grade-description th { font-size: 10pt; font-weight: 700; }
         .grade-description th:nth-child(1),
         .grade-description td:nth-child(1) { width: 35%; }
         .grade-description th:nth-child(2),
@@ -178,19 +280,29 @@
         .grade-description td:nth-child(3) { width: 43%; }
         .report-place {
             position: absolute;
-            left: 177mm;
-            top: 145.2mm;
+            left: 173mm;
+            top: 143.2mm;
             width: 84mm;
             text-align: center;
             color: #176b5e;
-            font-size: 10.5pt;
+            font-family: 'KalbeGeometricCertificate', sans-serif;
+            font-size: 12.95pt;
             font-weight: 700;
         }
+        .signature-two { left: 179mm; top: 184mm; width: 72mm; }
     </style>
 </head>
 <body>
     @php
         $department = trim((string) ($intern->txtDept ?: 'Integrated Operation System'));
+        $departmentLength = strlen($department);
+        $certificateCopyClass = $departmentLength >= 36
+            ? ' certificate-copy-long'
+            : ($departmentLength >= 30 ? ' certificate-copy-medium' : '');
+        $certificateLogoPath = public_path('images/certificate/logo.png');
+        $certificateLogo = is_file($certificateLogoPath)
+            ? 'data:image/png;base64,'.base64_encode(file_get_contents($certificateLogoPath))
+            : null;
         $certificateDate = $evaluation->dtmEvaluationCertificatePublished
             ?? $evaluation->dtmEvaluationCompleted
             ?? now('Asia/Jakarta');
@@ -200,21 +312,23 @@
     @endphp
 
     <section class="page page-one">
+        <div class="certificate-brand-mask"></div>
+        @if ($certificateLogo)<img class="certificate-brand" src="{{ $certificateLogo }}" alt="">@endif
         <div class="center certificate-title green">CERTIFICATE</div>
         <div class="center certificate-subtitle">OF COMPLETION</div>
         <div class="center certificate-presented">This is to certify that</div>
         <div class="center certificate-name">{{ $intern->txtInternName }}</div>
         <div class="certificate-name-rule"></div>
         <div class="center certificate-school">{{ $intern->txtUniversity ?: 'PT Kalbe Morinaga Indonesia' }}</div>
-        <p class="certificate-copy">
-            Has successfully completed the Internship Program as a <strong>{{ $department }} Intern</strong><br>
-            in the <strong>{{ $department }} Department</strong><br>
+        <div class="certificate-copy{{ $certificateCopyClass }}">
+            <div class="certificate-copy-line certificate-copy-line-1">Has successfully completed the Internship Program as a <strong>{{ $department }} Intern</strong></div>
+            <div class="certificate-copy-line certificate-copy-line-2">in the <strong>{{ $department }} Department</strong></div>
             @if ($startDate && $endDate)
-                from <strong>{{ $startDate->format('j F Y') }} - {{ $endDate->format('j F Y') }}</strong><br>
+                <div class="certificate-copy-line certificate-copy-line-3">from <strong>{{ $startDate->format('j F Y') }} - {{ $endDate->format('j F Y') }}</strong></div>
             @endif
-            We sincerely appreciate your dedication, commitment, and valuable contributions throughout your<br>
-            internship at PT Kalbe Morinaga Indonesia.
-        </p>
+            <div class="certificate-copy-line certificate-copy-line-4">We sincerely appreciate your dedication, commitment, and valuable contributions throughout your</div>
+            <div class="certificate-copy-line certificate-copy-line-5">internship at PT Kalbe Morinaga Indonesia.</div>
+        </div>
         <div class="center certificate-place">Karawang,{{ $certificateDate->format('j F Y') }}</div>
         <div class="signature signature-one">
             <div class="signature-rule">

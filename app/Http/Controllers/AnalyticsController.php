@@ -164,6 +164,7 @@ class AnalyticsController extends Controller
         $options = new Options;
         $options->set('isRemoteEnabled', false);
         $options->set('isHtml5ParserEnabled', true);
+        $options->setChroot(base_path());
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html);
         $dompdf->setPaper('a4', 'landscape');
