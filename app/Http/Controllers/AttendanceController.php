@@ -6,8 +6,10 @@ use App\Models\MAttendanceLocation;
 use App\Models\MAttendanceSetting;
 use App\Models\MUser;
 use App\Models\TrAttendance;
+use App\Models\TrSalarySlip;
 use App\Models\TrWorkFromHomeRequest;
 use App\Services\FaceRecognitionService;
+use App\Services\NotificationService;
 use App\Support\RoleAccess;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -18,16 +20,21 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
+use ZipArchive;
 
 class AttendanceController extends Controller
 {
@@ -125,6 +132,7 @@ class AttendanceController extends Controller
             'teamTodayRows' => $teamTodayRows,
             'attendanceDetailFilters' => $attendanceDetail['filters'],
             'attendanceDetailInterns' => $attendanceDetail['interns'],
+            'salarySlipInterns' => $isAttendanceAdmin ? $this->attendanceInternUsers() : collect(),
             'attendanceDetailRows' => $attendanceDetail['rows'],
             'attendanceDetailSummary' => $attendanceDetail['summary'],
             'attendanceSelectedIntern' => $attendanceDetail['selectedIntern'],
@@ -679,7 +687,223 @@ class AttendanceController extends Controller
         return $this->pdfResponse('dashboard.attendance.salary-slip-pdf', ['payload' => $payload], $filename);
     }
 
+    public function sendSalarySlips(Request $request, NotificationService $notifications): RedirectResponse
+    {
+        $context = $this->salarySlipGenerationContext($request);
+        $authUser = $context['authUser'];
+        $selectedInternId = $context['selectedInternId'];
+        $recipients = $context['recipients'];
+        $now = $context['now'];
+        $from = $context['from'];
+        $to = $context['to'];
+        $documents = $context['documents'];
+        $storedPaths = [];
+
+        try {
+            DB::transaction(function () use ($documents, $authUser, $notifications, $now, $from, $to, &$storedPaths): void {
+                foreach ($documents as $document) {
+                    if (! Storage::disk('local')->put($document['filePath'], $document['contents'])) {
+                        throw new RuntimeException('File slip gaji gagal disimpan.');
+                    }
+
+                    $storedPaths[] = $document['filePath'];
+                    $payroll = $document['payroll'];
+                    $recipient = $document['recipient'];
+                    $salarySlip = TrSalarySlip::create([
+                        'intIntern_ID' => $recipient->intern->intIntern_ID,
+                        'intSalarySlipCreatedByUser_ID' => $authUser->intUser_ID,
+                        'dtmSalarySlipPeriodStart' => $from,
+                        'dtmSalarySlipPeriodEnd' => $to,
+                        'txtSalarySlipFileName' => $document['fileName'],
+                        'txtSalarySlipFilePath' => $document['filePath'],
+                        'intSalarySlipWorkdays' => $payroll['workdays'],
+                        'intSalarySlipPresentDays' => $payroll['presentDays'],
+                        'intSalarySlipLateDays' => $payroll['lateDays'],
+                        'intSalarySlipAbsentDays' => $payroll['absentDays'],
+                        'intSalarySlipPendingDays' => $payroll['pendingDays'],
+                        'intSalarySlipPaidDays' => $payroll['paidDays'],
+                        'floatSalarySlipDailySalary' => $payroll['dailySalary'],
+                        'floatSalarySlipGrossSalary' => $payroll['grossSalary'],
+                        'floatSalarySlipDeduction' => $payroll['deduction'],
+                        'floatSalarySlipNetSalary' => $payroll['netSalary'],
+                        'txtInsertedBy' => $authUser->txtEmail ?? 'system',
+                        'dtmInserted' => $now,
+                    ]);
+
+                    $notifications->send(
+                        $recipient,
+                        'salary-slip',
+                        'Slip gaji tersedia',
+                        'Slip gaji periode '.$from->format('d M Y').' - '.$to->format('d M Y').' sudah tersedia di profil kamu.',
+                        route('profile.show').'#salary-slips',
+                        'salary-slip-created:'.$salarySlip->intSalarySlip_ID,
+                    );
+                }
+            });
+        } catch (Throwable $exception) {
+            foreach ($storedPaths as $storedPath) {
+                Storage::disk('local')->delete($storedPath);
+            }
+
+            throw $exception;
+        }
+
+        $recipientLabel = $selectedInternId === 0
+            ? $recipients->count().' intern aktif'
+            : $this->displayName($recipients->first());
+
+        return redirect()
+            ->route('attendance.index', ['tab' => 'detail'])
+            ->with('success', 'Slip gaji berhasil dikirim kepada '.$recipientLabel.'.');
+    }
+
+    public function downloadSalarySlips(Request $request): Response|BinaryFileResponse
+    {
+        $context = $this->salarySlipGenerationContext($request);
+        $documents = $context['documents'];
+
+        if ($context['selectedInternId'] !== 0) {
+            $document = $documents->first();
+
+            return response($document['contents'], 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="'.$document['fileName'].'"',
+            ]);
+        }
+
+        $temporaryPath = tempnam(sys_get_temp_dir(), 'salary-slips-');
+
+        if ($temporaryPath === false) {
+            throw new RuntimeException('File ZIP slip gaji gagal dibuat.');
+        }
+
+        $zip = new ZipArchive;
+        $zipOpened = false;
+
+        try {
+            $openResult = $zip->open($temporaryPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+            if ($openResult !== true) {
+                throw new RuntimeException('File ZIP slip gaji gagal dibuat.');
+            }
+
+            $zipOpened = true;
+            $usedFileNames = [];
+
+            foreach ($documents as $document) {
+                $fileName = $document['fileName'];
+
+                if (isset($usedFileNames[$fileName])) {
+                    $fileName = pathinfo($fileName, PATHINFO_FILENAME).'-'.$document['recipient']->intern->intIntern_ID.'.pdf';
+                }
+
+                $usedFileNames[$fileName] = true;
+
+                if (! $zip->addFromString($fileName, $document['contents'])) {
+                    throw new RuntimeException('PDF slip gaji gagal ditambahkan ke ZIP.');
+                }
+            }
+
+            if (! $zip->close()) {
+                throw new RuntimeException('File ZIP slip gaji gagal diselesaikan.');
+            }
+
+            $zipOpened = false;
+        } catch (Throwable $exception) {
+            if ($zipOpened) {
+                $zip->close();
+            }
+
+            if (is_file($temporaryPath)) {
+                unlink($temporaryPath);
+            }
+
+            throw $exception;
+        }
+
+        $fileName = 'salary-slips-'.$context['from']->toDateString().'-'.$context['to']->toDateString().'.zip';
+
+        return response()
+            ->download($temporaryPath, $fileName, ['Content-Type' => 'application/zip'])
+            ->deleteFileAfterSend(true);
+    }
+
+    /**
+     * @return array{authUser: MUser, selectedInternId: int, recipients: Collection<int, MUser>, now: Carbon, from: Carbon, to: Carbon, documents: Collection<int, array<string, mixed>>}
+     */
+    private function salarySlipGenerationContext(Request $request): array
+    {
+        $authUser = $this->currentUser($request);
+
+        if (! RoleAccess::isAttendanceAdmin($authUser)) {
+            abort(403, 'Slip gaji hanya dapat diproses oleh Headmaster atau HRD.');
+        }
+
+        $validated = $request->validate([
+            'dtmSalarySlipPeriodStart' => ['required', 'date'],
+            'dtmSalarySlipPeriodEnd' => ['required', 'date', 'after_or_equal:dtmSalarySlipPeriodStart', 'before_or_equal:today'],
+            'intIntern_ID' => ['required', 'integer', 'min:0'],
+        ], [
+            'dtmSalarySlipPeriodEnd.after_or_equal' => 'Tanggal akhir slip gaji harus sama dengan atau setelah tanggal awal.',
+            'dtmSalarySlipPeriodEnd.before_or_equal' => 'Tanggal akhir slip gaji tidak boleh melewati hari ini.',
+        ]);
+
+        $activeInternUsers = $this->attendanceInternUsers();
+        $selectedInternId = (int) $validated['intIntern_ID'];
+        $recipients = $selectedInternId === 0
+            ? $activeInternUsers
+            : $activeInternUsers
+                ->filter(fn (MUser $user) => $user->intern?->intIntern_ID === $selectedInternId)
+                ->values();
+
+        if ($recipients->isEmpty()) {
+            throw ValidationException::withMessages([
+                'intIntern_ID' => 'Pilih minimal satu intern aktif untuk menerima slip gaji.',
+            ]);
+        }
+
+        $now = Carbon::now(self::TIMEZONE);
+        $from = Carbon::parse($validated['dtmSalarySlipPeriodStart'], self::TIMEZONE)->startOfDay();
+        $to = Carbon::parse($validated['dtmSalarySlipPeriodEnd'], self::TIMEZONE)->startOfDay();
+        $setting = $this->attendanceSetting();
+        $generatedBy = $this->generatedByName($authUser);
+        $documents = $recipients->map(function (MUser $recipient) use ($from, $to, $setting, $now, $generatedBy): array {
+            $detailRequest = Request::create('/attendance', 'GET', [
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+                'intUser_ID' => (string) $recipient->intUser_ID,
+            ]);
+            $detail = $this->adminAttendanceDetail($detailRequest, collect([$recipient]), $setting, $now);
+            $payload = [
+                'generatedAt' => $now,
+                'generatedBy' => $generatedBy,
+                'filters' => $detail['filters'],
+                'rows' => $detail['rows'],
+                'payroll' => $detail['payroll'],
+            ];
+            $fileName = 'salary-slip-'.Str::slug($detail['payroll']['internName']).'-'.$from->toDateString().'-'.$to->toDateString().'.pdf';
+
+            return [
+                'recipient' => $recipient,
+                'payroll' => $detail['payroll'],
+                'fileName' => $fileName,
+                'filePath' => 'salary-slips/'.$now->format('Y/m').'/'.Str::uuid().'.pdf',
+                'contents' => $this->renderPdf('dashboard.attendance.salary-slip-pdf', ['payload' => $payload]),
+            ];
+        });
+
+        return compact('authUser', 'selectedInternId', 'recipients', 'now', 'from', 'to', 'documents');
+    }
+
     private function pdfResponse(string $view, array $data, string $filename, string $orientation = 'portrait'): Response
+    {
+        return response($this->renderPdf($view, $data, $orientation), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
+    }
+
+    private function renderPdf(string $view, array $data, string $orientation = 'portrait'): string
     {
         $options = new Options;
         $options->set('defaultFont', 'DejaVu Sans');
@@ -690,10 +914,7 @@ class AttendanceController extends Controller
         $dompdf->loadHtml(view($view, $data)->render());
         $dompdf->render();
 
-        return response($dompdf->output(), 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+        return $dompdf->output();
     }
 
     /**
@@ -1817,7 +2038,7 @@ class AttendanceController extends Controller
      */
     private function detailDateRange(Request $request, Carbon $now): array
     {
-        $from = $this->dateFromQuery($request->query('from'), $now->copy()->startOfMonth());
+        $from = $this->dateFromQuery($request->query('from'), $now->copy()->subDays(30));
         $to = $this->dateFromQuery($request->query('to'), $now);
 
         if ($to->lt($from)) {
@@ -1835,7 +2056,7 @@ class AttendanceController extends Controller
 
         try {
             return Carbon::parse($value, self::TIMEZONE);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return $fallback->copy()->timezone(self::TIMEZONE);
         }
     }

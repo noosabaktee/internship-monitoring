@@ -1,6 +1,6 @@
 @php
     $attendanceExportQuery = [
-        'from' => $attendanceDetailFilters['from'] ?? now('Asia/Jakarta')->startOfMonth()->toDateString(),
+        'from' => $attendanceDetailFilters['from'] ?? now('Asia/Jakarta')->subDays(30)->toDateString(),
         'to' => $attendanceDetailFilters['to'] ?? now('Asia/Jakarta')->toDateString(),
     ];
 
@@ -8,7 +8,6 @@
         $attendanceExportQuery['intUser_ID'] = $attendanceDetailFilters['intUser_ID'];
     }
 
-    $hasSelectedIntern = (bool) $attendancePayrollSummary;
     $locationFormHasErrors = collect([
         'txtAttendanceLocationCode',
         'txtAttendanceLocationName',
@@ -19,9 +18,16 @@
         'intAttendanceLocationToleranceMeter',
         'intAttendanceLocationMaximumAccuracyMeter',
     ])->contains(fn ($field) => $errors->has($field));
+    $salarySlipFormHasErrors = collect([
+        'dtmSalarySlipPeriodStart',
+        'dtmSalarySlipPeriodEnd',
+        'intIntern_ID',
+    ])->contains(fn ($field) => $errors->has($field));
     $attendanceTab = $locationFormHasErrors
         ? 'settings'
-        : (in_array(request('tab'), ['today', 'detail', 'settings'], true) ? request('tab') : 'today');
+        : ($salarySlipFormHasErrors
+            ? 'detail'
+            : (in_array(request('tab'), ['today', 'detail', 'settings'], true) ? request('tab') : 'today'));
     $locationLatitude = old('floatAttendanceLocationLatitude', $attendanceLocation?->floatAttendanceLocationLatitude);
     $locationLongitude = old('floatAttendanceLocationLongitude', $attendanceLocation?->floatAttendanceLocationLongitude);
     $locationMapsUrl = is_numeric($locationLatitude) && is_numeric($locationLongitude)
@@ -286,12 +292,10 @@
                     <i class="fa-solid fa-file-pdf"></i>
                     Report PDF
                 </a> -->
-                @if ($hasSelectedIntern)
-                    <a class="btn btn-primary btn-sm" href="{{ route('attendance.salary-slip.pdf', $attendanceExportQuery) }}">
-                        <i class="fa-solid fa-receipt"></i>
-                        Slip Gaji
-                    </a>
-                @endif
+                <button class="btn btn-primary btn-sm" type="button" onclick="openModal('sendSalarySlipModal')" @disabled($salarySlipInterns->isEmpty())>
+                    <i class="fa-solid fa-paper-plane"></i>
+                    Kirim Slip Gaji
+                </button>
             </div>
         </div>
 
@@ -299,7 +303,7 @@
             <input type="hidden" name="tab" value="detail">
             <div>
                 <label class="form-label">From</label>
-                <input class="form-control" type="date" name="from" value="{{ $attendanceDetailFilters['from'] ?? now('Asia/Jakarta')->startOfMonth()->toDateString() }}">
+                <input class="form-control" type="date" name="from" value="{{ $attendanceDetailFilters['from'] ?? now('Asia/Jakarta')->subDays(30)->toDateString() }}">
             </div>
             <div>
                 <label class="form-label">To</label>
@@ -431,3 +435,86 @@
         </div>
     </section>
 </div>
+
+@push('modals')
+    <x-crud-modal
+        id="sendSalarySlipModal"
+        title="Kirim Slip Gaji"
+        subtitle="Tentukan periode dan intern, lalu kirim ke profil atau download file slip gaji."
+        :active="$salarySlipFormHasErrors"
+    >
+        <form id="sendSalarySlipForm" action="{{ route('attendance.salary-slips.store') }}" method="POST">
+            @csrf
+
+            <div class="salary-slip-modal-note">
+                <i class="fa-solid fa-circle-info"></i>
+                <div>
+                    <strong>Pilih Kirim atau Download</strong>
+                    <span>Kirim akan menyimpan slip ke profil intern. Download hanya membuat file PDF atau ZIP tanpa menyimpannya ke profil.</span>
+                </div>
+            </div>
+
+            <div class="form-grid form-grid-2">
+                <div class="form-group">
+                    <label class="form-label" for="salarySlipPeriodStart">Dari Tanggal <span class="required">*</span></label>
+                    <input
+                        id="salarySlipPeriodStart"
+                        class="form-control"
+                        type="date"
+                        name="dtmSalarySlipPeriodStart"
+                        value="{{ old('dtmSalarySlipPeriodStart', $attendanceDetailFilters['from'] ?? now('Asia/Jakarta')->subDays(30)->toDateString()) }}"
+                        max="{{ now('Asia/Jakarta')->toDateString() }}"
+                        required
+                    >
+                    @error('dtmSalarySlipPeriodStart')<span class="field-error">{{ $message }}</span>@enderror
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="salarySlipPeriodEnd">Sampai Tanggal <span class="required">*</span></label>
+                    <input
+                        id="salarySlipPeriodEnd"
+                        class="form-control"
+                        type="date"
+                        name="dtmSalarySlipPeriodEnd"
+                        value="{{ old('dtmSalarySlipPeriodEnd', $attendanceDetailFilters['to'] ?? now('Asia/Jakarta')->toDateString()) }}"
+                        max="{{ now('Asia/Jakarta')->toDateString() }}"
+                        required
+                    >
+                    @error('dtmSalarySlipPeriodEnd')<span class="field-error">{{ $message }}</span>@enderror
+                </div>
+
+                <div class="form-group form-span-full">
+                    <label class="form-label" for="salarySlipIntern">Bagikan Slip Kepada <span class="required">*</span></label>
+                    <select id="salarySlipIntern" class="form-control" name="intIntern_ID" required>
+                        <option value="0" @selected((string) old('intIntern_ID', $attendanceSelectedIntern?->intern?->intIntern_ID ?? 0) === '0')>All Intern Aktif ({{ $salarySlipInterns->count() }})</option>
+                        @foreach ($salarySlipInterns as $internUser)
+                            <option value="{{ $internUser->intern->intIntern_ID }}" @selected((string) old('intIntern_ID', $attendanceSelectedIntern?->intern?->intIntern_ID ?? 0) === (string) $internUser->intern->intIntern_ID)>
+                                {{ $internUser->intern->txtInternName }}{{ $internUser->intern->txtInternNo ? ' - '.$internUser->intern->txtInternNo : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <span class="field-help">Pilihan All akan membuat file terpisah untuk setiap intern aktif dan mengemas hasil download dalam ZIP.</span>
+                    @error('intIntern_ID')<span class="field-error">{{ $message }}</span>@enderror
+                </div>
+            </div>
+        </form>
+
+        <x-slot:footer>
+            <button class="btn-cancel" type="button" data-modal-dismiss="sendSalarySlipModal">Batal</button>
+            <button
+                class="btn btn-outline-primary btn-save"
+                type="submit"
+                form="sendSalarySlipForm"
+                formaction="{{ route('attendance.salary-slips.download') }}"
+                @disabled($salarySlipInterns->isEmpty())
+            >
+                <i class="fa-solid fa-download"></i>
+                Download Slip Gaji
+            </button>
+            <button class="btn btn-primary btn-save" type="submit" form="sendSalarySlipForm" @disabled($salarySlipInterns->isEmpty())>
+                <i class="fa-solid fa-paper-plane"></i>
+                Kirim Slip Gaji
+            </button>
+        </x-slot:footer>
+    </x-crud-modal>
+@endpush

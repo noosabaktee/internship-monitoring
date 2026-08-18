@@ -8,9 +8,11 @@ use App\Models\MIntern;
 use App\Models\MMentor;
 use App\Models\MUser;
 use App\Models\TrAttendance;
+use App\Models\TrSalarySlip;
 use App\Services\FaceRecognitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 uses(RefreshDatabase::class);
@@ -437,6 +439,24 @@ it('renders HRD attendance detail with date and intern filters', function () {
     }
 });
 
+it('defaults attendance detail and salary slip periods to the last 30 days', function () {
+    Carbon::setTestNow(Carbon::parse('2026-07-09 10:00:00', 'Asia/Jakarta'));
+
+    try {
+        $hrd = createAttendanceUser('HRD');
+        createAttendanceUser('Intern');
+
+        $response = $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+            ->get(route('attendance.index', ['tab' => 'detail']))
+            ->assertOk();
+
+        expect(substr_count($response->getContent(), 'value="2026-06-09"'))->toBeGreaterThanOrEqual(2)
+            ->and(substr_count($response->getContent(), 'value="2026-07-09"'))->toBeGreaterThanOrEqual(2);
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
 it('allows HRD to export filtered attendance report and salary slip', function () {
     Carbon::setTestNow(Carbon::parse('2026-07-09 10:00:00', 'Asia/Jakarta'));
 
@@ -505,6 +525,132 @@ it('allows HRD to export filtered attendance report and salary slip', function (
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf');
     } finally {
+        Carbon::setTestNow();
+    }
+});
+
+it('allows HRD to send salary slips to all active interns and shows them on each profile', function () {
+    Storage::fake('local');
+    Carbon::setTestNow(Carbon::parse('2026-07-09 10:00:00', 'Asia/Jakarta'));
+
+    try {
+        $hrd = createAttendanceUser('HRD');
+        $firstIntern = createAttendanceUser('Intern');
+        $secondIntern = createAttendanceUser('Intern Two');
+        TrAttendance::create([
+            'intUser_ID' => $firstIntern->intUser_ID,
+            'dtmAttendanceDate' => '2026-07-08',
+            'dtmAttendanceClockIn' => Carbon::parse('2026-07-08 08:00:00', 'Asia/Jakarta'),
+            'dtmAttendanceClockOut' => Carbon::parse('2026-07-08 17:00:00', 'Asia/Jakarta'),
+            'txtAttendanceStatus' => 'Hadir',
+            'txtAttendanceClockInStatus' => 'Tepat Waktu',
+            'txtAttendanceClockOutStatus' => 'Tepat Waktu',
+            'txtInsertedBy' => 'test',
+            'dtmInserted' => now(),
+        ]);
+
+        $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+            ->get(route('attendance.index', ['tab' => 'detail']))
+            ->assertOk()
+            ->assertSee('Kirim Slip Gaji')
+            ->assertSee('Download Slip Gaji')
+            ->assertSee('All Intern Aktif (2)');
+
+        $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+            ->post(route('attendance.salary-slips.store'), [
+                'dtmSalarySlipPeriodStart' => '2026-07-08',
+                'dtmSalarySlipPeriodEnd' => '2026-07-08',
+                'intIntern_ID' => 0,
+            ])
+            ->assertRedirect(route('attendance.index', ['tab' => 'detail']))
+            ->assertSessionHas('success');
+
+        $salarySlips = TrSalarySlip::orderBy('intIntern_ID')->get();
+
+        expect($salarySlips)->toHaveCount(2)
+            ->and($salarySlips->firstWhere('intIntern_ID', $firstIntern->intern->intIntern_ID)->floatSalarySlipNetSalary)->toBe(100000.0)
+            ->and($salarySlips->firstWhere('intIntern_ID', $secondIntern->intern->intIntern_ID)->floatSalarySlipNetSalary)->toBe(0.0);
+
+        foreach ($salarySlips as $salarySlip) {
+            Storage::disk('local')->assertExists($salarySlip->txtSalarySlipFilePath);
+        }
+
+        $firstSalarySlip = $salarySlips->firstWhere('intIntern_ID', $firstIntern->intern->intIntern_ID);
+        $secondSalarySlip = $salarySlips->firstWhere('intIntern_ID', $secondIntern->intern->intIntern_ID);
+
+        $this->withSession(['auth_user_id' => $firstIntern->intUser_ID])
+            ->get(route('profile.show'))
+            ->assertOk()
+            ->assertSeeInOrder(['Projects', 'Slip Gaji'])
+            ->assertSee('Download')
+            ->assertSee('08 Jul 2026 - 08 Jul 2026')
+            ->assertSee('Rp 100.000');
+
+        $this->withSession(['auth_user_id' => $firstIntern->intUser_ID])
+            ->get(route('profile.salary-slips.show', $firstSalarySlip))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'attachment; filename='.$firstSalarySlip->txtSalarySlipFileName);
+
+        $this->withSession(['auth_user_id' => $firstIntern->intUser_ID])
+            ->get(route('profile.salary-slips.show', $secondSalarySlip))
+            ->assertForbidden();
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
+it('downloads one salary slip as PDF and all active intern slips as ZIP without storing them', function () {
+    Carbon::setTestNow(Carbon::parse('2026-07-09 10:00:00', 'Asia/Jakarta'));
+    $zipPath = null;
+
+    try {
+        $hrd = createAttendanceUser('HRD');
+        $firstIntern = createAttendanceUser('Intern');
+        createAttendanceUser('Intern Two');
+        $payload = [
+            'dtmSalarySlipPeriodStart' => '2026-07-08',
+            'dtmSalarySlipPeriodEnd' => '2026-07-08',
+        ];
+
+        $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+            ->post(route('attendance.salary-slips.download'), [
+                ...$payload,
+                'intIntern_ID' => $firstIntern->intern->intIntern_ID,
+            ])
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertDownload('salary-slip-attendance-intern-2026-07-08-2026-07-08.pdf');
+
+        expect(TrSalarySlip::count())->toBe(0);
+
+        $zipResponse = $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+            ->post(route('attendance.salary-slips.download'), [
+                ...$payload,
+                'intIntern_ID' => 0,
+            ])
+            ->assertOk()
+            ->assertHeader('content-type', 'application/zip')
+            ->assertDownload('salary-slips-2026-07-08-2026-07-08.zip');
+        $zipPath = $zipResponse->baseResponse->getFile()->getPathname();
+        $zip = new ZipArchive;
+
+        expect($zip->open($zipPath))->toBeTrue()
+            ->and($zip->numFiles)->toBe(2);
+
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            expect($zip->getNameIndex($index))->toEndWith('.pdf')
+                ->and($zip->getFromIndex($index))->toStartWith('%PDF');
+        }
+
+        $zip->close();
+
+        expect(TrSalarySlip::count())->toBe(0);
+    } finally {
+        if ($zipPath && is_file($zipPath)) {
+            unlink($zipPath);
+        }
+
         Carbon::setTestNow();
     }
 });

@@ -31,6 +31,9 @@
     $isLegacyFaceEnrollment = (bool) $faceEnrollment && ! str_starts_with((string) $faceEnrollment->txtFaceEnrollmentAlgorithm, 'insightface');
     $hasFaceEnrollment = (bool) $faceEnrollment && ! $isLegacyFaceEnrollment;
     $canManageFaceId = $canUpdatePhoto && ($intern?->user?->txtRole ?? 'Intern') === 'Intern';
+    $salarySlips = ($canViewSalarySlips ?? false) && $intern?->relationLoaded('salarySlips')
+        ? $intern->salarySlips
+        : collect();
 @endphp
 
 @section('content')
@@ -98,40 +101,92 @@
             </section>
 
             <div class="profile-section-grid">
-                <section class="profile-card">
-                    <div class="profile-card-header">
-                        <div class="profile-card-title">
-                            <h2>Projects</h2>
-                            <p>Projects currently handled, grouped by type.</p>
-                        </div>
-                        <span class="status-badge {{ $activeProjects->count() ? 'status-active' : 'status-inactive' }}">{{ $activeProjects->count() ? 'On Track' : 'No Project' }}</span>
-                    </div>
-
-                    @forelse ($groupedProjects as $type => $assignments)
-                        <div class="project-type-group">
-                            <div class="project-type-head">
-                                <h3><i class="fa-solid fa-diagram-project"></i> {{ $type }}</h3>
-                                <span class="status-badge status-active">{{ $assignments->count() }} Project</span>
+                <div class="profile-main-column">
+                    <section class="profile-card">
+                        <div class="profile-card-header">
+                            <div class="profile-card-title">
+                                <h2>Projects</h2>
+                                <p>Projects currently handled, grouped by type.</p>
                             </div>
-                            <ul class="project-list">
-                                @foreach ($assignments as $assignment)
-                                    <li>
-                                        <div>
-                                            <h4>{{ $assignment->project->txtProjectName ?? '-' }}</h4>
-                                            <p>{{ $assignment->project->txtDescription ?: $assignment->txtStatus }}</p>
-                                        </div>
-                                        <div class="mini-progress">
-                                            <span>{{ number_format((float) $assignment->floatProgress, 0) }}%</span>
-                                            <div class="progress-track"><div class="progress-fill" style="width:{{ (float) $assignment->floatProgress }}%"></div></div>
-                                        </div>
-                                    </li>
-                                @endforeach
-                            </ul>
+                            <span class="status-badge {{ $activeProjects->count() ? 'status-active' : 'status-inactive' }}">{{ $activeProjects->count() ? 'On Track' : 'No Project' }}</span>
                         </div>
-                    @empty
-                        <div class="card" style="box-shadow:none; margin-bottom:0;">No project assignment for this intern yet.</div>
-                    @endforelse
-                </section>
+
+                        @forelse ($groupedProjects as $type => $assignments)
+                            <div class="project-type-group">
+                                <div class="project-type-head">
+                                    <h3><i class="fa-solid fa-diagram-project"></i> {{ $type }}</h3>
+                                    <span class="status-badge status-active">{{ $assignments->count() }} Project</span>
+                                </div>
+                                <ul class="project-list">
+                                    @foreach ($assignments as $assignment)
+                                        <li>
+                                            <div>
+                                                <h4>{{ $assignment->project->txtProjectName ?? '-' }}</h4>
+                                                <p>{{ $assignment->project->txtDescription ?: $assignment->txtStatus }}</p>
+                                            </div>
+                                            <div class="mini-progress">
+                                                <span>{{ number_format((float) $assignment->floatProgress, 0) }}%</span>
+                                                <div class="progress-track"><div class="progress-fill" style="width:{{ (float) $assignment->floatProgress }}%"></div></div>
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @empty
+                            <div class="card" style="box-shadow:none; margin-bottom:0;">No project assignment for this intern yet.</div>
+                        @endforelse
+                    </section>
+
+                    @if ($canViewSalarySlips ?? false)
+                        <section id="salary-slips" class="profile-card salary-slip-profile-card">
+                            <div class="profile-card-header">
+                                <div class="profile-card-title">
+                                    <h2>Slip Gaji</h2>
+                                    <p>Semua slip gaji yang telah dikirim oleh HRD atau Headmaster.</p>
+                                </div>
+                                <span class="status-badge {{ $salarySlips->isNotEmpty() ? 'status-active' : 'status-inactive' }}">
+                                    {{ $salarySlips->count() }} Slip
+                                </span>
+                            </div>
+
+                            <div class="salary-slip-list">
+                                @forelse ($salarySlips as $salarySlip)
+                                    @php
+                                        $salarySlipCreator = $salarySlip->creator?->adminProfile?->txtAdminProfileName
+                                            ?? $salarySlip->creator?->mentor?->txtMentorName
+                                            ?? $salarySlip->creator?->txtEmail
+                                            ?? 'HRD / Headmaster';
+                                    @endphp
+                                    <article class="salary-slip-item">
+                                        <div class="salary-slip-item-icon"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                                        <div class="salary-slip-item-main">
+                                            <span class="salary-slip-period-label">Periode Payroll</span>
+                                            <h3>{{ $salarySlip->dtmSalarySlipPeriodStart?->format('d M Y') }} - {{ $salarySlip->dtmSalarySlipPeriodEnd?->format('d M Y') }}</h3>
+                                            <p>Dikirim {{ $salarySlip->dtmInserted?->format('d M Y, H:i') ?? '-' }} WIB oleh {{ $salarySlipCreator }}</p>
+                                        </div>
+                                        <div class="salary-slip-item-summary">
+                                            <span>Gaji Bersih</span>
+                                            <strong>Rp {{ number_format((float) $salarySlip->floatSalarySlipNetSalary, 0, ',', '.') }}</strong>
+                                            <small>{{ $salarySlip->intSalarySlipPaidDays }} hari dibayar</small>
+                                        </div>
+                                        <a class="btn btn-outline-primary btn-sm salary-slip-view-button" href="{{ route('profile.salary-slips.show', $salarySlip) }}">
+                                            <i class="fa-solid fa-download"></i>
+                                            Download
+                                        </a>
+                                    </article>
+                                @empty
+                                    <div class="salary-slip-empty">
+                                        <span><i class="fa-solid fa-file-circle-xmark"></i></span>
+                                        <div>
+                                            <h3>Belum ada slip gaji</h3>
+                                            <p>Slip yang dikirim HRD atau Headmaster akan tampil di bagian ini.</p>
+                                        </div>
+                                    </div>
+                                @endforelse
+                            </div>
+                        </section>
+                    @endif
+                </div>
 
                 <aside>
                     @if ($canManageFaceId)

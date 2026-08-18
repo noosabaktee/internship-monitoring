@@ -68,6 +68,8 @@ Route::middleware('kmi.auth')->group(function () {
     Route::get('attendance/export/excel', [AttendanceController::class, 'exportExcel'])->name('attendance.export.excel')->middleware('kmi.access:attendance-admin');
     Route::get('attendance/report/pdf', [AttendanceController::class, 'reportPdf'])->name('attendance.report.pdf')->middleware('kmi.access:attendance-admin');
     Route::get('attendance/salary-slip/pdf', [AttendanceController::class, 'salarySlipPdf'])->name('attendance.salary-slip.pdf')->middleware('kmi.access:attendance-admin');
+    Route::post('attendance/salary-slips', [AttendanceController::class, 'sendSalarySlips'])->name('attendance.salary-slips.store')->middleware('kmi.access:attendance-admin');
+    Route::post('attendance/salary-slips/download', [AttendanceController::class, 'downloadSalarySlips'])->name('attendance.salary-slips.download')->middleware('kmi.access:attendance-admin');
 
     Route::get('work-from-home', [WorkFromHomeRequestController::class, 'index'])->name('work-from-home.index')->middleware('kmi.access:work-from-home');
     Route::post('work-from-home', [WorkFromHomeRequestController::class, 'store'])->name('work-from-home.store')->middleware('kmi.access:work-from-home');
@@ -112,6 +114,7 @@ Route::middleware('kmi.auth')->group(function () {
     Route::post('/profile/face-enrollment', [ProfileController::class, 'storeFaceEnrollment'])->name('profile.face-enrollment.store');
     Route::delete('/profile/face-enrollment', [ProfileController::class, 'destroyFaceEnrollment'])->name('profile.face-enrollment.destroy');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/profile/salary-slips/{salarySlip}', [ProfileController::class, 'showSalarySlip'])->name('profile.salary-slips.show');
     Route::get('/profile/intern/{intern}', [ProfileController::class, 'showIntern'])->name('profile.intern.show');
     Route::get('/profile/mentor/{mentor}', [ProfileController::class, 'showMentor'])->name('profile.mentor.show');
 });

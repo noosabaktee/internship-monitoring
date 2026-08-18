@@ -72,6 +72,11 @@ class MIntern extends Model
         return $this->hasMany(TrWorkFromHomeRequest::class, 'intIntern_ID', 'intIntern_ID');
     }
 
+    public function salarySlips()
+    {
+        return $this->hasMany(TrSalarySlip::class, 'intIntern_ID', 'intIntern_ID');
+    }
+
     public function finalEvaluation()
     {
         return $this->hasOne(TrEvaluation::class, 'intIntern_ID', 'intIntern_ID')

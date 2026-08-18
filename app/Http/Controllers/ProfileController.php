@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MAdminProfile;
 use App\Models\MFaceEnrollment;
 use App\Models\MIntern;
-use App\Models\MAdminProfile;
 use App\Models\MMentor;
 use App\Models\MUser;
+use App\Models\TrSalarySlip;
 use App\Services\FaceRecognitionService;
+use App\Support\RoleAccess;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,15 +18,15 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProfileController extends Controller
 {
     private const TIMEZONE = 'Asia/Jakarta';
+
     private const FACE_ALGORITHM = 'insightface-buffalo_l-v1';
 
-    public function __construct(private readonly FaceRecognitionService $faceRecognition)
-    {
-    }
+    public function __construct(private readonly FaceRecognitionService $faceRecognition) {}
 
     public function index(): View
     {
@@ -63,12 +65,13 @@ class ProfileController extends Controller
         }
 
         $intern = $user?->intern;
+        $canViewSalarySlips = $this->canViewSalarySlips($user, $intern);
 
         if ($intern) {
-            $intern->load(['user.faceEnrollment', 'projects.project.projectMentors.mentor', 'projects.mentor', 'achievements', 'evaluations']);
+            $this->loadInternProfile($intern, $canViewSalarySlips);
         }
 
-        return view('profile.show', compact('intern'));
+        return view('profile.show', compact('intern', 'canViewSalarySlips'));
     }
 
     public function edit(?string $profile = null): View
@@ -194,9 +197,33 @@ class ProfileController extends Controller
 
     public function showIntern(MIntern $intern): View
     {
-        $intern->load(['user.faceEnrollment', 'projects.project.projectMentors.mentor', 'projects.mentor', 'achievements', 'evaluations']);
+        $canViewSalarySlips = $this->canViewSalarySlips($this->currentUser(), $intern);
+        $this->loadInternProfile($intern, $canViewSalarySlips);
 
-        return view('profile.show', compact('intern'));
+        return view('profile.show', compact('intern', 'canViewSalarySlips'));
+    }
+
+    public function showSalarySlip(TrSalarySlip $salarySlip): BinaryFileResponse
+    {
+        $user = $this->currentUser();
+
+        if (! $user || ! $this->canViewSalarySlips($user, $salarySlip->intern)) {
+            abort(403, 'Kamu tidak memiliki akses ke slip gaji ini.');
+        }
+
+        $disk = Storage::disk('local');
+
+        if (! $disk->exists($salarySlip->txtSalarySlipFilePath)) {
+            abort(404, 'File slip gaji tidak ditemukan.');
+        }
+
+        $response = response()->file($disk->path($salarySlip->txtSalarySlipFilePath), [
+            'Content-Type' => 'application/pdf',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+        $response->setContentDisposition('attachment', $salarySlip->txtSalarySlipFileName);
+
+        return $response;
     }
 
     public function showMentor(MMentor $mentor): View
@@ -418,5 +445,35 @@ class ProfileController extends Controller
         }
 
         return MUser::with(['intern', 'mentor', 'adminProfile', 'faceEnrollment'])->find($userId);
+    }
+
+    private function canViewSalarySlips(?MUser $user, ?MIntern $intern): bool
+    {
+        if (! $user || ! $intern) {
+            return false;
+        }
+
+        return RoleAccess::isAttendanceAdmin($user)
+            || $user->intern?->intIntern_ID === $intern->intIntern_ID;
+    }
+
+    private function loadInternProfile(MIntern $intern, bool $withSalarySlips): void
+    {
+        $relations = [
+            'user.faceEnrollment',
+            'projects.project.projectMentors.mentor',
+            'projects.mentor',
+            'achievements',
+            'evaluations',
+        ];
+
+        if ($withSalarySlips) {
+            $relations['salarySlips'] = fn ($query) => $query
+                ->with(['creator.adminProfile', 'creator.mentor'])
+                ->orderByDesc('dtmInserted')
+                ->orderByDesc('intSalarySlip_ID');
+        }
+
+        $intern->load($relations);
     }
 }

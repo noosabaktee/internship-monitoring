@@ -70,4 +70,9 @@ class MUser extends Model
     {
         return $this->hasMany(TrNotification::class, 'intUser_ID', 'intUser_ID');
     }
+
+    public function createdSalarySlips()
+    {
+        return $this->hasMany(TrSalarySlip::class, 'intSalarySlipCreatedByUser_ID', 'intUser_ID');
+    }
 }
