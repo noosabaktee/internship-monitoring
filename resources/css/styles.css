@@ -894,9 +894,20 @@ body.sidebar-is-expanded .main-wrapper {
     flex-wrap: wrap;
 }
 
+.table-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap;
+    width: min(100%, 454px);
+    min-width: 0;
+}
+
 .table-search {
     position: relative;
-    width: min(340px, 100%);
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
 }
 
 .table-search i {
@@ -911,6 +922,12 @@ body.sidebar-is-expanded .main-wrapper {
 
 .table-search .table-search-input {
     padding-left: 36px;
+    min-height: 38px;
+}
+
+.table-filter-group .table-status-filter {
+    flex: 0 0 104px;
+    width: 104px;
     min-height: 38px;
 }
 

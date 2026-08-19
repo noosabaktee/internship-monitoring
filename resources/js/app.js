@@ -92,6 +92,7 @@ const initializeTableControls = () => {
         const state = {
             page: 1,
             query: '',
+            status: table.dataset.statusDefault || 'all',
         };
         let rows = [];
         let placeholderRows = [];
@@ -104,9 +105,18 @@ const initializeTableControls = () => {
         const toolbar = document.createElement('div');
         toolbar.className = 'table-control-bar';
         toolbar.innerHTML = `
-            <div class="table-search">
-                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                <input id="${controlId}" class="form-control table-search-input" type="search" placeholder="Search " aria-label="Search ">
+            <div class="table-filter-group">
+                <div class="table-search">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    <input id="${controlId}" class="form-control table-search-input" type="search" placeholder="Search " aria-label="Search ">
+                </div>
+                ${table.dataset.statusFilter === 'true' ? `
+                    <select class="form-control table-status-filter" aria-label="Filter status">
+                        <option value="all">All</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                ` : ''}
             </div>
             <div class="table-page-summary" aria-live="polite"></div>
         `;
@@ -118,7 +128,13 @@ const initializeTableControls = () => {
         host.insertBefore(pagination, tableWrap.nextSibling);
 
         const searchInput = toolbar.querySelector('.table-search-input');
+        const statusFilter = toolbar.querySelector('.table-status-filter');
         const summary = toolbar.querySelector('.table-page-summary');
+
+        if (statusFilter) {
+            statusFilter.value = ['all', 'active', 'inactive'].includes(state.status) ? state.status : 'all';
+            state.status = statusFilter.value;
+        }
 
         const isPlaceholderRow = (row) => {
             const onlyCell = row.cells.length === 1 ? row.cells[0] : null;
@@ -197,7 +213,12 @@ const initializeTableControls = () => {
         };
 
         const render = () => {
-            const filteredRows = rows.filter((row) => !state.query || searchableText(row).includes(state.query));
+            const filteredRows = rows.filter((row) => {
+                const matchesSearch = !state.query || searchableText(row).includes(state.query);
+                const matchesStatus = state.status === 'all' || row.dataset.tableStatus === state.status;
+
+                return matchesSearch && matchesStatus;
+            });
             const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
             const hasRows = rows.length > 0;
 
@@ -238,9 +259,9 @@ const initializeTableControls = () => {
 
             const endIndex = Math.min(startIndex + visibleRows.length, filteredRows.length);
             const fromText = filteredRows.length ? startIndex + 1 : 0;
-            const searchSuffix = state.query ? ` from ${rows.length}` : '';
+            const filterSuffix = state.query || state.status !== 'all' ? ` from ${rows.length}` : '';
 
-            summary.textContent = `Showing ${fromText}-${endIndex} of ${filteredRows.length}${searchSuffix}`;
+            summary.textContent = `Showing ${fromText}-${endIndex} of ${filteredRows.length}${filterSuffix}`;
             renderPagination(totalPages);
         };
 
@@ -261,6 +282,12 @@ const initializeTableControls = () => {
 
         searchInput.addEventListener('input', () => {
             state.query = searchInput.value.trim().toLowerCase();
+            state.page = 1;
+            render();
+        });
+
+        statusFilter?.addEventListener('change', () => {
+            state.status = statusFilter.value;
             state.page = 1;
             render();
         });

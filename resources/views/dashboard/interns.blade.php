@@ -33,7 +33,7 @@
 
     <div class="card">
         <div class="table-responsive">
-            <table class="table data-table align-middle mb-0">
+            <table class="table data-table align-middle mb-0" data-status-filter="true" data-status-default="active">
                 <thead>
                     <tr><th>ID</th><th>Full Name</th><th>Type</th><th>Salary / Day</th><th>Gender</th><th>Email</th><th>University</th><th>Dept</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
                 </thead>
@@ -45,7 +45,7 @@
                                 ? asset('storage/' . $intern->user->txtProfilePhoto)
                                 : 'https://ui-avatars.com/api/?name=' . urlencode($internName) . '&background=8CC63F&color=fff&bold=true';
                         @endphp
-                        <tr>
+                        <tr data-table-status="{{ $intern->bitActive ? 'active' : 'inactive' }}">
                             <td>{{ $intern->txtInternNo ?: 'INT-' . str_pad((string) $intern->intIntern_ID, 3, '0', STR_PAD_LEFT) }}</td>
                             <td>
                                 <a class="table-person table-person-link" href="{{ route('profile.intern.show', $intern->intIntern_ID) }}">
