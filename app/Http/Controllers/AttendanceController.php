@@ -526,6 +526,7 @@ class AttendanceController extends Controller
     private function attendanceSpreadsheet(array $payload): Spreadsheet
     {
         $spreadsheet = new Spreadsheet;
+        $spreadsheet->getDefaultStyle()->getFont()->setName('Arial');
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Attendance');
 
@@ -658,6 +659,7 @@ class AttendanceController extends Controller
         for ($row = $dataStartRow; $row <= $lastRow; $row++) {
             $sheet->getRowDimension($row)->setRowHeight(28.1);
         }
+        $sheet->getStyle('A1:'.$lastColumn.$lastRow)->getFont()->setName('Arial');
         $sheet->getStyle('A1:'.$lastColumn.$lastRow)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
         $spreadsheet->getProperties()
             ->setCreator('Kalbe Internship Monitoring')
@@ -833,7 +835,7 @@ class AttendanceController extends Controller
         $sheet->getStyle('G'.$pivotDataStartRow.':H'.$pivotTotalRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         $sheet->getStyle('H'.$pivotDataStartRow.':H'.$pivotTotalRow)->getNumberFormat()->setFormatCode('"Rp"#,##0');
 
-        $sheet->getStyle('A1:P'.$lastRow)->getFont()->setName('Calibri');
+        $sheet->getStyle('A1:P'.$lastRow)->getFont()->setName('Arial');
         $sheet->getRowDimension(1)->setRowHeight(20);
         foreach (range(2, 4) as $row) {
             $sheet->getRowDimension($row)->setRowHeight(23);
