@@ -486,14 +486,14 @@
                 <div class="form-group form-span-full">
                     <label class="form-label" for="salarySlipIntern">Bagikan Slip Kepada <span class="required">*</span></label>
                     <select id="salarySlipIntern" class="form-control" name="intIntern_ID" required>
-                        <option value="0" @selected((string) old('intIntern_ID', $attendanceSelectedIntern?->intern?->intIntern_ID ?? 0) === '0')>All Intern Aktif ({{ $salarySlipInterns->count() }})</option>
+                        <option value="0" @selected((string) old('intIntern_ID', $attendanceSelectedIntern?->intern?->intIntern_ID ?? 0) === '0')>All Intern Periode Ini ({{ $salarySlipInterns->count() }})</option>
                         @foreach ($salarySlipInterns as $internUser)
                             <option value="{{ $internUser->intern->intIntern_ID }}" @selected((string) old('intIntern_ID', $attendanceSelectedIntern?->intern?->intIntern_ID ?? 0) === (string) $internUser->intern->intIntern_ID)>
                                 {{ $internUser->intern->txtInternName }}{{ $internUser->intern->txtInternNo ? ' - '.$internUser->intern->txtInternNo : '' }}
                             </option>
                         @endforeach
                     </select>
-                    <span class="field-help">Pilihan All akan membuat file terpisah untuk setiap intern aktif dan mengemas hasil download dalam ZIP.</span>
+                    <span class="field-help">Pilihan All akan membuat file terpisah untuk setiap intern yang aktif pada periode slip dan mengemas hasil download dalam ZIP.</span>
                     @error('intIntern_ID')<span class="field-error">{{ $message }}</span>@enderror
                 </div>
             </div>

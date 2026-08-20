@@ -132,7 +132,12 @@ class AttendanceController extends Controller
             'teamTodayRows' => $teamTodayRows,
             'attendanceDetailFilters' => $attendanceDetail['filters'],
             'attendanceDetailInterns' => $attendanceDetail['interns'],
-            'salarySlipInterns' => $isAttendanceAdmin ? $this->attendanceInternUsers() : collect(),
+            'salarySlipInterns' => $isAttendanceAdmin
+                ? $this->attendancePeriodInternUsers(
+                    Carbon::parse($attendanceDetail['filters']['from'], self::TIMEZONE),
+                    Carbon::parse($attendanceDetail['filters']['to'], self::TIMEZONE),
+                )
+                : collect(),
             'attendanceDetailRows' => $attendanceDetail['rows'],
             'attendanceDetailSummary' => $attendanceDetail['summary'],
             'attendanceSelectedIntern' => $attendanceDetail['selectedIntern'],
@@ -628,7 +633,7 @@ class AttendanceController extends Controller
         $sheet->getStyle('A'.$monthRow.':'.$matrixLastColumn.$dateRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('111827');
         $sheet->getStyle('A'.$dataStartRow.':'.$matrixLastColumn.$lastRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('111827');
         $sheet->getStyle('A'.$dataStartRow.':A'.$lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $sheet->getStyle('B'.$dataStartRow.':'.Coordinate::stringFromColumnIndex($recapStartColumn - 1).$lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle('B'.$dataStartRow.':'.Coordinate::stringFromColumnIndex($recapStartColumn - 1).$lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
         $sheet->getStyle(Coordinate::stringFromColumnIndex($recapStartColumn).$dataStartRow.':'.Coordinate::stringFromColumnIndex($recapStartColumn + 2).$lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle(Coordinate::stringFromColumnIndex($recapStartColumn + 2).$dataStartRow.':'.Coordinate::stringFromColumnIndex($recapStartColumn + 2).$lastRow)->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle($legendStart.'5:'.$legendLabelColumn.($legendRow - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
@@ -639,7 +644,7 @@ class AttendanceController extends Controller
 
         $sheet->getColumnDimension('A')->setWidth(27.22);
         for ($columnIndex = $dateStartColumn; $columnIndex < $recapStartColumn; $columnIndex++) {
-            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($columnIndex))->setWidth(4.22);
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($columnIndex))->setWidth(16.22);
         }
 
         $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($recapStartColumn))->setWidth(15.22);
@@ -848,23 +853,23 @@ class AttendanceController extends Controller
             'dtmSalarySlipPeriodEnd.before_or_equal' => 'Tanggal akhir slip gaji tidak boleh melewati hari ini.',
         ]);
 
-        $activeInternUsers = $this->attendanceInternUsers();
+        $now = Carbon::now(self::TIMEZONE);
+        $from = Carbon::parse($validated['dtmSalarySlipPeriodStart'], self::TIMEZONE)->startOfDay();
+        $to = Carbon::parse($validated['dtmSalarySlipPeriodEnd'], self::TIMEZONE)->startOfDay();
+        $periodInternUsers = $this->attendancePeriodInternUsers($from, $to);
         $selectedInternId = (int) $validated['intIntern_ID'];
         $recipients = $selectedInternId === 0
-            ? $activeInternUsers
-            : $activeInternUsers
+            ? $periodInternUsers
+            : $periodInternUsers
                 ->filter(fn (MUser $user) => $user->intern?->intIntern_ID === $selectedInternId)
                 ->values();
 
         if ($recipients->isEmpty()) {
             throw ValidationException::withMessages([
-                'intIntern_ID' => 'Pilih minimal satu intern aktif untuk menerima slip gaji.',
+                'intIntern_ID' => 'Pilih minimal satu intern yang aktif pada periode slip gaji.',
             ]);
         }
 
-        $now = Carbon::now(self::TIMEZONE);
-        $from = Carbon::parse($validated['dtmSalarySlipPeriodStart'], self::TIMEZONE)->startOfDay();
-        $to = Carbon::parse($validated['dtmSalarySlipPeriodEnd'], self::TIMEZONE)->startOfDay();
         $setting = $this->attendanceSetting();
         $generatedBy = $this->generatedByName($authUser);
         $documents = $recipients->map(function (MUser $recipient) use ($from, $to, $setting, $now, $generatedBy): array {
@@ -930,7 +935,8 @@ class AttendanceController extends Controller
 
         $setting = $this->attendanceSetting();
         $now = Carbon::now(self::TIMEZONE);
-        $teamUsers = $this->attendanceInternUsers();
+        [$fromDate, $toDate] = $this->detailDateRange($request, $now);
+        $teamUsers = $this->attendancePeriodInternUsers($fromDate, $toDate);
         $detail = $this->adminAttendanceDetail($request, $teamUsers, $setting, $now);
         $calendar = $this->attendanceReportCalendar($detail['filters']['from'], $detail['filters']['to']);
         $matrixInterns = $detail['selectedIntern'] ? collect([$detail['selectedIntern']]) : $detail['interns'];
@@ -1067,10 +1073,10 @@ class AttendanceController extends Controller
 
         if ($row['status'] === 'Terlambat') {
             return [
-                'code' => 'T',
-                'label' => 'Terlambat',
+                'code' => 'H (Terlambat)',
+                'label' => 'Hadir (Terlambat)',
                 'class' => 'late',
-                'color' => 'FFD95A',
+                'color' => '7ED957',
                 'countsAsPresent' => true,
                 'countsAsNotPresent' => false,
             ];
@@ -1078,18 +1084,18 @@ class AttendanceController extends Controller
 
         if (($row['workMode'] ?? '') === 'WFH') {
             return [
-                'code' => 'W',
-                'label' => 'WFH',
+                'code' => 'H (WFH)',
+                'label' => 'Hadir (WFH)',
                 'class' => 'wfh',
-                'color' => '91A7FF',
+                'color' => '7ED957',
                 'countsAsPresent' => true,
                 'countsAsNotPresent' => false,
             ];
         }
 
         return [
-            'code' => 'H',
-            'label' => 'Hadir',
+            'code' => 'H (Tepat Waktu)',
+            'label' => 'Hadir (Tepat Waktu)',
             'class' => 'present',
             'color' => '7ED957',
             'countsAsPresent' => true,
@@ -1104,9 +1110,7 @@ class AttendanceController extends Controller
     {
         return [
             ['code' => 'H', 'label' => 'Hadir', 'color' => '7ED957', 'class' => 'present'],
-            ['code' => 'T', 'label' => 'Terlambat', 'color' => 'FFD95A', 'class' => 'late'],
             ['code' => 'A', 'label' => 'Absen', 'color' => 'FF5A5F', 'class' => 'absent'],
-            ['code' => 'W', 'label' => 'WFH', 'color' => '91A7FF', 'class' => 'wfh'],
             ['code' => 'S', 'label' => 'Sakit', 'color' => '9BE7E4', 'class' => 'sick'],
             ['code' => 'I', 'label' => 'Izin', 'color' => 'BDBDBD', 'class' => 'permission'],
         ];
@@ -1363,6 +1367,50 @@ class AttendanceController extends Controller
             ->whereHas('intern', fn ($query) => $query->where('bitActive', true))
             ->get()
             ->reject(fn (MUser $user) => $user->intern?->hasCompletedInternship(Carbon::now(self::TIMEZONE)))
+            ->sortBy(fn (MUser $user) => $this->displayName($user))
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, MUser>
+     */
+    private function attendancePeriodInternUsers(Carbon $fromDate, Carbon $toDate): Collection
+    {
+        $fromDate = $fromDate->copy()->startOfDay();
+        $toDate = $toDate->copy()->startOfDay();
+        $attendanceUserIds = TrAttendance::whereDate('dtmAttendanceDate', '>=', $fromDate->toDateString())
+            ->whereDate('dtmAttendanceDate', '<=', $toDate->toDateString())
+            ->pluck('intUser_ID')
+            ->filter()
+            ->unique()
+            ->values();
+        $approvedRequestInternIds = TrWorkFromHomeRequest::where('bitActive', true)
+            ->where('txtWorkFromHomeRequestStatus', TrWorkFromHomeRequest::STATUS_APPROVED)
+            ->whereDate('dtmWorkFromHomeRequestStartDate', '<=', $toDate->toDateString())
+            ->whereDate('dtmWorkFromHomeRequestEndDate', '>=', $fromDate->toDateString())
+            ->pluck('intIntern_ID')
+            ->filter()
+            ->unique()
+            ->values();
+
+        return MUser::with(['intern', 'faceEnrollment'])
+            ->whereHas('intern')
+            ->get()
+            ->filter(function (MUser $user) use ($fromDate, $attendanceUserIds, $approvedRequestInternIds): bool {
+                $intern = $user->intern;
+
+                if (! $intern) {
+                    return false;
+                }
+
+                $endDate = $intern->effectiveEndDate();
+                $hasPeriodData = $attendanceUserIds->contains($user->intUser_ID)
+                    || $approvedRequestInternIds->contains($intern->intIntern_ID);
+                $isActiveNow = (bool) $user->bitActive && (bool) $intern->bitActive;
+                $hasPeriodOverlap = ! $endDate || $endDate->gte($fromDate);
+
+                return $hasPeriodOverlap && ($isActiveNow || $hasPeriodData || (bool) $endDate);
+            })
             ->sortBy(fn (MUser $user) => $this->displayName($user))
             ->values();
     }

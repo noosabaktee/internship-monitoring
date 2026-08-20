@@ -27,11 +27,11 @@
         .date-col { width: 21px; }
         .recap-col { width: 58px; }
         .money-col { width: 66px; }
-        .cell-dot { display: inline-block; width: 18px; height: 18px; border-radius: 50%; line-height: 18px; font-weight: 800; }
+        .cell-dot { display: inline-block; min-width: 18px; max-width: 48px; padding: 2px 3px; border-radius: 4px; line-height: 1.15; font-weight: 800; }
         .present { background: #7ed957; }
-        .late { background: #ffd95a; }
+        .late { background: #7ed957; }
         .absent { background: #ff5a5f; }
-        .wfh { background: #91a7ff; }
+        .wfh { background: #7ed957; }
         .sick { background: #9be7e4; }
         .permission { background: #bdbdbd; }
         .pending { background: #f2f4f7; color: #667085; }
