@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -662,8 +663,191 @@ class AttendanceController extends Controller
             ->setCreator('Kalbe Internship Monitoring')
             ->setTitle('Attendance Report')
             ->setSubject('Attendance export');
+        $this->addTransportPaymentSheet($spreadsheet, $payload);
+        $spreadsheet->setActiveSheetIndex(0);
 
         return $spreadsheet;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function addTransportPaymentSheet(Spreadsheet $spreadsheet, array $payload): void
+    {
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle('Pembayaran Transport');
+
+        $fromDate = Carbon::parse($payload['filters']['from'], self::TIMEZONE)->startOfDay();
+        $toDate = Carbon::parse($payload['filters']['to'], self::TIMEZONE)->startOfDay();
+        $paymentRows = $payload['matrixRows']->values();
+        $minimumDataRows = 5;
+        $dataStartRow = 5;
+        $dataRowCount = max($minimumDataRows, $paymentRows->count());
+        $dataEndRow = $dataStartRow + $dataRowCount - 1;
+        $totalRow = $dataEndRow + 2;
+        $signatureLabelRow = $totalRow + 3;
+        $signatureNameRow = $signatureLabelRow + 4;
+        $noteRow = $signatureNameRow + 2;
+        $cashHeaderRow = $noteRow + 1;
+        $cashValueRow = $cashHeaderRow + 1;
+        $pivotHeaderRow = $cashValueRow;
+        $pivotDataStartRow = $pivotHeaderRow + 2;
+        $pivotRows = $this->transportPaymentPivotRows($paymentRows, $dataRowCount);
+        $pivotTotalRow = $pivotDataStartRow + $pivotRows->count();
+        $lastRow = max($cashValueRow + 1, $pivotTotalRow);
+
+        foreach ([
+            'A' => 6.11,
+            'B' => 30.55,
+            'C' => 15.66,
+            'D' => 23.66,
+            'E' => 18.44,
+            'F' => 27.44,
+            'G' => 37.00,
+            'H' => 23.66,
+            'I' => 23.11,
+            'J' => 17.66,
+            'K' => 13.55,
+            'L' => 17.55,
+            'M' => 6.66,
+            'N' => 13.55,
+            'O' => 13.55,
+            'P' => 13.55,
+        ] as $column => $width) {
+            $sheet->getColumnDimension($column)->setWidth($width);
+        }
+
+        $sheet->mergeCells('A1:P1');
+        foreach (['A', 'B', 'C', 'D', 'H', 'I', 'M', 'N', 'O', 'P'] as $column) {
+            $sheet->mergeCells($column.'2:'.$column.'4');
+        }
+        $sheet->mergeCells('E2:F3');
+
+        $sheet->setCellValue('A1', 'PEMBAYARAN UANG TRANSPORT PKL/MAGANG '.$this->paymentPeriodLabel($fromDate, $toDate));
+        $sheet->setCellValue('A2', 'NO.');
+        $sheet->setCellValue('B2', 'Nama PKL');
+        $sheet->setCellValue('C2', 'Level');
+        $sheet->setCellValue('D2', 'Institusi');
+        $sheet->setCellValue('E2', 'Periode Claim');
+        $sheet->setCellValue('E4', 'Awal');
+        $sheet->setCellValue('F4', 'Akhir');
+        $sheet->setCellValue('G2', 'Jenjang');
+        $sheet->setCellValue('G3', 'Pendidikan');
+        $sheet->setCellValue('H2', "Departemen/ Cost\nCenter");
+        $sheet->setCellValue('I2', 'Status PKL');
+        $sheet->setCellValue('J2', 'Total');
+        $sheet->setCellValue('J3', 'Hari');
+        $sheet->setCellValue('J4', 'Kerja');
+        $sheet->setCellValue('K2', 'Uang PKL /');
+        $sheet->setCellValue('K3', 'MAGANG');
+        $sheet->setCellValue('L2', 'Total');
+        $sheet->setCellValue('L3', 'Diterima Aktual');
+        $sheet->setCellValue('M2', 'Bank');
+        $sheet->setCellValue('N2', "No\nRekening");
+        $sheet->setCellValue('O2', "Kantor\nCabang");
+        $sheet->setCellValue('P2', "Atas\nNama");
+
+        $sheet->getStyle('A1:P1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D9D9D9');
+        $sheet->getStyle('A2:P4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('00FFFF');
+        $sheet->getStyle('A1:P4')->getFont()->setBold(true)->setSize(10)->getColor()->setRGB('000000');
+        $sheet->getStyle('A1:P4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+        $sheet->getStyle('A1:P4')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('000000');
+
+        for ($offset = 0; $offset < $dataRowCount; $offset++) {
+            $row = $dataStartRow + $offset;
+            $paymentRow = $paymentRows->get($offset);
+
+            $sheet->setCellValue('A'.$row, $offset + 1);
+            $sheet->setCellValue('B'.$row, $paymentRow['name'] ?? '');
+            $sheet->setCellValue('C'.$row, $paymentRow['level'] ?? '');
+            $sheet->setCellValue('D'.$row, $paymentRow['institution'] ?? '');
+            $sheet->setCellValue('E'.$row, ExcelDate::PHPToExcel($fromDate));
+            $sheet->setCellValue('F'.$row, ExcelDate::PHPToExcel($toDate));
+            $sheet->setCellValue('G'.$row, $paymentRow['education'] ?? '');
+            $sheet->setCellValue('H'.$row, $paymentRow['costCenter'] ?? '');
+            $sheet->setCellValue('I'.$row, $paymentRow['statusPkl'] ?? '');
+            $sheet->setCellValue('J'.$row, (int) ($paymentRow['presentCount'] ?? 0));
+            $sheet->setCellValue('K'.$row, (float) ($paymentRow['dailySalary'] ?? 0));
+            $sheet->setCellValue('L'.$row, (float) ($paymentRow['allowance'] ?? 0));
+        }
+
+        $sheet->getStyle('A'.$dataStartRow.':A'.$dataEndRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('DAF2D0');
+        $sheet->getStyle('B'.$dataStartRow.':P'.$dataEndRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFFCC');
+        $sheet->getStyle('A'.$dataStartRow.':P'.$dataEndRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('000000');
+        $sheet->getStyle('A'.$dataStartRow.':P'.$dataEndRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+        $sheet->getStyle('E'.$dataStartRow.':F'.$dataEndRow)->getNumberFormat()->setFormatCode('d-mmm-yy');
+        $sheet->getStyle('K'.$dataStartRow.':L'.$dataEndRow)->getNumberFormat()->setFormatCode('"Rp"#,##0');
+
+        $sheet->mergeCells('A'.$totalRow.':G'.$totalRow);
+        $sheet->mergeCells('H'.$totalRow.':L'.$totalRow);
+        $sheet->setCellValue('A'.$totalRow, 'TOTAL');
+        $sheet->setCellValue('H'.$totalRow, $paymentRows->sum(fn (array $row): float => (float) ($row['allowance'] ?? 0)));
+        $sheet->getStyle('A'.$totalRow.':L'.$totalRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
+        $sheet->getStyle('A'.$totalRow.':L'.$totalRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('000000');
+        $sheet->getStyle('A'.$totalRow.':L'.$totalRow)->getFont()->setBold(true);
+        $sheet->getStyle('A'.$totalRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('H'.$totalRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle('H'.$totalRow)->getNumberFormat()->setFormatCode('"Rp"#,##0');
+
+        $sheet->setCellValue('C'.$signatureLabelRow, 'Dibuat Oleh,');
+        $sheet->setCellValue('E'.$signatureLabelRow, 'Diketahui Oleh,');
+        $sheet->setCellValue('J'.$signatureLabelRow, 'Disetujui Oleh,');
+        $sheet->setCellValue('C'.$signatureNameRow, 'LPP');
+        $sheet->setCellValue('E'.$signatureNameRow, 'RBS');
+        $sheet->setCellValue('J'.$signatureNameRow, 'ENL');
+        $sheet->getStyle('C'.$signatureLabelRow.':J'.$signatureNameRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        foreach (['C', 'E', 'J'] as $column) {
+            $sheet->getStyle($column.$signatureNameRow)->getFont()->setBold(true)->setUnderline(true);
+        }
+
+        $sheet->setCellValue('A'.$noteRow, 'NOTE : NAMA PKL HARUS DI INPUT MANUAL SESUAI DATABSE PKL BIAR RUMUS JALAN');
+        $sheet->getStyle('A'.$noteRow.':H'.$noteRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FF0000');
+        $sheet->getStyle('A'.$noteRow.':H'.$noteRow)->getFont()->getColor()->setRGB('000000');
+
+        $sheet->setCellValue('B'.$cashHeaderRow, 'BAYAR CASH');
+        $sheet->setCellValue('C'.$cashHeaderRow, 'BAYAR TF');
+        $sheet->setCellValue('B'.$cashValueRow, $paymentRows->sum(fn (array $row): float => (float) ($row['allowance'] ?? 0)));
+        $sheet->setCellValue('C'.$cashValueRow, 0);
+        $sheet->getStyle('B'.$cashHeaderRow.':C'.$cashHeaderRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
+        $sheet->getStyle('B'.$cashHeaderRow.':C'.$cashValueRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('000000');
+        $sheet->getStyle('B'.$cashHeaderRow.':C'.$cashValueRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle('B'.$cashValueRow.':C'.$cashValueRow)->getNumberFormat()->setFormatCode('"Rp"#,##0');
+
+        foreach (['F', 'G', 'H'] as $column) {
+            $sheet->mergeCells($column.$pivotHeaderRow.':'.$column.($pivotHeaderRow + 1));
+        }
+        $sheet->setCellValue('F'.$pivotHeaderRow, 'Departemen/ Cost Center');
+        $sheet->setCellValue('G'.$pivotHeaderRow, 'Count of Departemen/ Cost Center');
+        $sheet->setCellValue('H'.$pivotHeaderRow, "Sum of  Total Diterima\nAktual");
+        $sheet->getStyle('F'.$pivotHeaderRow.':H'.($pivotHeaderRow + 1))->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('145F82');
+        $sheet->getStyle('F'.$pivotHeaderRow.':H'.($pivotHeaderRow + 1))->getFont()->setBold(true)->setSize(9)->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle('F'.$pivotHeaderRow.':H'.($pivotHeaderRow + 1))->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+
+        foreach ($pivotRows as $index => $pivotRow) {
+            $row = $pivotDataStartRow + $index;
+            $sheet->setCellValue('F'.$row, $pivotRow['costCenter']);
+            $sheet->setCellValue('G'.$row, $pivotRow['count'] ?: null);
+            $sheet->setCellValue('H'.$row, $pivotRow['sum'] ?: null);
+        }
+
+        $sheet->setCellValue('F'.$pivotTotalRow, 'Grand Total');
+        $sheet->setCellValue('G'.$pivotTotalRow, $paymentRows->count());
+        $sheet->setCellValue('H'.$pivotTotalRow, $paymentRows->sum(fn (array $row): float => (float) ($row['allowance'] ?? 0)));
+        $sheet->getStyle('F'.$pivotDataStartRow.':H'.$pivotTotalRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_HAIR)->getColor()->setRGB('D9D9D9');
+        $sheet->getStyle('F'.$pivotTotalRow.':H'.$pivotTotalRow)->getFont()->setBold(true);
+        $sheet->getStyle('G'.$pivotDataStartRow.':H'.$pivotTotalRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle('H'.$pivotDataStartRow.':H'.$pivotTotalRow)->getNumberFormat()->setFormatCode('"Rp"#,##0');
+
+        $sheet->getStyle('A1:P'.$lastRow)->getFont()->setName('Calibri');
+        $sheet->getRowDimension(1)->setRowHeight(20);
+        foreach (range(2, 4) as $row) {
+            $sheet->getRowDimension($row)->setRowHeight(23);
+        }
+        foreach (range($dataStartRow, $dataEndRow) as $row) {
+            $sheet->getRowDimension($row)->setRowHeight(20);
+        }
+        $sheet->getPageSetup()->setFitToWidth(1)->setFitToHeight(0);
+        $sheet->getPageMargins()->setTop(0.25)->setRight(0.25)->setBottom(0.25)->setLeft(0.25);
     }
 
     public function reportPdf(Request $request): Response
@@ -981,6 +1165,8 @@ class AttendanceController extends Controller
 
         return $interns
             ->map(function (MUser $user) use ($calendar, $rowsByInternAndDate): array {
+                $intern = $user->intern;
+                $internType = $intern?->txtInternType;
                 $dailySalary = (float) ($user->intern?->floatInternSalary ?? 0);
                 $presentCount = 0;
                 $notPresentCount = 0;
@@ -1002,9 +1188,14 @@ class AttendanceController extends Controller
 
                 return [
                     'intUser_ID' => $user->intUser_ID,
-                    'intIntern_ID' => $user->intern?->intIntern_ID,
-                    'internNo' => $user->intern?->txtInternNo ?: 'INT-'.str_pad((string) ($user->intern?->intIntern_ID ?? $user->intUser_ID), 3, '0', STR_PAD_LEFT),
+                    'intIntern_ID' => $intern?->intIntern_ID,
+                    'internNo' => $intern?->txtInternNo ?: 'INT-'.str_pad((string) ($intern?->intIntern_ID ?? $user->intUser_ID), 3, '0', STR_PAD_LEFT),
                     'name' => $this->displayName($user),
+                    'level' => $this->paymentEducationLevel($internType),
+                    'institution' => $intern?->txtUniversity ?: '',
+                    'education' => $this->paymentEducationType($internType, $intern?->txtUniversity),
+                    'costCenter' => $intern?->txtInternCostCenter ?: '',
+                    'statusPkl' => $this->paymentInternStatus($internType),
                     'dailySalary' => $dailySalary,
                     'cells' => $cells,
                     'presentCount' => $presentCount,
@@ -1014,6 +1205,75 @@ class AttendanceController extends Controller
             })
             ->sortBy('name')
             ->values();
+    }
+
+    private function paymentPeriodLabel(Carbon $fromDate, Carbon $toDate): string
+    {
+        if ($fromDate->isSameMonth($toDate)) {
+            return $this->monthLabel($fromDate);
+        }
+
+        if ($fromDate->isSameYear($toDate)) {
+            return explode(' ', $this->monthLabel($fromDate))[0].' - '.$this->monthLabel($toDate);
+        }
+
+        return $this->monthLabel($fromDate).' - '.$this->monthLabel($toDate);
+    }
+
+    private function paymentEducationLevel(?string $internType): string
+    {
+        return strtolower((string) $internType) === RoleAccess::INTERN_PKL ? 'SMK' : 'S1';
+    }
+
+    private function paymentEducationType(?string $internType, ?string $institution): string
+    {
+        if (! $institution) {
+            return '';
+        }
+
+        return strtolower((string) $internType) === RoleAccess::INTERN_PKL ? 'Sekolah' : 'Universitas';
+    }
+
+    private function paymentInternStatus(?string $internType): string
+    {
+        return match (strtolower((string) ($internType ?: RoleAccess::INTERN_DIGITALISASI))) {
+            RoleAccess::INTERN_PKL => 'PKL',
+            RoleAccess::INTERN_REGULAR => 'MAGANG',
+            default => 'INTERNSHIP 4.0',
+        };
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $paymentRows
+     * @return Collection<int, array{costCenter: string, count: int, sum: float}>
+     */
+    private function transportPaymentPivotRows(Collection $paymentRows, int $dataRowCount): Collection
+    {
+        $groupedRows = $paymentRows
+            ->groupBy(fn (array $row): string => trim((string) ($row['costCenter'] ?? '')) ?: '(blank)')
+            ->map(fn (Collection $rows, string $costCenter): array => [
+                'costCenter' => $costCenter,
+                'count' => $rows->count(),
+                'sum' => $rows->sum(fn (array $row): float => (float) ($row['allowance'] ?? 0)),
+            ])
+            ->values();
+        $blankRow = $groupedRows->firstWhere('costCenter', '(blank)');
+        $rows = $groupedRows
+            ->reject(fn (array $row): bool => $row['costCenter'] === '(blank)')
+            ->sortBy('costCenter')
+            ->values();
+
+        $hasBlankTemplateRows = $dataRowCount > $paymentRows->count();
+
+        if ($blankRow || $hasBlankTemplateRows) {
+            $rows->push($blankRow ?: [
+                'costCenter' => '(blank)',
+                'count' => 0,
+                'sum' => 0.0,
+            ]);
+        }
+
+        return $rows;
     }
 
     /**
