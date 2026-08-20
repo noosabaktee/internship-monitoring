@@ -534,6 +534,7 @@ it('allows HRD to export filtered attendance report and salary slip', function (
             ->and($paymentSheet->getCell('D5')->getValue())->toBe('Institut Teknologi Sepuluh November')
             ->and($paymentSheet->getRowDimension(5)->getRowHeight())->toBeGreaterThan(20)
             ->and($paymentSheet->getCell('H5')->getValue())->toBe('MDP')
+            ->and($paymentSheet->getCell('I5')->getValue())->toBe('Digitalisasi')
             ->and($paymentSheet->getCell('J5')->getValue())->toBe(1)
             ->and((float) $paymentSheet->getCell('K5')->getValue())->toBe(100000.0)
             ->and((float) $paymentSheet->getCell('L5')->getValue())->toBe(100000.0)

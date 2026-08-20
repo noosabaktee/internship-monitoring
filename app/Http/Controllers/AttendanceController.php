@@ -1234,8 +1234,8 @@ class AttendanceController extends Controller
     {
         return match (strtolower((string) ($internType ?: RoleAccess::INTERN_DIGITALISASI))) {
             RoleAccess::INTERN_PKL => 'PKL',
-            RoleAccess::INTERN_REGULAR => 'MAGANG',
-            default => 'INTERNSHIP 4.0',
+            RoleAccess::INTERN_REGULAR => 'Regular',
+            default => 'Digitalisasi',
         };
     }
 
