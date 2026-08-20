@@ -97,6 +97,7 @@ abstract class ApiController extends Controller
             'gender' => $intern->txtInternGender,
             'university' => $intern->txtUniversity,
             'department' => $intern->txtDept,
+            'cost_center' => $intern->txtInternCostCenter,
             'type' => $intern->txtInternType,
             'salary' => $intern->floatInternSalary,
             'bio' => $intern->txtBio,

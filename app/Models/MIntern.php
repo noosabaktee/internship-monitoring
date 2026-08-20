@@ -26,6 +26,7 @@ class MIntern extends Model
         'txtInternGender',
         'txtUniversity',
         'txtDept',
+        'txtInternCostCenter',
         'txtInternType',
         'floatInternSalary',
         'txtBio',

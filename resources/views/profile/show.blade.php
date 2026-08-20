@@ -77,6 +77,7 @@
                             <span class="profile-pill"><i class="fa-solid fa-venus-mars"></i> {{ $intern->txtInternGender ?: '-' }}</span>
                             <span class="profile-pill"><i class="fa-solid fa-graduation-cap"></i> {{ $intern->txtUniversity ?: '-' }}</span>
                             <span class="profile-pill"><i class="fa-solid fa-building"></i> {{ $intern->txtDept ?: '-' }}</span>
+                            <span class="profile-pill"><i class="fa-solid fa-barcode"></i> {{ $intern->txtInternCostCenter ?: '-' }}</span>
                             <span class="profile-pill"><i class="fa-regular fa-calendar"></i> {{ $intern->dtmInserted?->format('d M Y') ?? '-' }}</span>
                             <span class="profile-pill"><i class="fa-solid fa-calendar-check"></i> {{ $intern->dtmEndDate?->format('d M Y') ?? '-' }}</span>
                             <span class="profile-pill"><i class="fa-solid fa-circle-check"></i> {{ $intern->bitActive ? 'Active' : 'Inactive' }}</span>

@@ -132,12 +132,7 @@ class AttendanceController extends Controller
             'teamTodayRows' => $teamTodayRows,
             'attendanceDetailFilters' => $attendanceDetail['filters'],
             'attendanceDetailInterns' => $attendanceDetail['interns'],
-            'salarySlipInterns' => $isAttendanceAdmin
-                ? $this->attendancePeriodInternUsers(
-                    Carbon::parse($attendanceDetail['filters']['from'], self::TIMEZONE),
-                    Carbon::parse($attendanceDetail['filters']['to'], self::TIMEZONE),
-                )
-                : collect(),
+            'salarySlipInterns' => $isAttendanceAdmin ? $attendanceDetail['interns'] : collect(),
             'attendanceDetailRows' => $attendanceDetail['rows'],
             'attendanceDetailSummary' => $attendanceDetail['summary'],
             'attendanceSelectedIntern' => $attendanceDetail['selectedIntern'],

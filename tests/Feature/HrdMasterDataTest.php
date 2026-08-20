@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\MAdminProfile;
+use App\Models\MIntern;
 use App\Models\MMentor;
 use App\Models\MUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -64,6 +65,56 @@ it('allows HRD to update HRD data', function () {
         ->and($hrd->txtRole)->toBe('HRD')
         ->and($hrd->adminProfile->txtAdminProfileName)->toBe('Updated HRD')
         ->and($hrd->adminProfile->txtAdminProfilePosition)->toBe('HRD');
+});
+
+it('allows HRD and headmaster to manage intern cost center data', function () {
+    $headmaster = createHrdMasterUser('Headmaster', 'Cost Center Headmaster');
+
+    $this->withSession(['auth_user_id' => $headmaster->intUser_ID])
+        ->get(route('interns.create'))
+        ->assertOk()
+        ->assertSee('Cost Center');
+
+    $this->withSession(['auth_user_id' => $headmaster->intUser_ID])
+        ->post(route('interns.store'), [
+            'txtEmail' => 'cost.center.intern@example.test',
+            'txtPassword' => 'password',
+            'txtInternName' => 'Cost Center Intern',
+            'txtInternGender' => 'Perempuan',
+            'txtUniversity' => 'KMI University',
+            'txtDept' => 'Finance',
+            'txtInternCostCenter' => 'CC-1001',
+            'txtInternType' => 'regular',
+            'floatInternSalary' => '75000',
+            'dtmInserted' => '2026-08-01',
+            'dtmEndDate' => '2026-08-31',
+            'bitActive' => '1',
+        ])
+        ->assertRedirect(route('interns.index'));
+
+    $intern = MIntern::where('txtInternName', 'Cost Center Intern')->firstOrFail();
+
+    expect($intern->txtInternCostCenter)->toBe('CC-1001');
+
+    $hrd = createHrdMasterUser('HRD', 'Cost Center HRD');
+
+    $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+        ->put(route('interns.update', $intern->intIntern_ID), [
+            'txtEmail' => 'cost.center.updated@example.test',
+            'txtInternName' => 'Cost Center Intern Updated',
+            'txtInternGender' => 'Perempuan',
+            'txtUniversity' => 'KMI University',
+            'txtDept' => 'Finance',
+            'txtInternCostCenter' => 'CC-2002',
+            'txtInternType' => 'regular',
+            'floatInternSalary' => '80000',
+            'dtmInserted' => '2026-08-01',
+            'dtmEndDate' => '2026-08-31',
+            'bitActive' => '1',
+        ])
+        ->assertRedirect(route('interns.index'));
+
+    expect($intern->refresh()->txtInternCostCenter)->toBe('CC-2002');
 });
 
 it('allows headmaster to promote mentor to headmaster', function () {

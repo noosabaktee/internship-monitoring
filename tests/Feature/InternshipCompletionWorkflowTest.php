@@ -403,6 +403,20 @@ it('activates location-free WFH attendance only after HRD approval', function ()
     }
 });
 
+it('renders the intern WFH request type as a select input', function () {
+    $intern = revisionUser('Intern', 'WFH Select Intern', '2026-08-31');
+
+    $this->withSession(['auth_user_id' => $intern->intUser_ID])
+        ->get(route('work-from-home.index'))
+        ->assertOk()
+        ->assertSee('<select id="wfhType" class="form-control" name="txtWorkFromHomeRequestType" required>', false)
+        ->assertSee('<option value="" disabled selected>Pilih tipe pengajuan</option>', false)
+        ->assertSee('<option value="WFH"', false)
+        ->assertSee('<option value="Izin"', false)
+        ->assertSee('<option value="Sakit"', false)
+        ->assertDontSee('type="radio" name="txtWorkFromHomeRequestType"', false);
+});
+
 it('lets attendance admins revise an unused approved WFH request', function () {
     Storage::fake('local');
     Carbon::setTestNow(Carbon::parse('2026-07-15 08:00:00', 'Asia/Jakarta'));

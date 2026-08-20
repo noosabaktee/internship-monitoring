@@ -35,7 +35,7 @@
         <div class="table-responsive">
             <table class="table data-table align-middle mb-0" data-status-filter="true" data-status-default="active">
                 <thead>
-                    <tr><th>ID</th><th>Full Name</th><th>Type</th><th>Salary / Day</th><th>Gender</th><th>Email</th><th>University</th><th>Dept</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
+                    <tr><th>ID</th><th>Full Name</th><th>Type</th><th>Salary / Day</th><th>Gender</th><th>Email</th><th>University</th><th>Dept</th><th>Cost Center</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($interns as $intern)
@@ -59,6 +59,7 @@
                             <td>{{ $intern->user->txtEmail ?? '-' }}</td>
                             <td>{{ $intern->txtUniversity ?: '-' }}</td>
                             <td>{{ $intern->txtDept ?: '-' }}</td>
+                            <td>{{ $intern->txtInternCostCenter ?: '-' }}</td>
                             <td>{{ $intern->dtmInserted?->format('d M Y') ?? '-' }}</td>
                             <td>{{ $intern->dtmEndDate?->format('d M Y') ?? '-' }}</td>
                             <td><span class="status-badge {{ $intern->bitActive ? 'status-active' : 'status-inactive' }}">{{ $intern->bitActive ? 'Active' : 'Inactive' }}</span></td>
@@ -82,7 +83,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="12" class="center">No intern data yet.</td></tr>
+                        <tr><td colspan="13" class="center">No intern data yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -141,6 +142,10 @@
                 <div class="col-md-6">
                     <label class="form-label">Dept</label>
                     <input class="form-control" name="txtDept" value="{{ old('txtDept', $editingIntern->txtDept ?? '') }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Cost Center</label>
+                    <input class="form-control" name="txtInternCostCenter" value="{{ old('txtInternCostCenter', $editingIntern->txtInternCostCenter ?? '') }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Intern Type</label>

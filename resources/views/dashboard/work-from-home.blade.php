@@ -159,19 +159,13 @@ $wfhFormHasErrors = collect([
     <form class="form-grid form-grid-2" action="{{ route('work-from-home.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
         <div class="form-group form-span-full">
-            <label class="form-label">Tipe Pengajuan <span class="required">*</span></label>
-            <div class="wfh-type-options">
+            <label class="form-label" for="wfhType">Tipe Pengajuan <span class="required">*</span></label>
+            <select id="wfhType" class="form-control" name="txtWorkFromHomeRequestType" required>
+                <option value="" disabled @selected(old('txtWorkFromHomeRequestType') === null)>Pilih tipe pengajuan</option>
                 @foreach ($requestTypes as $type => $meta)
-                <label class="wfh-type-option type-{{ strtolower($type) }} d-flex">
-                    <input type="radio" name="txtWorkFromHomeRequestType" value="{{ $type }}" @checked(old('txtWorkFromHomeRequestType', 'WFH' )===$type) required>
-                    <span class="wfh-type-option-icon"><i class="fa-solid {{ $meta['icon'] }}"></i></span>
-                    <span>
-                        <strong>{{ $meta['label'] }}</strong>
-                        <small>{{ $meta['help'] }}</small>
-                    </span>
-                </label>
+                    <option value="{{ $type }}" @selected(old('txtWorkFromHomeRequestType') === $type)>{{ $meta['label'] }}</option>
                 @endforeach
-            </div>
+            </select>
             @error('txtWorkFromHomeRequestType')<small class="field-error">{{ $message }}</small>@enderror
         </div>
         <div class="form-group">
