@@ -709,7 +709,7 @@ class AttendanceController extends Controller
             'J' => 17.66,
             'K' => 13.55,
             'L' => 17.55,
-            'M' => 6.66,
+            'M' => 14.55,
             'N' => 13.55,
             'O' => 13.55,
             'P' => 13.55,
@@ -718,7 +718,7 @@ class AttendanceController extends Controller
         }
 
         $sheet->mergeCells('A1:P1');
-        foreach (['A', 'B', 'C', 'D', 'H', 'I', 'M', 'N', 'O', 'P'] as $column) {
+        foreach (['A', 'B', 'C', 'D', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'] as $column) {
             $sheet->mergeCells($column.'2:'.$column.'4');
         }
         $sheet->mergeCells('E2:F3');
@@ -731,17 +731,12 @@ class AttendanceController extends Controller
         $sheet->setCellValue('E2', 'Periode Claim');
         $sheet->setCellValue('E4', 'Awal');
         $sheet->setCellValue('F4', 'Akhir');
-        $sheet->setCellValue('G2', 'Jenjang');
-        $sheet->setCellValue('G3', 'Pendidikan');
+        $sheet->setCellValue('G2', "Jenjang\nPendidikan");
         $sheet->setCellValue('H2', "Departemen/ Cost\nCenter");
         $sheet->setCellValue('I2', 'Status PKL');
-        $sheet->setCellValue('J2', 'Total');
-        $sheet->setCellValue('J3', 'Hari');
-        $sheet->setCellValue('J4', 'Kerja');
-        $sheet->setCellValue('K2', 'Uang PKL /');
-        $sheet->setCellValue('K3', 'MAGANG');
-        $sheet->setCellValue('L2', 'Total');
-        $sheet->setCellValue('L3', 'Diterima Aktual');
+        $sheet->setCellValue('J2', "Total\nHari\nKerja");
+        $sheet->setCellValue('K2', "Uang PKL /\nMAGANG");
+        $sheet->setCellValue('L2', "Total\nDiterima Aktual");
         $sheet->setCellValue('M2', 'Bank');
         $sheet->setCellValue('N2', "No\nRekening");
         $sheet->setCellValue('O2', "Kantor\nCabang");
@@ -844,7 +839,8 @@ class AttendanceController extends Controller
             $sheet->getRowDimension($row)->setRowHeight(23);
         }
         foreach (range($dataStartRow, $dataEndRow) as $row) {
-            $sheet->getRowDimension($row)->setRowHeight(20);
+            $paymentRow = $paymentRows->get($row - $dataStartRow, []);
+            $sheet->getRowDimension($row)->setRowHeight($this->transportPaymentDataRowHeight($paymentRow));
         }
         $sheet->getPageSetup()->setFitToWidth(1)->setFitToHeight(0);
         $sheet->getPageMargins()->setTop(0.25)->setRight(0.25)->setBottom(0.25)->setLeft(0.25);
@@ -1241,6 +1237,34 @@ class AttendanceController extends Controller
             RoleAccess::INTERN_REGULAR => 'MAGANG',
             default => 'INTERNSHIP 4.0',
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $paymentRow
+     */
+    private function transportPaymentDataRowHeight(array $paymentRow): float
+    {
+        $lineCounts = [
+            $this->wrappedLineCount($paymentRow['name'] ?? '', 28),
+            $this->wrappedLineCount($paymentRow['institution'] ?? '', 20),
+            $this->wrappedLineCount($paymentRow['education'] ?? '', 30),
+            $this->wrappedLineCount($paymentRow['costCenter'] ?? '', 18),
+            $this->wrappedLineCount($paymentRow['statusPkl'] ?? '', 18),
+        ];
+        $maxLines = max($lineCounts);
+
+        return min(76.0, max(26.0, $maxLines * 18.0));
+    }
+
+    private function wrappedLineCount(mixed $value, int $charactersPerLine): int
+    {
+        $text = trim((string) $value);
+
+        if ($text === '') {
+            return 1;
+        }
+
+        return max(1, (int) ceil(mb_strlen($text) / max(1, $charactersPerLine)));
     }
 
     /**
