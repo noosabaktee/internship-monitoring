@@ -4,6 +4,8 @@ use App\Models\MAdminProfile;
 use App\Models\MIntern;
 use App\Models\MMentor;
 use App\Models\MUser;
+use App\Models\TrNotification;
+use Database\Seeders\NotificationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 
@@ -67,13 +69,16 @@ it('allows HRD to update HRD data', function () {
         ->and($hrd->adminProfile->txtAdminProfilePosition)->toBe('HRD');
 });
 
-it('allows HRD and headmaster to manage intern cost center data', function () {
+it('allows HRD and headmaster to manage intern cost center and bank data', function () {
     $headmaster = createHrdMasterUser('Headmaster', 'Cost Center Headmaster');
 
     $this->withSession(['auth_user_id' => $headmaster->intUser_ID])
         ->get(route('interns.create'))
         ->assertOk()
-        ->assertSee('Cost Center');
+        ->assertSee('Cost Center')
+        ->assertSee('No Rekening')
+        ->assertSee('Kantor Cabang')
+        ->assertSee('Atas Nama');
 
     $this->withSession(['auth_user_id' => $headmaster->intUser_ID])
         ->post(route('interns.store'), [
@@ -86,6 +91,10 @@ it('allows HRD and headmaster to manage intern cost center data', function () {
             'txtInternCostCenter' => 'CC-1001',
             'txtInternType' => 'regular',
             'floatInternSalary' => '75000',
+            'txtInternBank' => 'BCA',
+            'txtInternBankAccountNumber' => '0012345678',
+            'txtInternBankBranch' => 'KCP Karawang',
+            'txtInternBankAccountName' => 'Cost Center Intern',
             'dtmInserted' => '2026-08-01',
             'dtmEndDate' => '2026-08-31',
             'bitActive' => '1',
@@ -94,7 +103,19 @@ it('allows HRD and headmaster to manage intern cost center data', function () {
 
     $intern = MIntern::where('txtInternName', 'Cost Center Intern')->firstOrFail();
 
-    expect($intern->txtInternCostCenter)->toBe('CC-1001');
+    $this->withSession(['auth_user_id' => $headmaster->intUser_ID])
+        ->get(route('interns.index'))
+        ->assertOk()
+        ->assertSee('BCA')
+        ->assertDontSee('No Rekening')
+        ->assertDontSee('Kantor Cabang')
+        ->assertDontSee('Atas Nama');
+
+    expect($intern->txtInternCostCenter)->toBe('CC-1001')
+        ->and($intern->txtInternBank)->toBe('BCA')
+        ->and($intern->txtInternBankAccountNumber)->toBe('0012345678')
+        ->and($intern->txtInternBankBranch)->toBe('KCP Karawang')
+        ->and($intern->txtInternBankAccountName)->toBe('Cost Center Intern');
 
     $hrd = createHrdMasterUser('HRD', 'Cost Center HRD');
 
@@ -108,13 +129,42 @@ it('allows HRD and headmaster to manage intern cost center data', function () {
             'txtInternCostCenter' => 'CC-2002',
             'txtInternType' => 'regular',
             'floatInternSalary' => '80000',
+            'txtInternBank' => 'Bank Mandiri',
+            'txtInternBankAccountNumber' => '0098765432',
+            'txtInternBankBranch' => 'KC Jakarta',
+            'txtInternBankAccountName' => 'Cost Center Intern Updated',
             'dtmInserted' => '2026-08-01',
             'dtmEndDate' => '2026-08-31',
             'bitActive' => '1',
         ])
         ->assertRedirect(route('interns.index'));
 
-    expect($intern->refresh()->txtInternCostCenter)->toBe('CC-2002');
+    $intern->refresh();
+
+    expect($intern->txtInternCostCenter)->toBe('CC-2002')
+        ->and($intern->txtInternBank)->toBe('Bank Mandiri')
+        ->and($intern->txtInternBankAccountNumber)->toBe('0098765432')
+        ->and($intern->txtInternBankBranch)->toBe('KC Jakarta')
+        ->and($intern->txtInternBankAccountName)->toBe('Cost Center Intern Updated');
+});
+
+it('seeds 50 notifications for each HRD and headmaster account', function () {
+    $headmaster = createHrdMasterUser('Headmaster', 'Notification Headmaster');
+    $hrd = createHrdMasterUser('HRD', 'Notification HRD');
+
+    $this->seed(NotificationSeeder::class);
+    $this->seed(NotificationSeeder::class);
+
+    expect(TrNotification::where('intUser_ID', $headmaster->intUser_ID)->count())->toBe(50)
+        ->and(TrNotification::where('intUser_ID', $hrd->intUser_ID)->count())->toBe(50)
+        ->and(TrNotification::whereNull('dtmNotificationRead')->count())->toBeGreaterThan(0);
+
+    $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+        ->get(route('notifications.index'))
+        ->assertOk()
+        ->assertSee('class="pagination"', false)
+        ->assertSee('page-item active', false)
+        ->assertDontSee('w-5 h-5', false);
 });
 
 it('allows headmaster to promote mentor to headmaster', function () {
@@ -203,7 +253,7 @@ it('blocks intern from HRD master data', function () {
 function createHrdMasterUser(string $role, string $name): MUser
 {
     $user = MUser::create([
-        'txtEmail' => strtolower(str_replace(' ', '.', $name)) . '@example.test',
+        'txtEmail' => strtolower(str_replace(' ', '.', $name)).'@example.test',
         'txtPassword' => Hash::make('password'),
         'txtRole' => $role,
         'bitActive' => true,

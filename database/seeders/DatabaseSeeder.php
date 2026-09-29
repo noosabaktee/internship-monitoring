@@ -115,6 +115,10 @@ class DatabaseSeeder extends Seeder
                     'txtDept' => $row['department'],
                     'txtInternType' => $row['type'],
                     'floatInternSalary' => $row['salary'],
+                    'txtInternBank' => ['BCA', 'Bank Mandiri', 'BNI', 'BRI'][$index % 4],
+                    'txtInternBankAccountNumber' => '000'.str_pad((string) (1000000 + $internId), 10, '0', STR_PAD_LEFT),
+                    'txtInternBankBranch' => ['KCP Karawang', 'KC Jakarta', 'KCP Bandung'][$index % 3],
+                    'txtInternBankAccountName' => $row['name'],
                     'txtBio' => null,
                     'dtmEndDate' => $this->dateFromSheet($row['end_date']),
                     'txtInternExtendEndDates' => [],
@@ -229,6 +233,7 @@ class DatabaseSeeder extends Seeder
                 ]);
             }
             $this->seedCalendarSharings();
+            $this->call(NotificationSeeder::class);
         });
     }
 

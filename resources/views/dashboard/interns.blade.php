@@ -35,7 +35,7 @@
         <div class="table-responsive">
             <table class="table data-table align-middle mb-0" data-status-filter="true" data-status-default="active">
                 <thead>
-                    <tr><th>ID</th><th>Full Name</th><th>Type</th><th>Salary / Day</th><th>Gender</th><th>Email</th><th>University</th><th>Dept</th><th>Cost Center</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
+                    <tr><th>ID</th><th>Full Name</th><th>Type</th><th>Salary / Day</th><th>Gender</th><th>Email</th><th>University</th><th>Dept</th><th>Cost Center</th><th>Bank</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($interns as $intern)
@@ -60,6 +60,7 @@
                             <td>{{ $intern->txtUniversity ?: '-' }}</td>
                             <td>{{ $intern->txtDept ?: '-' }}</td>
                             <td>{{ $intern->txtInternCostCenter ?: '-' }}</td>
+                            <td>{{ $intern->txtInternBank ?: '-' }}</td>
                             <td>{{ $intern->dtmInserted?->format('d M Y') ?? '-' }}</td>
                             <td>{{ $intern->dtmEndDate?->format('d M Y') ?? '-' }}</td>
                             <td><span class="status-badge {{ $intern->bitActive ? 'status-active' : 'status-inactive' }}">{{ $intern->bitActive ? 'Active' : 'Inactive' }}</span></td>
@@ -83,7 +84,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="13" class="center">No intern data yet.</td></tr>
+                        <tr><td colspan="14" class="center">No intern data yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -158,6 +159,23 @@
                 <div class="col-md-4">
                     <label class="form-label">Salary / Workday</label>
                     <input class="form-control" type="number" min="0" step="1000" name="floatInternSalary" value="{{ old('floatInternSalary', isset($editingIntern) ? number_format((float) ($editingIntern->floatInternSalary ?? 0), 0, '.', '') : 0) }}">
+                </div>
+                <div class="col-12"><hr><h6 class="mb-0">Data Rekening Pembayaran</h6></div>
+                <div class="col-md-6">
+                    <label class="form-label">Bank</label>
+                    <input class="form-control" name="txtInternBank" value="{{ old('txtInternBank', $editingIntern->txtInternBank ?? '') }}" placeholder="Contoh: BCA">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">No Rekening</label>
+                    <input class="form-control" name="txtInternBankAccountNumber" value="{{ old('txtInternBankAccountNumber', $editingIntern->txtInternBankAccountNumber ?? '') }}" inputmode="numeric" autocomplete="off">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Kantor Cabang</label>
+                    <input class="form-control" name="txtInternBankBranch" value="{{ old('txtInternBankBranch', $editingIntern->txtInternBankBranch ?? '') }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Atas Nama</label>
+                    <input class="form-control" name="txtInternBankAccountName" value="{{ old('txtInternBankAccountName', $editingIntern->txtInternBankAccountName ?? '') }}">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Join Date</label>

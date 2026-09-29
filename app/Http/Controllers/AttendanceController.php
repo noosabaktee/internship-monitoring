@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -766,6 +767,10 @@ class AttendanceController extends Controller
             $sheet->setCellValue('J'.$row, (int) ($paymentRow['presentCount'] ?? 0));
             $sheet->setCellValue('K'.$row, (float) ($paymentRow['dailySalary'] ?? 0));
             $sheet->setCellValue('L'.$row, (float) ($paymentRow['allowance'] ?? 0));
+            $sheet->setCellValue('M'.$row, $paymentRow['bank'] ?? '');
+            $sheet->setCellValueExplicit('N'.$row, (string) ($paymentRow['bankAccountNumber'] ?? ''), DataType::TYPE_STRING);
+            $sheet->setCellValue('O'.$row, $paymentRow['bankBranch'] ?? '');
+            $sheet->setCellValue('P'.$row, $paymentRow['bankAccountName'] ?? '');
         }
 
         $sheet->getStyle('A'.$dataStartRow.':A'.$dataEndRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('DAF2D0');
@@ -1195,6 +1200,10 @@ class AttendanceController extends Controller
                     'costCenter' => $intern?->txtInternCostCenter ?: '',
                     'statusPkl' => $this->paymentInternStatus($internType),
                     'dailySalary' => $dailySalary,
+                    'bank' => $intern?->txtInternBank ?: '',
+                    'bankAccountNumber' => $intern?->txtInternBankAccountNumber ?: '',
+                    'bankBranch' => $intern?->txtInternBankBranch ?: '',
+                    'bankAccountName' => $intern?->txtInternBankAccountName ?: '',
                     'cells' => $cells,
                     'presentCount' => $presentCount,
                     'notPresentCount' => $notPresentCount,

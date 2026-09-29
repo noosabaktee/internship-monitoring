@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\MUser;
 use App\Models\TrNotification;
 use App\Services\NotificationService;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -24,6 +25,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Paginator::useBootstrapFive();
+
         View::composer('components.topbar', function ($view): void {
             $userId = session('auth_user_id');
             $notifications = collect();

@@ -477,6 +477,10 @@ it('allows HRD to export filtered attendance report and salary slip', function (
         $intern->intern->update([
             'txtUniversity' => 'Institut Teknologi Sepuluh November',
             'txtInternCostCenter' => 'MDP',
+            'txtInternBank' => 'BCA',
+            'txtInternBankAccountNumber' => '0012345678',
+            'txtInternBankBranch' => 'KCP Karawang',
+            'txtInternBankAccountName' => 'Attendance Intern',
         ]);
         TrAttendance::create([
             'intUser_ID' => $intern->intUser_ID,
@@ -542,10 +546,10 @@ it('allows HRD to export filtered attendance report and salary slip', function (
             ->and((float) $paymentSheet->getCell('K5')->getValue())->toBe(100000.0)
             ->and((float) $paymentSheet->getCell('L5')->getValue())->toBe(100000.0)
             ->and(round($paymentSheet->getColumnDimension('M')->getWidth(), 2))->toBe(14.55)
-            ->and($paymentSheet->getCell('M5')->getValue())->toBeNull()
-            ->and($paymentSheet->getCell('N5')->getValue())->toBeNull()
-            ->and($paymentSheet->getCell('O5')->getValue())->toBeNull()
-            ->and($paymentSheet->getCell('P5')->getValue())->toBeNull()
+            ->and($paymentSheet->getCell('M5')->getValue())->toBe('BCA')
+            ->and($paymentSheet->getCell('N5')->getValue())->toBe('0012345678')
+            ->and($paymentSheet->getCell('O5')->getValue())->toBe('KCP Karawang')
+            ->and($paymentSheet->getCell('P5')->getValue())->toBe('Attendance Intern')
             ->and($paymentSheet->getCell('A11')->getValue())->toBe('TOTAL')
             ->and((float) $paymentSheet->getCell('H11')->getValue())->toBe(100000.0)
             ->and($paymentSheet->getCell('F22')->getValue())->toBe('Departemen/ Cost Center')
