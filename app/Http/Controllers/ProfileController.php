@@ -255,8 +255,6 @@ class ProfileController extends Controller
             'txtDept' => ['nullable', 'string', 'max:255'],
             'txtBio' => ['nullable', 'string', 'max:255'],
             'dtmInserted' => ['nullable', 'date'],
-            'dtmEndDate' => ['nullable', 'date', 'after_or_equal:dtmInserted'],
-            'bitActive' => ['nullable', 'boolean'],
         ]);
 
         $now = now();
@@ -279,8 +277,6 @@ class ProfileController extends Controller
             'txtDept' => $validated['txtDept'] ?? null,
             'txtBio' => $validated['txtBio'] ?? null,
             'dtmInserted' => $validated['dtmInserted'] ?? $intern->dtmInserted,
-            'dtmEndDate' => $validated['dtmEndDate'] ?? null,
-            'bitActive' => (bool) ($validated['bitActive'] ?? false),
             'txtUpdatedBy' => 'profile',
             'dtmUpdated' => $now,
         ]);
