@@ -40,7 +40,6 @@ class InternshipReminderController extends ApiController
                     'number' => $intern->txtInternNo,
                     'name' => $intern->txtInternName,
                     'user' => $intern->txtInternPicName,
-                    'pic_name' => $intern->txtInternPicName,
                     'email' => $intern->user->txtEmail,
                     'university' => $intern->txtUniversity,
                     'department' => $intern->txtDept,

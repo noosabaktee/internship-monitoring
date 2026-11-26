@@ -45,7 +45,7 @@ it('returns JSON when opened in a browser without login or a bearer token', func
         ->assertHeader('Content-Type', 'application/json')
         ->assertJsonPath('success', true)
         ->assertJsonPath('data.0.user', 'Admin PIC')
-        ->assertJsonPath('data.0.pic_name', 'Admin PIC')
+        ->assertJsonMissingPath('data.0.pic_name')
         ->assertJsonCount(1, 'data');
 });
 
@@ -71,7 +71,7 @@ it('returns all active intern types within the inclusive calendar-month window s
         ->assertJsonCount(3, 'data')
         ->assertJsonPath('data.0.id', $first->intIntern_ID)
         ->assertJsonPath('data.0.user', null)
-        ->assertJsonPath('data.0.pic_name', null)
+        ->assertJsonMissingPath('data.0.pic_name')
         ->assertJsonPath('data.0.remaining_days', 0)
         ->assertJsonPath('data.1.id', $middle->intIntern_ID)
         ->assertJsonPath('data.1.type', 'regular')
