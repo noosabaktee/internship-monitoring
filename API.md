@@ -260,6 +260,7 @@ API selalu melakukan pembatasan data di server. Mobile client tidak boleh mengan
 | `GET` | `/skill-sets` | Ya | Master skill set aktif |
 | `GET` | `/project-handles` | Headmaster | Bobot dan durasi project handle |
 | `GET` | `/interns` | Mentor/admin | Daftar intern digitalisasi |
+| `GET` | `/interns/ending-soon` | Tidak | Semua intern aktif yang selesai dalam satu bulan ke depan, untuk pengingat admin |
 | `GET` | `/interns/{intern}` | Owner/mentor/admin | Detail intern |
 | `GET` | `/mentors` | Ya | Daftar mentor aktif |
 | `GET` | `/achievements` | Sesuai role | Achievement |
@@ -403,6 +404,62 @@ Filter:
 ```text
 /calendar-sharings?from=2026-07-01&to=2026-07-31&status=Open
 ```
+
+#### `GET /interns/ending-soon`
+
+Mengambil intern yang masa internship-nya berakhir dari **hari ini sampai satu bulan kalender ke depan**, termasuk kedua tanggal batas. Endpoint ini menjadi sumber data pengingat **untuk admin (HRD/Headmaster)** melalui otomasi eksternal seperti n8n. Daftar intern merupakan isi pengingat; penerima WhatsApp adalah admin. Tidak memerlukan body atau query parameter.
+
+Aturan:
+
+- Endpoint publik, tanpa login, Bearer token, atau API key; dapat langsung dibuka di browser.
+- Mencakup semua tipe intern: `digitalisasi`, `regular`, dan `pkl`.
+- Profil intern dan akun terkait harus aktif, dan role akun terkait harus `Intern`.
+- Tanggal yang diperiksa adalah `effective_end_date`: tanggal paling akhir antara tanggal selesai awal dan seluruh perpanjangan. Intern tanpa tanggal selesai atau yang sudah lewat tidak dikirim.
+- Perhitungan menggunakan tanggal WIB (`Asia/Jakarta`). Contoh: 26 November sampai 26 Desember; 31 Januari sampai hari terakhir Februari.
+- Hasil diurutkan dari tanggal selesai terdekat, kemudian ID. **Seluruh hasil dikirim tanpa pagination**, sehingga satu request mengambil semua kandidat.
+
+Contoh request:
+
+```bash
+curl "http://127.0.0.1:8000/api/v1/interns/ending-soon" \
+  -H "Accept: application/json"
+```
+
+Contoh response pada 26 November 2026:
+
+```json
+{
+  "success": true,
+  "message": "Daftar intern yang akan selesai dalam satu bulan berhasil diambil.",
+  "data": [
+    {
+      "id": 4,
+      "user_id": 12,
+      "number": "INT-004",
+      "name": "Nama Intern",
+      "email": "intern@example.com",
+      "university": "Universitas Contoh",
+      "department": "IT",
+      "type": "regular",
+      "end_date": "2026-11-30",
+      "effective_end_date": "2026-12-10",
+      "remaining_days": 14
+    }
+  ],
+  "meta": {
+    "from_date": "2026-11-26",
+    "to_date": "2026-12-26",
+    "timezone": "Asia/Jakarta",
+    "total": 1
+  }
+}
+```
+
+`remaining_days` adalah selisih hari kalender terhadap hari ini; nilainya `0` jika selesai hari ini. Jika tidak ada kandidat, response tetap `200` dengan `data: []` dan `meta.total: 0`.
+
+Untuk melihat hasil langsung, buka `http://localhost:8000/api/v1/interns/ending-soon` di browser. Pada Postman atau node HTTP Request di n8n, gunakan method `GET` dan pilih **No Auth** / **Authentication: None**, lalu ambil array `data`. Respons selalu JSON, termasuk saat dibuka dari browser. Endpoint API lain tetap mengikuti autentikasinya masing-masing.
+
+Endpoint hanya membaca kandidat dan tidak mencatat atau mengirim pesan. Pemanggilan berulang pada hari yang sama mengembalikan kandidat yang sama selama datanya tidak berubah. Gunakan pasangan `id` dan `effective_end_date` sebagai kunci deduplikasi di otomasi bila pengingat hanya boleh dikirim sekali per tanggal selesai. Atur nomor WhatsApp admin sebagai tujuan di n8n; email intern dalam response hanya informasi pendukung.
 
 #### `GET /leaderboard`
 
