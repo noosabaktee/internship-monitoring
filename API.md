@@ -437,6 +437,8 @@ Contoh response pada 26 November 2026:
       "user_id": 12,
       "number": "INT-004",
       "name": "Nama Intern",
+      "user": "Nama Karyawan PIC",
+      "pic_name": "Nama Karyawan PIC",
       "email": "intern@example.com",
       "university": "Universitas Contoh",
       "department": "IT",
@@ -456,6 +458,8 @@ Contoh response pada 26 November 2026:
 ```
 
 `remaining_days` adalah selisih hari kalender terhadap hari ini; nilainya `0` jika selesai hari ini. Jika tidak ada kandidat, response tetap `200` dengan `data: []` dan `meta.total: 0`.
+
+`user` berisi nama karyawan/PIC yang membawahi intern (label **User** pada tabel, form Data Intern, dan profil intern), bukan akun login intern. `pic_name` tetap disertakan dengan nilai yang sama. Field ini opsional, maksimal 255 karakter, dan bernilai `null` jika belum diisi. Nama PIC juga tersedia sebagai `pic_name` pada payload intern di API lainnya. Pengisian dilakukan oleh HRD/Headmaster melalui form tambah/edit Data Intern.
 
 Untuk melihat hasil langsung, buka `http://localhost:8000/api/v1/interns/ending-soon` di browser. Pada Postman atau node HTTP Request di n8n, gunakan method `GET` dan pilih **No Auth** / **Authentication: None**, lalu ambil array `data`. Respons selalu JSON, termasuk saat dibuka dari browser. Endpoint API lain tetap mengikuti autentikasinya masing-masing.
 

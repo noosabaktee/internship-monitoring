@@ -94,6 +94,7 @@ abstract class ApiController extends Controller
             'user_id' => $intern->intUser_ID ? (int) $intern->intUser_ID : null,
             'number' => $intern->txtInternNo,
             'name' => $intern->txtInternName,
+            'pic_name' => $intern->txtInternPicName,
             'gender' => $intern->txtInternGender,
             'university' => $intern->txtUniversity,
             'department' => $intern->txtDept,

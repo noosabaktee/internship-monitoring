@@ -35,7 +35,7 @@
         <div class="table-responsive">
             <table class="table data-table align-middle mb-0" data-status-filter="true" data-status-default="active">
                 <thead>
-                    <tr><th>ID</th><th>Full Name</th><th>Type</th><th>Salary / Day</th><th>Gender</th><th>Email</th><th>University</th><th>Dept</th><th>Cost Center</th><th>Bank</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
+                    <tr><th>ID</th><th>Full Name</th><th>User</th><th>Type</th><th>Salary / Day</th><th>Gender</th><th>Email</th><th>University</th><th>Dept</th><th>Cost Center</th><th>Bank</th><th>Join Date</th><th>End Date</th><th>Status</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($interns as $intern)
@@ -53,6 +53,7 @@
                                     <span class="table-person-name">{{ $intern->txtInternName ?: '-' }}</span>
                                 </a>
                             </td>
+                            <td>{{ $intern->txtInternPicName ?: '-' }}</td>
                             <td>{{ $internTypeOptions[$intern->txtInternType ?: 'digitalisasi'] ?? ucfirst((string) $intern->txtInternType) }}</td>
                             <td>Rp {{ number_format((float) ($intern->floatInternSalary ?? 0), 0, ',', '.') }}</td>
                             <td>{{ $intern->txtInternGender ?: '-' }}</td>
@@ -84,7 +85,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="14" class="center">No intern data yet.</td></tr>
+                        <tr><td colspan="15" class="center">No intern data yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -127,6 +128,10 @@
                             <option value="{{ $genderValue }}" @selected(old('txtInternGender', $editingIntern->txtInternGender ?? '') === $genderValue)>{{ $genderLabel }}</option>
                         @endforeach
                     </select>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label" for="txtInternPicName">User</label>
+                    <input class="form-control" id="txtInternPicName" name="txtInternPicName" maxlength="255" value="{{ old('txtInternPicName', $editingIntern->txtInternPicName ?? '') }}" placeholder="Nama karyawan/PIC yang membawahi intern">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Email</label>

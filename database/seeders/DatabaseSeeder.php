@@ -110,6 +110,7 @@ class DatabaseSeeder extends Seeder
                     'intUser_ID' => $userId,
                     'txtInternNo' => 'INT-'.str_pad((string) $internId, 3, '0', STR_PAD_LEFT),
                     'txtInternName' => $row['name'],
+                    'txtInternPicName' => $row['mentor'],
                     'txtInternGender' => $row['gender'],
                     'txtUniversity' => $row['university'],
                     'txtDept' => $row['department'],

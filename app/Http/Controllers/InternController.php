@@ -40,6 +40,7 @@ class InternController extends Controller
             'txtEmail' => ['required', 'email', 'max:255', Rule::unique('mUser', 'txtEmail')],
             'txtPassword' => ['nullable', 'string', 'min:6'],
             'txtInternName' => ['required', 'string', 'max:255'],
+            'txtInternPicName' => ['nullable', 'string', 'max:255'],
             'txtInternGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtUniversity' => ['nullable', 'string', 'max:255'],
             'txtDept' => ['nullable', 'string', 'max:255'],
@@ -73,6 +74,7 @@ class InternController extends Controller
                 'intUser_ID' => $user->intUser_ID,
                 'txtInternNo' => 'INT-'.str_pad((string) $user->intUser_ID, 3, '0', STR_PAD_LEFT),
                 'txtInternName' => $validated['txtInternName'],
+                'txtInternPicName' => $validated['txtInternPicName'] ?? null,
                 'txtInternGender' => $validated['txtInternGender'] ?? null,
                 'txtUniversity' => $validated['txtUniversity'] ?? null,
                 'txtDept' => $validated['txtDept'] ?? null,
@@ -132,6 +134,7 @@ class InternController extends Controller
             'txtEmail' => ['required', 'email', 'max:255', Rule::unique('mUser', 'txtEmail')->ignore($internModel->intUser_ID, 'intUser_ID')],
             'txtPassword' => ['nullable', 'string', 'min:6'],
             'txtInternName' => ['required', 'string', 'max:255'],
+            'txtInternPicName' => ['nullable', 'string', 'max:255'],
             'txtInternGender' => ['nullable', Rule::in(['Male', 'Female', 'Laki-laki', 'Perempuan'])],
             'txtUniversity' => ['nullable', 'string', 'max:255'],
             'txtDept' => ['nullable', 'string', 'max:255'],
@@ -166,6 +169,7 @@ class InternController extends Controller
             $internModel->user->update($userData);
             $internModel->update([
                 'txtInternName' => $validated['txtInternName'],
+                'txtInternPicName' => $validated['txtInternPicName'] ?? null,
                 'txtInternGender' => $validated['txtInternGender'] ?? null,
                 'txtUniversity' => $validated['txtUniversity'] ?? null,
                 'txtDept' => $validated['txtDept'] ?? null,

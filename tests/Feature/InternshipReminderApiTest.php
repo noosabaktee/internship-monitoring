@@ -38,12 +38,14 @@ afterEach(function () {
 });
 
 it('returns JSON when opened in a browser without login or a bearer token', function () {
-    ($this->createReminderIntern)();
+    ($this->createReminderIntern)(['txtInternPicName' => 'Admin PIC']);
 
     $this->withHeader('Accept', 'text/html')->get('/api/v1/interns/ending-soon')
         ->assertOk()
         ->assertHeader('Content-Type', 'application/json')
         ->assertJsonPath('success', true)
+        ->assertJsonPath('data.0.user', 'Admin PIC')
+        ->assertJsonPath('data.0.pic_name', 'Admin PIC')
         ->assertJsonCount(1, 'data');
 });
 
@@ -68,6 +70,8 @@ it('returns all active intern types within the inclusive calendar-month window s
         ->assertJsonPath('success', true)
         ->assertJsonCount(3, 'data')
         ->assertJsonPath('data.0.id', $first->intIntern_ID)
+        ->assertJsonPath('data.0.user', null)
+        ->assertJsonPath('data.0.pic_name', null)
         ->assertJsonPath('data.0.remaining_days', 0)
         ->assertJsonPath('data.1.id', $middle->intIntern_ID)
         ->assertJsonPath('data.1.type', 'regular')

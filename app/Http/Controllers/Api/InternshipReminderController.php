@@ -23,6 +23,7 @@ class InternshipReminderController extends ApiController
                 ->where('txtRole', RoleAccess::ROLE_INTERN))
             ->get([
                 'intIntern_ID', 'intUser_ID', 'txtInternNo', 'txtInternName',
+                'txtInternPicName',
                 'txtUniversity', 'txtDept', 'txtInternType', 'dtmEndDate',
                 'txtInternExtendEndDates',
             ])
@@ -38,6 +39,8 @@ class InternshipReminderController extends ApiController
                     'user_id' => (int) $intern->intUser_ID,
                     'number' => $intern->txtInternNo,
                     'name' => $intern->txtInternName,
+                    'user' => $intern->txtInternPicName,
+                    'pic_name' => $intern->txtInternPicName,
                     'email' => $intern->user->txtEmail,
                     'university' => $intern->txtUniversity,
                     'department' => $intern->txtDept,

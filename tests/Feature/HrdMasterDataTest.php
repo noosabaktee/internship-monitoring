@@ -69,12 +69,13 @@ it('allows HRD to update HRD data', function () {
         ->and($hrd->adminProfile->txtAdminProfilePosition)->toBe('HRD');
 });
 
-it('allows HRD and headmaster to manage intern cost center and bank data', function () {
+it('allows HRD and headmaster to manage intern PIC cost center and bank data', function () {
     $headmaster = createHrdMasterUser('Headmaster', 'Cost Center Headmaster');
 
     $this->withSession(['auth_user_id' => $headmaster->intUser_ID])
         ->get(route('interns.create'))
         ->assertOk()
+        ->assertSee('name="txtInternPicName"', false)
         ->assertSee('Cost Center')
         ->assertSee('No Rekening')
         ->assertSee('Kantor Cabang')
@@ -85,6 +86,7 @@ it('allows HRD and headmaster to manage intern cost center and bank data', funct
             'txtEmail' => 'cost.center.intern@example.test',
             'txtPassword' => 'password',
             'txtInternName' => 'Cost Center Intern',
+            'txtInternPicName' => 'Nama PIC Awal',
             'txtInternGender' => 'Perempuan',
             'txtUniversity' => 'KMI University',
             'txtDept' => 'Finance',
@@ -106,12 +108,15 @@ it('allows HRD and headmaster to manage intern cost center and bank data', funct
     $this->withSession(['auth_user_id' => $headmaster->intUser_ID])
         ->get(route('interns.index'))
         ->assertOk()
+        ->assertSee('<th>User</th>', false)
+        ->assertSeeText('Nama PIC Awal')
         ->assertSee('BCA')
         ->assertDontSee('No Rekening')
         ->assertDontSee('Kantor Cabang')
         ->assertDontSee('Atas Nama');
 
     expect($intern->txtInternCostCenter)->toBe('CC-1001')
+        ->and($intern->txtInternPicName)->toBe('Nama PIC Awal')
         ->and($intern->txtInternBank)->toBe('BCA')
         ->and($intern->txtInternBankAccountNumber)->toBe('0012345678')
         ->and($intern->txtInternBankBranch)->toBe('KCP Karawang')
@@ -120,9 +125,15 @@ it('allows HRD and headmaster to manage intern cost center and bank data', funct
     $hrd = createHrdMasterUser('HRD', 'Cost Center HRD');
 
     $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+        ->get(route('interns.edit', $intern->intIntern_ID))
+        ->assertOk()
+        ->assertSee('value="Nama PIC Awal"', false);
+
+    $this->withSession(['auth_user_id' => $hrd->intUser_ID])
         ->put(route('interns.update', $intern->intIntern_ID), [
             'txtEmail' => 'cost.center.updated@example.test',
             'txtInternName' => 'Cost Center Intern Updated',
+            'txtInternPicName' => 'Nama PIC Baru',
             'txtInternGender' => 'Perempuan',
             'txtUniversity' => 'KMI University',
             'txtDept' => 'Finance',
@@ -142,11 +153,69 @@ it('allows HRD and headmaster to manage intern cost center and bank data', funct
     $intern->refresh();
 
     expect($intern->txtInternCostCenter)->toBe('CC-2002')
+        ->and($intern->txtInternPicName)->toBe('Nama PIC Baru')
         ->and($intern->txtInternBank)->toBe('Bank Mandiri')
         ->and($intern->txtInternBankAccountNumber)->toBe('0098765432')
         ->and($intern->txtInternBankBranch)->toBe('KC Jakarta')
         ->and($intern->txtInternBankAccountName)->toBe('Cost Center Intern Updated');
 });
+
+it('allows intern PIC names to be omitted and cleared', function () {
+    $hrd = createHrdMasterUser('HRD', 'Optional PIC HRD');
+    $payload = [
+        'txtEmail' => 'optional.pic@example.test',
+        'txtPassword' => 'password',
+        'txtInternName' => 'Optional PIC Intern',
+        'txtInternType' => 'regular',
+        'bitActive' => '1',
+    ];
+
+    $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+        ->post(route('interns.store'), $payload)
+        ->assertRedirect(route('interns.index'))
+        ->assertSessionHasNoErrors();
+
+    $intern = MIntern::where('txtInternName', 'Optional PIC Intern')->firstOrFail();
+    expect($intern->txtInternPicName)->toBeNull();
+
+    $intern->update(['txtInternPicName' => 'Previous PIC']);
+
+    $this->put(route('interns.update', $intern->intIntern_ID), [
+        ...$payload,
+        'txtInternPicName' => '',
+    ])->assertRedirect(route('interns.index'))->assertSessionHasNoErrors();
+
+    expect($intern->fresh()->txtInternPicName)->toBeNull();
+});
+
+it('rejects invalid intern PIC names on creation and update', function (mixed $invalidName) {
+    $hrd = createHrdMasterUser('HRD', 'PIC Validation HRD');
+    $payload = [
+        'txtEmail' => 'pic.validation@example.test',
+        'txtPassword' => 'password',
+        'txtInternName' => 'PIC Validation Intern',
+        'txtInternType' => 'regular',
+        'bitActive' => '1',
+    ];
+
+    $this->withSession(['auth_user_id' => $hrd->intUser_ID])
+        ->post(route('interns.store'), [...$payload, 'txtInternPicName' => $invalidName])
+        ->assertSessionHasErrors('txtInternPicName');
+
+    expect(MIntern::count())->toBe(0);
+
+    $this->post(route('interns.store'), [...$payload, 'txtInternPicName' => 'Valid PIC'])
+        ->assertSessionHasNoErrors();
+    $intern = MIntern::where('txtInternName', 'PIC Validation Intern')->firstOrFail();
+
+    $this->put(route('interns.update', $intern->intIntern_ID), [...$payload, 'txtInternPicName' => $invalidName])
+        ->assertSessionHasErrors('txtInternPicName');
+
+    expect($intern->fresh()->txtInternPicName)->toBe('Valid PIC');
+})->with([
+    'too long' => [str_repeat('a', 256)],
+    'not a string' => [['PIC A', 'PIC B']],
+]);
 
 it('seeds 50 notifications for each HRD and headmaster account', function () {
     $headmaster = createHrdMasterUser('Headmaster', 'Notification Headmaster');

@@ -23,6 +23,7 @@ class MIntern extends Model
         'intUser_ID',
         'txtInternNo',
         'txtInternName',
+        'txtInternPicName',
         'txtInternGender',
         'txtUniversity',
         'txtDept',

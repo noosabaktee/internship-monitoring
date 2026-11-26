@@ -28,6 +28,7 @@ beforeEach(function () {
         'intUser_ID' => $user->intUser_ID,
         'txtInternNo' => 'INT-001',
         'txtInternName' => 'API Intern',
+        'txtInternPicName' => 'API Intern PIC',
         'txtInternType' => 'digitalisasi',
         'bitActive' => true,
         'txtInsertedBy' => 'test',
@@ -59,6 +60,7 @@ it('logs in and authenticates subsequent API requests with the returned token', 
         ->getJson('/api/v1/me')
         ->assertOk()
         ->assertJsonPath('success', true)
+        ->assertJsonPath('data.intern.pic_name', 'API Intern PIC')
         ->assertJsonPath('data.name', 'API Intern');
 });
 

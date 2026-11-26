@@ -26,6 +26,18 @@ beforeEach(function () {
     $this->withSession(['auth_user_id' => $this->user->intUser_ID]);
 });
 
+it('shows the assigned User on the intern profile', function () {
+    $this->intern->update(['txtInternPicName' => 'Nama Karyawan PIC']);
+
+    $this->get(route('profile.show'))
+        ->assertOk()
+        ->assertSeeText('User: Nama Karyawan PIC');
+
+    $this->get(route('profile.intern.show', $this->intern->intIntern_ID))
+        ->assertOk()
+        ->assertSeeText('User: Nama Karyawan PIC');
+});
+
 it('shows the saved end date as disabled even when old input contains a different date', function () {
     $response = $this->withSession(['_old_input' => ['dtmEndDate' => '2027-01-31']])
         ->get(route('profile.edit'))
